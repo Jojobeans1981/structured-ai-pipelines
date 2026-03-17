@@ -1,0 +1,21 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Project artifacts (generated per-project, not part of the skill definitions)
+docs/PRD.md
+docs/phases/
+docs/prompts/
+docs/validation/
+docs/state/
+docs/diagnostic/
+docs/metrics/
+docs/lessons-learned-index.md
+docs/DEV_LOG.md
+docs/ISSUES_TRACKER.md
+docs/AI_DECISIONS.md
+docs/AI_COST_LOG.md

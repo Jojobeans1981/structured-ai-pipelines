@@ -1,5 +1,5 @@
 /**
- * D.I.C.K. Coordination Layer — Model Router
+ * Forge Coordination Layer — Model Router
  *
  * Routes tasks to the optimal inference backend based on task complexity:
  * - HEAVY tasks (PRD, architecture, scaffolding) → Claude API

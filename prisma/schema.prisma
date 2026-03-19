@@ -36,6 +36,7 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
+  created_at        Int?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -85,6 +86,12 @@ model PipelineRun {
   completedAt       DateTime?
   totalDurationMs   Int?
 
+  // DAG execution fields
+  executionPlan     Json?          // serialized ExecutionPlan { nodes, edges }
+  planApproved      Boolean        @default(false)
+  outputPath        String?        // disk path for generated project files
+  executionMode     String         @default("linear") // 'linear' | 'dag'
+
   project Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   stages  PipelineStage[]
   files   ProjectFile[]
@@ -105,6 +112,17 @@ model PipelineStage {
   completedAt     DateTime?
   durationMs      Int?
   approvedAt      DateTime?
+
+  // DAG execution fields
+  dependsOn       String[]  @default([])   // IDs of stages this node depends on
+  nodeType        String    @default("skill") // 'agent' | 'skill' | 'verify' | 'gate'
+  parallelGroup   String?                  // group ID for concurrent execution
+  gateType        String?                  // 'plan_approval' | 'phase_review' | 'final_review'
+  retryCount      Int       @default(0)
+  maxRetries      Int       @default(2)
+  outputDir       String?                  // disk path for file output from this node
+  phaseIndex      Int?                     // which phase this node belongs to
+  nodeId          String?                  // DAG node ID (stable across retries)
 
   run   PipelineRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
   files ProjectFile[]

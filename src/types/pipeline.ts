@@ -1,6 +1,7 @@
-export type PipelineType = 'build' | 'diagnostic';
-export type RunStatus = 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
-export type StageStatus = 'pending' | 'running' | 'awaiting_approval' | 'approved' | 'rejected' | 'skipped';
+export type PipelineType = 'build' | 'diagnostic' | 'refactor' | 'enhance' | 'test' | 'deploy';
+export type RunStatus = 'running' | 'paused' | 'completed' | 'failed' | 'cancelled' | 'planning';
+export type StageStatus = 'pending' | 'running' | 'awaiting_approval' | 'approved' | 'rejected' | 'skipped' | 'failed' | 'retrying';
+export type ExecutionMode = 'linear' | 'dag';
 
 export interface PipelineStageDefinition {
   skillName: string;
@@ -8,6 +9,7 @@ export interface PipelineStageDefinition {
   description: string;
 }
 
+// Legacy linear stage definitions (backward compatible)
 export const BUILD_PIPELINE_STAGES: PipelineStageDefinition[] = [
   { skillName: 'prd-architect', displayName: 'PRD Generation', description: 'Generate complete Product Requirements Document' },
   { skillName: 'phase-builder', displayName: 'Phase Extraction', description: 'Extract standalone phase documents from PRD' },

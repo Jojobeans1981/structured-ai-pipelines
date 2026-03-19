@@ -1,111 +1,161 @@
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+    --background: 20 14% 4%;
+    --foreground: 35 20% 90%;
+    --card: 20 14% 6%;
+    --card-foreground: 35 20% 90%;
+    --popover: 20 14% 6%;
+    --popover-foreground: 35 20% 90%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 20 14% 4%;
+    --secondary: 20 14% 12%;
+    --secondary-foreground: 35 20% 85%;
+    --muted: 20 10% 14%;
+    --muted-foreground: 30 8% 50%;
+    --accent: 25 80% 16%;
+    --accent-foreground: 30 95% 65%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 20 12% 14%;
+    --input: 20 12% 16%;
+    --ring: 25 95% 53%;
+    --radius: 0.5rem;
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+    /* Forge custom properties */
+    --forge-ember: 15 90% 50%;
+    --forge-flame: 25 95% 53%;
+    --forge-blaze: 35 95% 55%;
+    --forge-molten: 40 96% 60%;
+    --forge-ash: 20 8% 20%;
+    --forge-smoke: 20 5% 35%;
+    --forge-iron: 20 14% 8%;
   }
 }
 
 @layer base {
-  :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.809 0.105 251.813);
-    --chart-2: oklch(0.623 0.214 259.815);
-    --chart-3: oklch(0.546 0.245 262.881);
-    --chart-4: oklch(0.488 0.243 264.376);
-    --chart-5: oklch(0.424 0.199 265.638);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-  }
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.809 0.105 251.813);
-    --chart-2: oklch(0.623 0.214 259.815);
-    --chart-3: oklch(0.546 0.245 262.881);
-    --chart-4: oklch(0.488 0.243 264.376);
-    --chart-5: oklch(0.424 0.199 265.638);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-  }
-  .theme {
-    --font-sans: var(--font-sans);
-  }
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
   }
-  html {
-    @apply font-sans;
+}
+
+/* Forge fire animations */
+@keyframes ember-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+@keyframes forge-pulse {
+  0%, 100% { box-shadow: 0 0 8px 0 rgba(249, 115, 22, 0.3); }
+  50% { box-shadow: 0 0 20px 4px rgba(249, 115, 22, 0.5); }
+}
+
+@keyframes ember-float {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-40px) scale(0); opacity: 0; }
+}
+
+@keyframes flame-flicker {
+  0%, 100% { transform: scaleY(1) scaleX(1); }
+  25% { transform: scaleY(1.05) scaleX(0.97); }
+  50% { transform: scaleY(0.95) scaleX(1.03); }
+  75% { transform: scaleY(1.02) scaleX(0.98); }
+}
+
+@keyframes molten-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@layer utilities {
+  .ember-glow {
+    animation: ember-glow 2s ease-in-out infinite;
   }
+
+  .forge-pulse {
+    animation: forge-pulse 2s ease-in-out infinite;
+  }
+
+  .flame-flicker {
+    animation: flame-flicker 3s ease-in-out infinite;
+  }
+
+  .forge-gradient {
+    background: linear-gradient(135deg, hsl(15 90% 50%), hsl(25 95% 53%), hsl(35 95% 55%));
+  }
+
+  .forge-gradient-text {
+    background: linear-gradient(135deg, hsl(25 95% 55%), hsl(35 95% 60%), hsl(40 96% 65%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .forge-border-glow {
+    border-color: hsl(25 95% 53% / 0.3);
+    box-shadow: 0 0 12px -2px hsl(25 95% 53% / 0.15), inset 0 0 12px -4px hsl(25 95% 53% / 0.05);
+  }
+
+  .forge-card {
+    background: linear-gradient(180deg, hsl(20 14% 7%) 0%, hsl(20 14% 5%) 100%);
+    border-color: hsl(25 40% 18%);
+  }
+
+  .forge-card:hover {
+    border-color: hsl(25 80% 30%);
+    box-shadow: 0 0 20px -4px hsl(25 95% 53% / 0.15);
+  }
+
+  .molten-gradient {
+    background: linear-gradient(-45deg, hsl(0 90% 45%), hsl(15 90% 50%), hsl(30 95% 55%), hsl(45 95% 55%));
+    background-size: 400% 400%;
+    animation: molten-flow 8s ease infinite;
+  }
+
+  .forge-sidebar {
+    background: linear-gradient(180deg, hsl(20 14% 5%) 0%, hsl(20 16% 3%) 100%);
+    border-right: 1px solid hsl(25 40% 14%);
+  }
+
+  .forge-header {
+    background: hsl(20 14% 5% / 0.8);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid hsl(25 30% 14%);
+  }
+
+  .forge-terminal {
+    background: linear-gradient(180deg, hsl(20 20% 4%) 0%, hsl(15 15% 3%) 100%);
+    border: 1px solid hsl(25 40% 14%);
+  }
+
+  .forge-terminal .cursor-blink {
+    background: hsl(25 95% 53%);
+    animation: ember-glow 1s ease-in-out infinite;
+  }
+}
+
+/* Scrollbar styling for forge theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(20 14% 5%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(20 14% 18%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(25 40% 25%);
 }

@@ -1,0 +1,163 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUser, unauthorizedResponse } from '@/src/lib/auth-helpers';
+import { routeTask } from '@/src/lib/model-router';
+import { prisma } from '@/src/lib/prisma';
+import { DAGExecutor } from '@/src/services/dag-executor';
+import { BuildVerifier } from '@/src/services/build-verifier';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { runId: string; nodeId: string } }
+) {
+  const user = await getAuthenticatedUser();
+  if (!user) return unauthorizedResponse();
+
+  const run = await prisma.pipelineRun.findUnique({
+    where: { id: params.runId },
+    include: {
+      project: { select: { userId: true } },
+    },
+  });
+
+  if (!run || run.project.userId !== user.id) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const stage = await prisma.pipelineStage.findUnique({
+    where: { id: params.nodeId },
+  });
+
+  if (!stage || stage.runId !== params.runId) {
+    return NextResponse.json({ error: 'Node not found' }, { status: 404 });
+  }
+
+  if (stage.status !== 'running') {
+    return NextResponse.json({ error: 'Node is not running' }, { status: 400 });
+  }
+
+  // Handle verify nodes differently
+  if (stage.nodeType === 'verify') {
+    return handleVerifyNode(params.runId, stage.id, run.outputPath);
+  }
+
+  // Route to optimal backend based on skill complexity
+  let routingResult;
+  try {
+    routingResult = await routeTask(stage.skillName, user.id);
+    console.log(`[SSE /nodes/stream] ${routingResult.reason}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 403 });
+  }
+  const anthropicClient = routingResult.client;
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      const send = (event: object) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      };
+
+      try {
+        const generator = DAGExecutor.executeNode(
+          params.runId,
+          stage.id,
+          anthropicClient,
+          request.signal
+        );
+
+        let fullText = '';
+        for await (const token of generator) {
+          fullText += token;
+          send({ type: 'token', data: { text: token } });
+        }
+
+        await DAGExecutor.completeNode(stage.id, fullText, fullText);
+        send({
+          type: 'checkpoint',
+          data: { stageId: stage.id, nodeId: stage.nodeId, artifact: fullText },
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`[SSE /nodes/stream] Node ${stage.id} error:`, message);
+        send({ type: 'error', data: { message, stageId: stage.id } });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
+}
+
+async function handleVerifyNode(
+  runId: string,
+  stageId: string,
+  outputPath: string | null
+) {
+  if (!outputPath) {
+    return NextResponse.json({ error: 'No output path set for this run' }, { status: 400 });
+  }
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      const send = (event: object) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      };
+
+      try {
+        send({ type: 'token', data: { text: `Verifying build in ${outputPath}...\n\n` } });
+
+        const result = await BuildVerifier.verify(outputPath);
+
+        let output = '';
+        output += `## Build Verification ${result.success ? 'PASSED' : 'FAILED'}\n\n`;
+        output += `**Duration:** ${result.durationMs}ms\n\n`;
+
+        if (result.installOutput) {
+          output += `### Install Output\n\`\`\`\n${result.installOutput.substring(0, 2000)}\n\`\`\`\n\n`;
+        }
+
+        if (result.buildOutput) {
+          output += `### Build Output\n\`\`\`\n${result.buildOutput.substring(0, 2000)}\n\`\`\`\n\n`;
+        }
+
+        if (result.errors.length > 0) {
+          output += `### Errors\n${result.errors.map((e) => `- ${e}`).join('\n')}\n\n`;
+        }
+
+        if (result.warnings.length > 0) {
+          output += `### Warnings\n${result.warnings.map((w) => `- ${w}`).join('\n')}\n\n`;
+        }
+
+        send({ type: 'token', data: { text: output } });
+
+        await DAGExecutor.completeNode(stageId, output, output);
+        send({
+          type: 'checkpoint',
+          data: { stageId, artifact: output },
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        send({ type: 'error', data: { message, stageId } });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
+}

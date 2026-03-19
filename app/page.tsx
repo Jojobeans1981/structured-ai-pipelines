@@ -1,101 +1,113 @@
-import Image from "next/image";
+import { getServerSession } from 'next-auth';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { authOptions } from '@/src/lib/auth';
+import { prisma } from '@/src/lib/prisma';
+import { Header } from '@/src/components/layout/header';
+import { PageContainer } from '@/src/components/layout/page-container';
+import { ProjectCard } from '@/src/components/project/project-card';
+import { Button } from '@/src/components/ui/button';
+import { Plus, Flame, GitBranch, Zap, FolderOpen } from 'lucide-react';
+import { type ProjectSummary } from '@/src/types/project';
 
-export default function Home() {
+export default async function DashboardPage() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect('/api/auth/signin');
+
+  const projects = await prisma.project.findMany({
+    where: { userId: session.user.id },
+    orderBy: { updatedAt: 'desc' },
+    include: {
+      _count: { select: { runs: true } },
+      runs: {
+        orderBy: { startedAt: 'desc' },
+        take: 1,
+        select: { status: true, type: true },
+      },
+    },
+  });
+
+  const totalRuns = await prisma.pipelineRun.count({
+    where: { project: { userId: session.user.id } },
+  });
+
+  const completedRuns = await prisma.pipelineRun.count({
+    where: { project: { userId: session.user.id }, status: 'completed' },
+  });
+
+  const projectSummaries: ProjectSummary[] = projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    status: p.status as ProjectSummary['status'],
+    createdAt: p.createdAt.toISOString(),
+    updatedAt: p.updatedAt.toISOString(),
+    runCount: p._count.runs,
+    lastRunStatus: p.runs[0]?.status ?? null,
+    lastRunType: p.runs[0]?.type ?? null,
+  }));
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <>
+      <Header title="Dashboard">
+        <Link href="/projects/new">
+          <Button size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            New Project
+          </Button>
+        </Link>
+      </Header>
+      <PageContainer>
+        {projectSummaries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="relative mb-6">
+              <Flame className="h-16 w-16 text-orange-500/30 flame-flicker" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Flame className="h-16 w-16 text-orange-500/10 blur-lg" />
+              </div>
+            </div>
+            <h2 className="text-xl font-semibold text-zinc-200">The forge awaits</h2>
+            <p className="mt-2 text-sm text-zinc-500 max-w-sm">
+              Create your first project to begin forging code with structured AI pipelines.
+            </p>
+            <Link href="/projects/new" className="mt-6">
+              <Button>
+                <Flame className="mr-2 h-4 w-4" />
+                Ignite a Project
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Stats bar */}
+            <div className="flex items-center gap-6 text-sm text-zinc-400">
+              <span className="flex items-center gap-1.5">
+                <FolderOpen className="h-4 w-4 text-orange-400" />
+                <span className="font-medium text-zinc-200">{projects.length}</span> projects
+              </span>
+              <span className="flex items-center gap-1.5">
+                <GitBranch className="h-4 w-4 text-orange-400" />
+                <span className="font-medium text-zinc-200">{totalRuns}</span> pipeline runs
+              </span>
+              {totalRuns > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Zap className="h-4 w-4 text-emerald-400" />
+                  <span className="font-medium text-zinc-200">
+                    {totalRuns > 0 ? Math.round((completedRuns / totalRuns) * 100) : 0}%
+                  </span> success rate
+                </span>
+              )}
+            </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+            {/* Project grid */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {projectSummaries.map((project) => (
+                <ProjectCard key={project.id} project={project} />
+              ))}
+            </div>
+          </div>
+        )}
+      </PageContainer>
+    </>
   );
 }

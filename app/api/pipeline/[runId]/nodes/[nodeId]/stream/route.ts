@@ -58,6 +58,7 @@ export async function GET(
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
       };
 
+      let fullText = '';
       try {
         const generator = DAGExecutor.executeNode(
           params.runId,
@@ -66,7 +67,6 @@ export async function GET(
           request.signal
         );
 
-        let fullText = '';
         for await (const token of generator) {
           fullText += token;
           send({ type: 'token', data: { text: token } });
@@ -80,6 +80,22 @@ export async function GET(
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         console.error(`[SSE /nodes/stream] Node ${stage.id} error:`, message);
+
+        // Reset stage to awaiting_approval with error so user can retry
+        try {
+          await prisma.pipelineStage.update({
+            where: { id: stage.id },
+            data: {
+              status: 'awaiting_approval',
+              artifactContent: `**Error during execution:**\n\n${message}\n\nYou can reject this stage to retry.`,
+              streamContent: fullText || null,
+            },
+          });
+        } catch {
+          // If we can't even update the stage, log it
+          console.error(`[SSE /nodes/stream] Failed to reset stage ${stage.id} after error`);
+        }
+
         send({ type: 'error', data: { message, stageId: stage.id } });
       } finally {
         controller.close();
@@ -146,6 +162,15 @@ async function handleVerifyNode(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
+        try {
+          await prisma.pipelineStage.update({
+            where: { id: stageId },
+            data: {
+              status: 'awaiting_approval',
+              artifactContent: `**Build verification error:**\n\n${message}\n\nReject to retry.`,
+            },
+          });
+        } catch { /* non-fatal */ }
         send({ type: 'error', data: { message, stageId } });
       } finally {
         controller.close();

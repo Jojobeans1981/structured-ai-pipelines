@@ -42,8 +42,8 @@ export class BuildVerifier {
           if (existsSync(join(outputDir, 'requirements.txt'))) {
             installOutput = BuildVerifier.runCommand('pip install -r requirements.txt', outputDir);
           }
-          // Python doesn't have a standard "build" step — check syntax
-          buildOutput = BuildVerifier.runCommand('python -m py_compile *.py', outputDir);
+          // Python doesn't have a standard "build" step — check syntax of all .py files
+          buildOutput = BuildVerifier.runCommand('find . -name "*.py" -exec python -m py_compile {} +', outputDir);
           break;
 
         case 'go':

@@ -207,12 +207,25 @@ export function createOllamaClient(): unknown {
 }
 
 /**
- * Check if Ollama is reachable.
+ * Check if Ollama is reachable and the configured model exists.
  */
 export async function isOllamaAvailable(): Promise<boolean> {
   try {
     const res = await fetch(`${OLLAMA_BASE}/api/tags`, { signal: AbortSignal.timeout(3000) });
-    return res.ok;
+    if (!res.ok) return false;
+
+    const data = await res.json();
+    const models = data.models?.map((m: { name: string }) => m.name) || [];
+    const hasModel = models.some((name: string) =>
+      name === OLLAMA_MODEL || name.startsWith(`${OLLAMA_MODEL}:`)
+    );
+
+    if (!hasModel) {
+      console.warn(`[Ollama] Model "${OLLAMA_MODEL}" not found. Available: ${models.join(', ')}`);
+      // Still return true — Ollama will pull the model on first request
+    }
+
+    return true;
   } catch {
     return false;
   }

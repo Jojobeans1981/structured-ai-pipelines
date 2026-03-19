@@ -6,6 +6,7 @@ import { DiskWriter } from '@/src/services/disk-writer';
 import { type ExecutionPlan, type DAGNode } from '@/src/types/dag';
 import { GraphExpander } from '@/src/services/graph-expander';
 import { MetricsService } from '@/src/services/metrics-service';
+import { CostTracker, type TokenUsage } from '@/src/services/cost-tracker';
 
 interface AdvanceResult {
   readyNodes: Array<{ id: string; nodeId: string; skillName: string; displayName: string; nodeType: string }>;
@@ -352,6 +353,15 @@ export class DAGExecutor {
     for await (const token of generator) {
       fullText += token;
       yield token;
+    }
+
+    // Record token usage after stream completes
+    if (executor.lastUsage) {
+      try {
+        await CostTracker.recordStageUsage(stageId, executor.lastUsage);
+      } catch (err) {
+        console.error('[DAGExecutor] Failed to record token usage (non-fatal):', err);
+      }
     }
 
     return fullText;

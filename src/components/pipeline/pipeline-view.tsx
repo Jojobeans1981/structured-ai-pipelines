@@ -14,6 +14,7 @@ import { RootCauseDisplay } from '@/src/components/pipeline/root-cause-display';
 import { FixDiffViewer } from '@/src/components/pipeline/fix-diff-viewer';
 import { DAGView } from '@/src/components/pipeline/dag-view';
 import { PlanApproval } from '@/src/components/pipeline/plan-approval';
+import { CostDisplay } from '@/src/components/pipeline/cost-display';
 import { useKeyboardShortcuts } from '@/src/hooks/use-keyboard-shortcuts';
 
 interface PipelineViewProps {
@@ -302,25 +303,28 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
 
       {/* Pipeline Complete */}
       {store.status === 'completed' && (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-8 text-center">
-          <CheckCircle2 className="h-10 w-10 text-emerald-400" />
-          <h3 className="text-lg font-semibold text-zinc-100">Forge Complete</h3>
-          <p className="text-sm text-zinc-400">All stages completed successfully.</p>
-          {store.outputPath && (
-            <p className="text-xs text-zinc-500 flex items-center gap-1.5">
-              <FolderOpen className="h-3.5 w-3.5" />
-              Output: {store.outputPath}
-            </p>
-          )}
-          <div className="flex gap-2 mt-2">
-            <Button variant="outline" onClick={() => router.push(`/projects/${projectId}`)}>
-              Back to Project
-            </Button>
-            <Button onClick={() => router.push(`/projects/${projectId}`)}>
-              <Flame className="mr-2 h-4 w-4" />
-              View Generated Files
-            </Button>
+        <div className="space-y-4">
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-8 text-center">
+            <CheckCircle2 className="h-10 w-10 text-emerald-400" />
+            <h3 className="text-lg font-semibold text-zinc-100">Forge Complete</h3>
+            <p className="text-sm text-zinc-400">All stages completed successfully.</p>
+            {store.outputPath && (
+              <p className="text-xs text-zinc-500 flex items-center gap-1.5">
+                <FolderOpen className="h-3.5 w-3.5" />
+                Output: {store.outputPath}
+              </p>
+            )}
+            <div className="flex gap-2 mt-2">
+              <Button variant="outline" onClick={() => router.push(`/projects/${projectId}`)}>
+                Back to Project
+              </Button>
+              <Button onClick={() => router.push(`/projects/${projectId}`)}>
+                <Flame className="mr-2 h-4 w-4" />
+                View Generated Files
+              </Button>
+            </div>
           </div>
+          <CostDisplay runId={runId} />
         </div>
       )}
 

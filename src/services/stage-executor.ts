@@ -1,9 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { SkillLoader } from '@/src/services/skill-loader';
 import { handleAnthropicCreditError } from '@/src/lib/anthropic';
+import { type TokenUsage } from '@/src/services/cost-tracker';
 
 export class StageExecutor {
   private client: Anthropic;
+
+  /** Token usage from the last executeStage() call. Read after iteration completes. */
+  public lastUsage: TokenUsage | null = null;
 
   constructor(client: Anthropic) {
     this.client = client;
@@ -15,6 +19,7 @@ export class StageExecutor {
     previousArtifacts: string[],
     signal?: AbortSignal
   ): AsyncGenerator<string, string, undefined> {
+    this.lastUsage = null;
     const systemPrompt = SkillLoader.getSkillPrompt(skillName);
 
     // Build messages: include previous artifacts as context
@@ -31,6 +36,7 @@ export class StageExecutor {
     console.log(`[StageExecutor] Executing skill: ${skillName}, context length: ${context.length}, prior artifacts: ${previousArtifacts.length}`);
 
     let fullText = '';
+    let usedOllama = false;
 
     const streamParams = {
       model: 'claude-sonnet-4-20250514',
@@ -47,6 +53,7 @@ export class StageExecutor {
       const fallback = await this.handleFallback(err);
       if (fallback) {
         activeStream = fallback.messages.stream(streamParams);
+        usedOllama = true;
       } else {
         throw err;
       }
@@ -58,12 +65,28 @@ export class StageExecutor {
       });
     }
 
+    let inputTokens = 0;
+    let outputTokens = 0;
+
     try {
-      for await (const event of activeStream as AsyncIterable<{ type: string; delta: { type: string; text: string } }>) {
+      for await (const event of activeStream as AsyncIterable<{
+        type: string;
+        delta: { type: string; text: string };
+        message?: { usage?: { input_tokens: number; output_tokens: number } };
+        usage?: { input_tokens?: number; output_tokens?: number };
+      }>) {
         if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
           const text = event.delta.text;
           fullText += text;
           yield text;
+        }
+        // Capture usage from message_start event
+        if (event.type === 'message_start' && event.message?.usage) {
+          inputTokens = event.message.usage.input_tokens || 0;
+        }
+        // Capture usage from message_delta event (output tokens)
+        if (event.type === 'message_delta' && event.usage) {
+          outputTokens = event.usage.output_tokens || 0;
         }
       }
     } catch (err: unknown) {
@@ -72,6 +95,7 @@ export class StageExecutor {
         const fallback = await this.handleFallback(err);
         if (fallback) {
           this.client = fallback as unknown as Anthropic;
+          usedOllama = true;
           const retryStream = fallback.messages.stream(streamParams);
           if (signal) {
             signal.addEventListener('abort', () => retryStream.abort());
@@ -89,6 +113,25 @@ export class StageExecutor {
         throw err;
       }
     }
+
+    // Estimate tokens from text length if stream didn't provide usage (Ollama)
+    if (inputTokens === 0 && outputTokens === 0) {
+      // Rough estimate: ~4 chars per token
+      const contextLength = context.length + previousArtifacts.join('').length + systemPrompt.length;
+      inputTokens = Math.round(contextLength / 4);
+      outputTokens = Math.round(fullText.length / 4);
+    }
+
+    const model = usedOllama
+      ? (process.env.OLLAMA_MODEL || 'llama3.1:8b')
+      : 'claude-sonnet-4-20250514';
+
+    this.lastUsage = {
+      inputTokens,
+      outputTokens,
+      model,
+      backend: usedOllama ? 'ollama' : 'anthropic',
+    };
 
     return fullText;
   }

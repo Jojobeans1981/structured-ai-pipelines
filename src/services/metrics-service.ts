@@ -1,5 +1,6 @@
 import { prisma } from '@/src/lib/prisma';
 import { type MetricsSummary, type MetricsSummaryItem, type MetricHistoryEntry } from '@/src/types/metrics';
+import { CostTracker } from '@/src/services/cost-tracker';
 
 function emptyItem(): MetricsSummaryItem {
   return { totalRuns: 0, successCount: 0, successRate: 0, avgDurationMs: 0, avgFirstPassRate: 0, totalRejections: 0 };
@@ -37,6 +38,9 @@ export class MetricsService {
       }
     }
 
+    // Aggregate token usage
+    const tokenData = await CostTracker.aggregateRunCost(runId);
+
     await prisma.pipelineMetric.create({
       data: {
         runId,
@@ -49,10 +53,19 @@ export class MetricsService {
         rejectionCount,
         outcome,
         stageDurations,
+        totalInputTokens: tokenData.totalInputTokens,
+        totalOutputTokens: tokenData.totalOutputTokens,
+        totalCostUsd: tokenData.totalCostUsd,
+        stageTokens: tokenData.stageTokens,
       },
     });
 
-    console.log(`[Metrics] Collected metrics for run ${runId}: ${outcome}`);
+    console.log(
+      `[Metrics] Collected metrics for run ${runId}: ${outcome}, ` +
+      `${CostTracker.formatTokens(tokenData.totalInputTokens)} in / ` +
+      `${CostTracker.formatTokens(tokenData.totalOutputTokens)} out, ` +
+      `cost: ${CostTracker.formatCost(tokenData.totalCostUsd)}`
+    );
   }
 
   static async getMetricsSummary(userId: string): Promise<MetricsSummary> {

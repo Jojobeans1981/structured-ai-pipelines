@@ -113,6 +113,13 @@ model PipelineStage {
   durationMs      Int?
   approvedAt      DateTime?
 
+  // Token usage tracking
+  inputTokens     Int       @default(0)
+  outputTokens    Int       @default(0)
+  modelUsed       String?                  // e.g. 'claude-sonnet-4-20250514' or 'llama3.1:8b'
+  backend         String?                  // 'anthropic' or 'ollama'
+  costUsd         Float     @default(0)    // estimated cost in USD
+
   // DAG execution fields
   dependsOn       String[]  @default([])   // IDs of stages this node depends on
   nodeType        String    @default("skill") // 'agent' | 'skill' | 'verify' | 'gate'
@@ -158,6 +165,10 @@ model PipelineMetric {
   rejectionCount    Int
   outcome           String
   stageDurations    Json     @default("{}")
+  totalInputTokens  Int      @default(0)
+  totalOutputTokens Int      @default(0)
+  totalCostUsd      Float    @default(0)
+  stageTokens       Json     @default("{}")  // per-stage token breakdown
   createdAt         DateTime @default(now())
 
   run     PipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)

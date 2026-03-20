@@ -9,6 +9,7 @@ import { MetricsService } from '@/src/services/metrics-service';
 import { CostTracker, type TokenUsage } from '@/src/services/cost-tracker';
 import { TraceLogger } from '@/src/services/trace-logger';
 import { AgentCoordinator } from '@/src/services/agent-coordinator';
+import { OutputValidator } from '@/src/services/output-validator';
 
 interface AdvanceResult {
   readyNodes: Array<{ id: string; nodeId: string; skillName: string; displayName: string; nodeType: string }>;
@@ -359,12 +360,24 @@ export class DAGExecutor {
     // Inject pipeline override for executor skills — don't wait for confirmation
     let finalContext = context;
     if (stage.skillName === 'phase-executor' || stage.skillName === 'fix-executor') {
+      // Extract tech stack from PRD context to enforce it
+      const stackMatch = context.match(/(?:tech\s*stack|framework|language|runtime)[:\s]+([\s\S]{0,200})/i);
+      const stackHint = stackMatch ? `\nThe tech stack specified in the PRD is: ${stackMatch[1].trim()}\n` : '';
+
       finalContext += '\n\n---\n\n## PIPELINE EXECUTION MODE\n\n' +
         'You are running inside an automated pipeline. Do NOT ask "shall I proceed?" or wait for confirmation. ' +
         'Execute ALL prompts in sequence immediately. Generate ALL code for every file. ' +
         'Do not stop after describing what you will do — actually do it. ' +
         'Output complete file contents in code blocks with the filename in the heading or code fence. ' +
-        'Every file must be complete and runnable, not abbreviated or truncated.';
+        'Every file must be complete and runnable, not abbreviated or truncated.\n\n' +
+        '## CRITICAL: TECH STACK ENFORCEMENT\n\n' +
+        stackHint +
+        'ONLY generate files that match the technology stack specified in the PRD. ' +
+        'If the PRD says React/TypeScript, generate ONLY .ts, .tsx, .json, .css, .html files. ' +
+        'NEVER generate .py, .rb, .java, .go, .rs or any language not in the specified stack. ' +
+        'NEVER generate requirements.txt, setup.py, Pipfile, Gemfile, go.mod, Cargo.toml or similar. ' +
+        'If you are unsure about the stack, look at the PRD and phase documents for guidance. ' +
+        'Generating files in the wrong language is a critical error.';
     }
 
     const executor = new StageExecutor(client);
@@ -434,18 +447,44 @@ export class DAGExecutor {
       },
     });
 
-    // Extract files for executor stages — save to DB AND disk
+    // Extract and validate files for executor stages
     if (stage.skillName === 'phase-executor' || stage.skillName === 'fix-executor') {
       try {
-        // Save to database
+        // Get PRD context for tech stack validation
+        const prdStage = await prisma.pipelineStage.findFirst({
+          where: { runId: stage.runId, skillName: 'prd-architect', status: 'approved' },
+          select: { artifactContent: true },
+        });
+        const prdContext = prdStage?.artifactContent || '';
+
+        // Validate output matches tech stack
+        const validation = OutputValidator.validate(artifactContent, prdContext);
+        if (validation.errors.length > 0) {
+          console.warn(`[DAGExecutor] Output validation warnings for "${stage.displayName}":`, validation.errors);
+        }
+
+        // Filter out wrong-stack files before saving
+        let cleanedArtifact = artifactContent;
+        if (validation.rejectedFiles.length > 0) {
+          cleanedArtifact = OutputValidator.filterRejectedFiles(artifactContent, validation.rejectedFiles);
+          console.log(`[DAGExecutor] Filtered ${validation.rejectedFiles.length} wrong-stack files: ${validation.rejectedFiles.join(', ')}`);
+
+          // Update the artifact with cleaned content
+          await prisma.pipelineStage.update({
+            where: { id: stageId },
+            data: { artifactContent: cleanedArtifact },
+          });
+        }
+
+        // Save to database (using cleaned artifact)
         const count = await FileManager.extractAndSaveFiles(
-          stageId, stage.runId, stage.run.projectId, artifactContent
+          stageId, stage.runId, stage.run.projectId, cleanedArtifact
         );
-        console.log(`[DAGExecutor] Extracted ${count} files to DB from "${stage.displayName}"`);
+        console.log(`[DAGExecutor] Extracted ${count} files to DB from "${stage.displayName}" (${validation.warnings.length} warnings, ${validation.rejectedFiles.length} rejected)`);
 
         // Write to disk if outputPath is set
         if (stage.run.outputPath) {
-          const extracted = extractFilesFromArtifact(artifactContent);
+          const extracted = extractFilesFromArtifact(cleanedArtifact);
           const diskCount = DiskWriter.writeArtifactFiles(
             stage.run.outputPath,
             extracted.map((f) => ({ filePath: f.filePath, content: f.content }))
@@ -453,7 +492,7 @@ export class DAGExecutor {
           console.log(`[DAGExecutor] Wrote ${diskCount} files to disk at ${stage.run.outputPath}`);
         }
       } catch (err) {
-        console.error('[DAGExecutor] File extraction/write failed (non-fatal):', err);
+        console.error('[DAGExecutor] File extraction/validation failed (non-fatal):', err);
       }
     }
 

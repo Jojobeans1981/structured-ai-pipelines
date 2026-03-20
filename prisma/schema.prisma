@@ -92,10 +92,15 @@ model PipelineRun {
   outputPath        String?        // disk path for generated project files
   executionMode     String         @default("linear") // 'linear' | 'dag'
 
-  project Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  stages  PipelineStage[]
-  files   ProjectFile[]
-  metrics PipelineMetric[]
+  // Traceability
+  traceId           String?        @unique
+
+  project    Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stages     PipelineStage[]
+  files      ProjectFile[]
+  metrics    PipelineMetric[]
+  traceEvents TraceEvent[]
+  agentVotes  AgentVote[]
 }
 
 model PipelineStage {
@@ -131,8 +136,9 @@ model PipelineStage {
   phaseIndex      Int?                     // which phase this node belongs to
   nodeId          String?                  // DAG node ID (stable across retries)
 
-  run   PipelineRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
-  files ProjectFile[]
+  run        PipelineRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  files      ProjectFile[]
+  agentVotes AgentVote[]
 }
 
 model ProjectFile {
@@ -174,4 +180,47 @@ model PipelineMetric {
   run     PipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   project Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TraceEvent {
+  id           String   @id @default(cuid())
+  runId        String
+  traceId      String
+  spanId       String
+  parentSpanId String?
+  eventType    String   // stage_start | stage_complete | agent_spawn | agent_vote | decision_made | error | retry | gate_approved | gate_rejected
+  source       String   // dag-executor | agent-coordinator | decision-agent | triage-agent | trace-logger
+  message      String   @db.Text
+  metadata     Json     @default("{}")
+  durationMs   Int?
+  inputTokens  Int?
+  outputTokens Int?
+  costUsd      Float?
+  timestamp    DateTime @default(now())
+
+  run PipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, timestamp])
+  @@index([traceId])
+  @@index([spanId])
+}
+
+model AgentVote {
+  id           String   @id @default(cuid())
+  runId        String
+  stageId      String
+  spanId       String
+  agentRole    String   // architecture | code_quality | security | performance | ux
+  votedOption  String
+  confidence   Float
+  reasoning    String   @db.Text
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  costUsd      Float    @default(0)
+  durationMs   Int?
+  status       String   @default("pending") // pending | completed | failed
+  createdAt    DateTime @default(now())
+
+  run   PipelineRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  stage PipelineStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
 }

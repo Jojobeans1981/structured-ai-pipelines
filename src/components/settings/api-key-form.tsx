@@ -29,8 +29,14 @@ export function ApiKeyForm({ hasApiKey: initialHasKey }: ApiKeyFormProps) {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to save API key');
+        let errorMsg = 'Failed to save API key';
+        try {
+          const data = await res.json();
+          errorMsg = data.error || errorMsg;
+        } catch {
+          if (res.status === 401) errorMsg = 'Not authenticated. Please sign in again.';
+        }
+        throw new Error(errorMsg);
       }
 
       setHasApiKey(true);

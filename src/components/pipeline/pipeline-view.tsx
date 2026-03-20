@@ -15,6 +15,7 @@ import { FixDiffViewer } from '@/src/components/pipeline/fix-diff-viewer';
 import { DAGView } from '@/src/components/pipeline/dag-view';
 import { PlanApproval } from '@/src/components/pipeline/plan-approval';
 import { CostDisplay } from '@/src/components/pipeline/cost-display';
+import { TraceTimeline } from '@/src/components/pipeline/trace-timeline';
 import { useKeyboardShortcuts } from '@/src/hooks/use-keyboard-shortcuts';
 
 interface PipelineViewProps {
@@ -325,10 +326,14 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
             </div>
           </div>
           <CostDisplay runId={runId} />
+          <TraceTimeline runId={runId} />
         </div>
       )}
 
       {/* Pipeline Failed */}
+      {store.status === 'failed' && (
+        <TraceTimeline runId={runId} />
+      )}
       {store.status === 'failed' && (
         <div className="flex flex-col items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/5 p-8 text-center">
           <AlertTriangle className="h-10 w-10 text-red-400" />
@@ -343,6 +348,11 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
           <XCircle className="h-10 w-10 text-zinc-500" />
           <h3 className="text-lg font-semibold text-zinc-300">Forge Cancelled</h3>
         </div>
+      )}
+
+      {/* Live trace timeline for running pipelines */}
+      {(store.status === 'running' || store.status === 'paused') && (
+        <TraceTimeline runId={runId} />
       )}
 
       {/* Cancel button */}

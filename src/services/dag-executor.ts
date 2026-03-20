@@ -7,6 +7,8 @@ import { type ExecutionPlan, type DAGNode } from '@/src/types/dag';
 import { GraphExpander } from '@/src/services/graph-expander';
 import { MetricsService } from '@/src/services/metrics-service';
 import { CostTracker, type TokenUsage } from '@/src/services/cost-tracker';
+import { TraceLogger } from '@/src/services/trace-logger';
+import { AgentCoordinator } from '@/src/services/agent-coordinator';
 
 interface AdvanceResult {
   readyNodes: Array<{ id: string; nodeId: string; skillName: string; displayName: string; nodeType: string }>;
@@ -148,16 +150,24 @@ export class DAGExecutor {
         }
       }
 
+      const traceId = TraceLogger.generateTraceId();
       await tx.pipelineRun.update({
         where: { id: runId },
         data: {
           executionPlan: JSON.parse(JSON.stringify(plan)),
           executionMode: 'dag',
+          traceId,
         },
       });
     });
 
     console.log(`[DAGExecutor] Created ${stageIndex} stages from plan for run ${runId}`);
+
+    // Log pipeline start
+    const run = await prisma.pipelineRun.findUnique({ where: { id: runId }, select: { traceId: true, userInput: true } });
+    if (run?.traceId) {
+      await TraceLogger.pipelineStart(runId, run.traceId, run.userInput);
+    }
   }
 
   /**
@@ -216,7 +226,7 @@ export class DAGExecutor {
 
     if (result.runComplete) {
       const now = new Date();
-      const run = await prisma.pipelineRun.findUnique({ where: { id: runId } });
+      const run = await prisma.pipelineRun.findUnique({ where: { id: runId }, select: { id: true, startedAt: true, traceId: true } });
       if (run) {
         const totalDurationMs = now.getTime() - run.startedAt.getTime();
         await prisma.pipelineRun.update({
@@ -224,6 +234,11 @@ export class DAGExecutor {
           data: { status: 'completed', completedAt: now, totalDurationMs },
         });
         console.log(`[DAGExecutor] Run ${runId} completed (${totalDurationMs}ms)`);
+
+        // Log pipeline completion
+        if (run.traceId) {
+          await TraceLogger.pipelineComplete(runId, run.traceId, run.traceId, totalDurationMs, 'completed');
+        }
 
         // Collect metrics after completion
         try {
@@ -315,15 +330,26 @@ export class DAGExecutor {
     client: Anthropic,
     signal?: AbortSignal
   ): AsyncGenerator<string, string, undefined> {
-    const stage = await prisma.pipelineStage.findUnique({ where: { id: stageId } });
+    const stage = await prisma.pipelineStage.findUnique({
+      where: { id: stageId },
+      include: { run: { select: { traceId: true } } },
+    });
     if (!stage) throw new Error(`Stage not found: ${stageId}`);
 
+    const traceId = stage.run?.traceId || 'unknown';
+    const spanId = await TraceLogger.stageStart(runId, traceId, stageId, stage.displayName);
+
     if (stage.nodeType === 'gate') {
+      await TraceLogger.log({
+        runId, traceId, spanId,
+        eventType: 'gate_awaiting',
+        source: 'dag-executor',
+        message: `Gate "${stage.displayName}" awaiting approval`,
+      });
       return 'Awaiting human approval.';
     }
 
     if (stage.nodeType === 'verify') {
-      // Build verification is handled separately by BuildVerifier
       return 'Build verification pending.';
     }
 
@@ -356,12 +382,23 @@ export class DAGExecutor {
     }
 
     // Record token usage after stream completes
+    const stageStartTime = stage.startedAt?.getTime() || Date.now();
+    const stageDuration = Date.now() - stageStartTime;
+
     if (executor.lastUsage) {
       try {
         await CostTracker.recordStageUsage(stageId, executor.lastUsage);
+        const cost = CostTracker.calculateCost(executor.lastUsage);
+        await TraceLogger.stageComplete(runId, traceId, spanId, stage.displayName, stageDuration, {
+          input: executor.lastUsage.inputTokens,
+          output: executor.lastUsage.outputTokens,
+          cost,
+        });
       } catch (err) {
         console.error('[DAGExecutor] Failed to record token usage (non-fatal):', err);
       }
+    } else {
+      await TraceLogger.stageComplete(runId, traceId, spanId, stage.displayName, stageDuration);
     }
 
     return fullText;
@@ -432,7 +469,7 @@ export class DAGExecutor {
   static async approveNode(stageId: string, editedContent?: string): Promise<AdvanceResult> {
     const stage = await prisma.pipelineStage.findUnique({
       where: { id: stageId },
-      include: { run: true },
+      include: { run: { select: { id: true, traceId: true } } },
     });
 
     if (!stage) throw new Error(`Stage not found: ${stageId}`);
@@ -452,6 +489,12 @@ export class DAGExecutor {
     });
 
     console.log(`[DAGExecutor] Node "${stage.displayName}" approved`);
+
+    // Trace logging
+    if (stage.run?.traceId) {
+      const spanId = TraceLogger.generateSpanId();
+      await TraceLogger.gateApproved(stage.run.id, stage.run.traceId, spanId, stage.displayName);
+    }
 
     // Dynamic graph expansion: if this is a phase-builder node, expand the DAG
     if (stage.skillName === 'phase-builder') {
@@ -478,7 +521,7 @@ export class DAGExecutor {
   static async rejectNode(stageId: string, feedback: string): Promise<void> {
     const current = await prisma.pipelineStage.findUnique({
       where: { id: stageId },
-      select: { artifactContent: true, streamContent: true, retryCount: true, displayName: true },
+      select: { artifactContent: true, streamContent: true, retryCount: true, displayName: true, runId: true, run: { select: { traceId: true } } },
     });
 
     const previousOutput = current?.artifactContent || current?.streamContent || null;
@@ -499,5 +542,11 @@ export class DAGExecutor {
     });
 
     console.log(`[DAGExecutor] Node "${current?.displayName}" rejected with feedback, re-running`);
+
+    // Trace logging
+    if (current?.run?.traceId) {
+      const spanId = TraceLogger.generateSpanId();
+      await TraceLogger.gateRejected(current.runId, current.run.traceId, spanId, current.displayName || '', feedback);
+    }
   }
 }

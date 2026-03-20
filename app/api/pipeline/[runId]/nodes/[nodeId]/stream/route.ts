@@ -4,6 +4,7 @@ import { routeTask } from '@/src/lib/model-router';
 import { prisma } from '@/src/lib/prisma';
 import { DAGExecutor } from '@/src/services/dag-executor';
 import { BuildVerifier } from '@/src/services/build-verifier';
+import { DockerSandbox } from '@/src/services/docker-sandbox';
 
 export async function GET(
   request: NextRequest,
@@ -141,13 +142,103 @@ async function handleVerifyNode(
       };
 
       try {
-        // On serverless (no outputPath), auto-pass verification
-        if (!outputPath) {
+        // Strategy: Docker sandbox → filesystem verify → skip
+        const dockerAvailable = DockerSandbox.isAvailable();
+
+        if (dockerAvailable) {
+          // Docker sandbox — full isolated verification
+          send({ type: 'token', data: { text: '## Build Verification — Docker Sandbox\n\n' } });
+          send({ type: 'token', data: { text: 'Starting isolated Docker container...\n\n' } });
+
+          // Get all project files from DB
+          const stage = await prisma.pipelineStage.findUnique({
+            where: { id: stageId },
+            include: { run: { select: { projectId: true } } },
+          });
+          const projectFiles = await prisma.projectFile.findMany({
+            where: { runId: runId },
+            select: { filePath: true, content: true },
+          });
+
+          if (projectFiles.length === 0) {
+            const artifact = '## Build Verification — No Files\n\n' +
+              '**Status:** SKIPPED\n\nNo files were generated to verify.';
+            send({ type: 'token', data: { text: artifact } });
+            await DAGExecutor.completeNode(stageId, artifact, artifact);
+            send({ type: 'checkpoint', data: { stageId, artifact } });
+            controller.close();
+            return;
+          }
+
+          send({ type: 'token', data: { text: `Found ${projectFiles.length} files. Running in Docker...\n\n` } });
+
+          const result = await DockerSandbox.verify(projectFiles);
+
+          let output = `## Build Verification ${result.success ? '✅ PASSED' : '❌ FAILED'}\n\n`;
+          output += `**Phase:** ${result.phase}\n`;
+          output += `**Duration:** ${result.durationMs}ms\n`;
+          output += `**Container:** ${result.containerId?.substring(0, 12) || 'N/A'}\n\n`;
+
+          if (result.healthCheck) {
+            output += `### Health Check\n`;
+            output += `- **Reachable:** ${result.healthCheck.reachable ? 'Yes ✅' : 'No ❌'}\n`;
+            if (result.healthCheck.statusCode) {
+              output += `- **Status Code:** ${result.healthCheck.statusCode}\n`;
+            }
+            output += '\n';
+          }
+
+          if (result.stdout) {
+            output += `### Output\n\`\`\`\n${result.stdout.substring(0, 3000)}\n\`\`\`\n\n`;
+          }
+
+          if (result.stderr) {
+            output += `### Errors\n\`\`\`\n${result.stderr.substring(0, 3000)}\n\`\`\`\n\n`;
+          }
+
+          send({ type: 'token', data: { text: output } });
+          await DAGExecutor.completeNode(stageId, output, output);
+          send({ type: 'checkpoint', data: { stageId, artifact: output } });
+          controller.close();
+          return;
+        }
+
+        if (outputPath) {
+          // Filesystem verify (local dev without Docker)
+          send({ type: 'token', data: { text: `Verifying build in ${outputPath}...\n\n` } });
+
+          const result = await BuildVerifier.verify(outputPath);
+
+          let output = '';
+          output += `## Build Verification ${result.success ? 'PASSED' : 'FAILED'}\n\n`;
+          output += `**Duration:** ${result.durationMs}ms\n\n`;
+
+          if (result.installOutput) {
+            output += `### Install Output\n\`\`\`\n${result.installOutput.substring(0, 2000)}\n\`\`\`\n\n`;
+          }
+          if (result.buildOutput) {
+            output += `### Build Output\n\`\`\`\n${result.buildOutput.substring(0, 2000)}\n\`\`\`\n\n`;
+          }
+          if (result.errors.length > 0) {
+            output += `### Errors\n${result.errors.map((e: string) => `- ${e}`).join('\n')}\n\n`;
+          }
+          if (result.warnings.length > 0) {
+            output += `### Warnings\n${result.warnings.map((w: string) => `- ${w}`).join('\n')}\n\n`;
+          }
+
+          send({ type: 'token', data: { text: output } });
+          await DAGExecutor.completeNode(stageId, output, output);
+          send({ type: 'checkpoint', data: { stageId, artifact: output } });
+          controller.close();
+          return;
+        }
+
+        // Serverless fallback — no Docker, no filesystem
+        {
           const artifact = '## Build Verification — Serverless Mode\n\n' +
-            '**Status:** SKIPPED (serverless environment)\n\n' +
-            'Build verification requires a filesystem to run `npm install && npm run build`. ' +
-            'On Vercel, files are stored in the database and downloadable as a ZIP.\n\n' +
-            'To verify locally: download the ZIP, extract, run `npm install && npm run build`.';
+            '**Status:** SKIPPED (no Docker or filesystem available)\n\n' +
+            'Files are stored in the database and downloadable as a ZIP.\n' +
+            'To verify: download ZIP → extract → `npm install && npm run build`';
 
           send({ type: 'token', data: { text: artifact } });
           await DAGExecutor.completeNode(stageId, artifact, artifact);
@@ -155,38 +246,6 @@ async function handleVerifyNode(
           controller.close();
           return;
         }
-
-        send({ type: 'token', data: { text: `Verifying build in ${outputPath}...\n\n` } });
-
-        const result = await BuildVerifier.verify(outputPath);
-
-        let output = '';
-        output += `## Build Verification ${result.success ? 'PASSED' : 'FAILED'}\n\n`;
-        output += `**Duration:** ${result.durationMs}ms\n\n`;
-
-        if (result.installOutput) {
-          output += `### Install Output\n\`\`\`\n${result.installOutput.substring(0, 2000)}\n\`\`\`\n\n`;
-        }
-
-        if (result.buildOutput) {
-          output += `### Build Output\n\`\`\`\n${result.buildOutput.substring(0, 2000)}\n\`\`\`\n\n`;
-        }
-
-        if (result.errors.length > 0) {
-          output += `### Errors\n${result.errors.map((e) => `- ${e}`).join('\n')}\n\n`;
-        }
-
-        if (result.warnings.length > 0) {
-          output += `### Warnings\n${result.warnings.map((w) => `- ${w}`).join('\n')}\n\n`;
-        }
-
-        send({ type: 'token', data: { text: output } });
-
-        await DAGExecutor.completeNode(stageId, output, output);
-        send({
-          type: 'checkpoint',
-          data: { stageId, artifact: output },
-        });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         try {

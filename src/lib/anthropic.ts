@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '@/src/lib/prisma';
 import { decryptApiKey } from '@/src/lib/encryption';
 import { createOllamaClient, isOllamaAvailable } from '@/src/lib/ollama-client';
+import { createGroqCompatClient, isGroqAvailable } from '@/src/lib/groq-client';
 
 // Track if Anthropic API is known to be out of credits
 let anthropicDisabled = false;
@@ -22,12 +23,16 @@ export async function getAnthropicClient(userId: string): Promise<Anthropic> {
   // Re-check Anthropic every 5 minutes in case credits were added
   const now = Date.now();
   if (anthropicDisabled && now - lastAnthropicCheck < 5 * 60 * 1000) {
-    console.log('[LLM] Anthropic disabled (no credits), using Ollama fallback');
+    console.log('[LLM] Anthropic disabled (no credits), trying fallbacks');
+    const groqUp = await isGroqAvailable();
+    if (groqUp) {
+      return createGroqCompatClient() as unknown as Anthropic;
+    }
     const ollamaUp = await isOllamaAvailable();
     if (ollamaUp) {
       return createOllamaClient() as unknown as Anthropic;
     }
-    throw new Error('Anthropic API has no credits and Ollama is not reachable. Please add credits or start Ollama.');
+    throw new Error('Anthropic API has no credits and no fallback (Groq/Ollama) is reachable.');
   }
 
   if (anthropicDisabled) {
@@ -37,13 +42,17 @@ export async function getAnthropicClient(userId: string): Promise<Anthropic> {
   }
 
   if (!user?.encryptedApiKey) {
-    // No API key — try Ollama
-    console.log('[LLM] No Anthropic API key, trying Ollama fallback');
+    // No API key — try Groq, then Ollama
+    console.log('[LLM] No Anthropic API key, trying fallbacks');
+    const groqUp = await isGroqAvailable();
+    if (groqUp) {
+      return createGroqCompatClient() as unknown as Anthropic;
+    }
     const ollamaUp = await isOllamaAvailable();
     if (ollamaUp) {
       return createOllamaClient() as unknown as Anthropic;
     }
-    throw new Error('No API key configured and Ollama is not reachable. Please add your Anthropic API key in Settings or start Ollama.');
+    throw new Error('No API key configured and no fallback (Groq/Ollama) is reachable. Please add your Anthropic API key in Settings.');
   }
 
   return createAnthropicClient(user.encryptedApiKey);
@@ -56,8 +65,16 @@ export async function getAnthropicClient(userId: string): Promise<Anthropic> {
 export async function handleAnthropicCreditError(): Promise<Anthropic | null> {
   anthropicDisabled = true;
   lastAnthropicCheck = Date.now();
-  console.log('[LLM] Anthropic out of credits — switching to Ollama fallback');
 
+  // Try Groq first (cloud, fast, free tier)
+  const groqUp = await isGroqAvailable();
+  if (groqUp) {
+    console.log('[LLM] Anthropic unavailable — switching to Groq fallback');
+    return createGroqCompatClient() as unknown as Anthropic;
+  }
+
+  // Then try Ollama (local)
+  console.log('[LLM] Anthropic unavailable, Groq unavailable — trying Ollama fallback');
   const ollamaUp = await isOllamaAvailable();
   if (ollamaUp) {
     return createOllamaClient() as unknown as Anthropic;

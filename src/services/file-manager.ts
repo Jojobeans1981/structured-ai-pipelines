@@ -21,42 +21,114 @@ interface ExtractedFile {
 
 /**
  * Extract file path from a heading or text line above a code block.
- * Handles patterns like:
- *   ### 1. Create Vite Configuration (vite.config.ts)
- *   ### `src/components/Board.tsx`
- *   **File: src/index.ts**
- *   Create `src/main.tsx`:
- *   #### src/utils/helpers.ts
+ * Very forgiving — handles many Llama/GPT output formats.
  */
 function extractFilePathFromContext(line: string): string | null {
-  // Pattern: heading with (filename.ext) in parentheses
-  const parenMatch = line.match(/\(([^)]+\.\w+)\)\s*$/);
+  // Strip markdown formatting for easier matching
+  const clean = line.replace(/\*\*/g, '').replace(/^#+\s*/, '').replace(/^\d+\.\s*/, '').trim();
+
+  // Pattern: (filename.ext) in parentheses
+  const parenMatch = clean.match(/\(([^)]*\/[^)]+\.\w+)\)/) || clean.match(/\(([^)]+\.\w+)\)\s*$/);
   if (parenMatch && parenMatch[1].match(/\.\w{1,10}$/)) {
     return parenMatch[1].trim();
   }
 
-  // Pattern: heading with `filename` in backticks
-  const backtickMatch = line.match(/`([^`]+\.\w+)`/);
-  if (backtickMatch && backtickMatch[1].match(/\.\w{1,10}$/)) {
+  // Pattern: `filename` in backticks — most common Llama format
+  const backtickMatch = clean.match(/`([^`]+\.\w{1,10})`/);
+  if (backtickMatch) {
     return backtickMatch[1].trim();
   }
 
-  // Pattern: **File: path** or **file:** path
-  const fileLabel = line.match(/\*?\*?(?:File|file|FILE):\s*(.+?\.\w+)/);
+  // Pattern: **File: path** or **file:** path or File: path
+  const fileLabel = clean.match(/(?:File|file|FILE|Path|path)[:\s]+([^\s,*]+\.\w{1,10})/);
   if (fileLabel) {
-    return fileLabel[1].replace(/\*+/g, '').trim();
+    return fileLabel[1].replace(/[*:`]/g, '').trim();
   }
 
-  // Pattern: heading that IS a file path (### src/utils/helpers.ts)
-  const headingPath = line.match(/^#{1,6}\s+(\S+\.\w+)\s*$/);
-  if (headingPath) {
-    return headingPath[1].trim();
+  // Pattern: line IS a file path (with or without heading markers)
+  const barePathMatch = clean.match(/^((?:[\w.@/-]+\/)?[\w.-]+\.\w{1,10})\s*[:)]?\s*$/);
+  if (barePathMatch) {
+    return barePathMatch[1].trim();
   }
 
-  // Pattern: "Create path/file.ext:" or "Update path/file.ext"
-  const actionMatch = line.match(/(?:Create|Update|Edit|Modify|Add|Write)\s+`?([^\s`]+\.\w+)`?/i);
+  // Pattern: "Create/Update/Here is path/file.ext" or similar action verbs
+  const actionMatch = clean.match(/(?:Create|Update|Edit|Modify|Add|Write|Here\s+is|Open|Save|Generating)\s+(?:the\s+)?(?:file\s+)?`?([^\s`"',:]+\.\w{1,10})`?/i);
   if (actionMatch) {
     return actionMatch[1].trim();
+  }
+
+  // Pattern: heading with filename anywhere in it (loose match)
+  const anyFileMatch = clean.match(/((?:src|lib|app|pages|components|styles|public|config|utils|hooks|stores|types|services)\/[\w/.-]+\.\w{1,10})/);
+  if (anyFileMatch) {
+    return anyFileMatch[1].trim();
+  }
+
+  // Pattern: just a filename with common web extensions anywhere in the line
+  const webFileMatch = clean.match(/([\w.-]+\.(?:tsx?|jsx?|css|scss|html|json|svg|md|prisma|env|toml|yaml|yml))\b/);
+  if (webFileMatch && !clean.match(/^(?:npm|yarn|pnpm|node|import|from|export|const|let|var|function|class|interface|type)\b/)) {
+    return webFileMatch[1].trim();
+  }
+
+  return null;
+}
+
+/**
+ * Infer a file path from the code content itself when no filename is found
+ * in the surrounding context. Uses heuristics based on imports/exports.
+ */
+function inferFilePathFromContent(content: string, language: string): string | null {
+  // React component — look for export default function/const ComponentName
+  const componentMatch = content.match(/export\s+(?:default\s+)?(?:function|const)\s+(\w+)/);
+  if (componentMatch && language === 'tsx') {
+    return `src/components/${componentMatch[1]}.tsx`;
+  }
+  if (componentMatch && language === 'jsx') {
+    return `src/components/${componentMatch[1]}.jsx`;
+  }
+
+  // Vite config
+  if (content.includes('defineConfig') && content.includes('vite')) {
+    return 'vite.config.ts';
+  }
+
+  // Tailwind config
+  if (content.includes('tailwind') && content.includes('content:')) {
+    return 'tailwind.config.js';
+  }
+
+  // PostCSS config
+  if (content.includes('tailwindcss') && content.includes('autoprefixer')) {
+    return 'postcss.config.js';
+  }
+
+  // Main entry point
+  if (content.includes('ReactDOM') || content.includes('createRoot')) {
+    return language === 'tsx' ? 'src/main.tsx' : 'src/main.jsx';
+  }
+
+  // App component
+  if (content.includes('function App') || content.includes('const App')) {
+    return language === 'tsx' ? 'src/App.tsx' : 'src/App.jsx';
+  }
+
+  // index.html
+  if (content.includes('<!DOCTYPE') || content.includes('<html')) {
+    return 'index.html';
+  }
+
+  // CSS with @tailwind directives
+  if (content.includes('@tailwind')) {
+    return 'src/index.css';
+  }
+
+  // tsconfig
+  if (content.includes('"compilerOptions"') && content.includes('"target"')) {
+    return 'tsconfig.json';
+  }
+
+  // package.json
+  if (content.includes('"dependencies"') && content.includes('"name"')) {
+    return 'package.json';
   }
 
   return null;
@@ -102,9 +174,9 @@ export function extractFilesFromArtifact(artifactContent: string): ExtractedFile
 
     // Pattern 3: Previous line(s) contain a file path (backticks, parens, headings, etc.)
     if (codeBlockMatch && i > 0) {
-      // Search up to 3 lines back for a file path reference
+      // Search up to 5 lines back for a file path reference (Llama can be verbose)
       let filePath: string | null = null;
-      for (let lookback = 1; lookback <= Math.min(3, i); lookback++) {
+      for (let lookback = 1; lookback <= Math.min(5, i); lookback++) {
         const prevLine = lines[i - lookback].trim();
         if (!prevLine) continue; // skip blank lines
         filePath = extractFilePathFromContext(prevLine);
@@ -125,6 +197,32 @@ export function extractFilesFromArtifact(artifactContent: string): ExtractedFile
           language: typeof language === 'string' ? language : inferLanguage(filePath),
         });
         continue;
+      }
+    }
+
+    // Pattern 4: No filename found anywhere — infer from code content
+    if (codeBlockMatch) {
+      const lang = codeBlockMatch[1] || '';
+      const startIdx = i + 1;
+      i++;
+      const contentLines: string[] = [];
+      while (i < lines.length && lines[i] !== '```') {
+        contentLines.push(lines[i]);
+        i++;
+      }
+      const content = contentLines.join('\n');
+
+      // Only infer for substantial code blocks (>5 lines)
+      if (contentLines.length > 5) {
+        const inferredPath = inferFilePathFromContent(content, lang);
+        if (inferredPath) {
+          files.push({
+            filePath: inferredPath,
+            content,
+            language: lang || inferLanguage(inferredPath),
+          });
+          continue;
+        }
       }
     }
   }

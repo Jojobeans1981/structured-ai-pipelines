@@ -17,6 +17,7 @@ import { PlanApproval } from '@/src/components/pipeline/plan-approval';
 import { CostDisplay } from '@/src/components/pipeline/cost-display';
 import { TraceTimeline } from '@/src/components/pipeline/trace-timeline';
 import { BuildSummaryPanel } from '@/src/components/pipeline/build-summary';
+import { ProgressBar } from '@/src/components/pipeline/progress-bar';
 import { useKeyboardShortcuts } from '@/src/hooks/use-keyboard-shortcuts';
 
 interface PipelineViewProps {
@@ -231,6 +232,11 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
           executionPlan={store.executionPlan as { type: string; estimatedPhases: number; parallelGroups: string[] } | null}
           onApprove={handleApprovePlan}
         />
+      )}
+
+      {/* Progress bar (shown during execution) */}
+      {store.stages.length > 0 && store.planApproved && store.status !== 'completed' && store.status !== 'cancelled' && (
+        <ProgressBar stages={store.stages} />
       )}
 
       {/* DAG Mode: Graph View (shown during execution) */}

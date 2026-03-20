@@ -117,10 +117,6 @@ async function handleVerifyNode(
   stageId: string,
   outputPath: string | null
 ) {
-  if (!outputPath) {
-    return NextResponse.json({ error: 'No output path set for this run' }, { status: 400 });
-  }
-
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
@@ -129,6 +125,21 @@ async function handleVerifyNode(
       };
 
       try {
+        // On serverless (no outputPath), auto-pass verification
+        if (!outputPath) {
+          const artifact = '## Build Verification — Serverless Mode\n\n' +
+            '**Status:** SKIPPED (serverless environment)\n\n' +
+            'Build verification requires a filesystem to run `npm install && npm run build`. ' +
+            'On Vercel, files are stored in the database and downloadable as a ZIP.\n\n' +
+            'To verify locally: download the ZIP, extract, run `npm install && npm run build`.';
+
+          send({ type: 'token', data: { text: artifact } });
+          await DAGExecutor.completeNode(stageId, artifact, artifact);
+          send({ type: 'checkpoint', data: { stageId, artifact } });
+          controller.close();
+          return;
+        }
+
         send({ type: 'token', data: { text: `Verifying build in ${outputPath}...\n\n` } });
 
         const result = await BuildVerifier.verify(outputPath);

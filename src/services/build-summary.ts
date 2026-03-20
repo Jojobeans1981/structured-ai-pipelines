@@ -37,6 +37,8 @@ export interface BuildSummaryData {
   completedAt: string | null;
   totalDurationMs: number;
   totalDurationFormatted: string;
+  computeTimeMs: number;
+  computeTimeFormatted: string;
 
   // Stage breakdown
   stages: StageSummary[];
@@ -122,10 +124,16 @@ export class BuildSummary {
     const totalCostUsd = stages.reduce((sum, s) => sum + s.costUsd, 0);
 
     // --- Duration ---
+    // Wall clock = total time including human review
     const totalDurationMs = run.totalDurationMs
       ?? (run.completedAt && run.startedAt
         ? run.completedAt.getTime() - run.startedAt.getTime()
         : 0);
+
+    // Compute time = sum of stage durations (actual AI processing time)
+    const computeTimeMs = stages
+      .filter((s) => s.durationMs)
+      .reduce((sum, s) => sum + (s.durationMs ?? 0), 0);
 
     // --- Files ---
     const fileList = run.files.map((f) => ({
@@ -171,6 +179,8 @@ export class BuildSummary {
       completedAt: run.completedAt?.toISOString() ?? null,
       totalDurationMs,
       totalDurationFormatted: BuildSummary.formatDuration(totalDurationMs),
+      computeTimeMs,
+      computeTimeFormatted: BuildSummary.formatDuration(computeTimeMs),
 
       stages,
       totalStages: stages.length,

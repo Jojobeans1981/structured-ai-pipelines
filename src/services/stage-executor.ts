@@ -114,23 +114,38 @@ export class StageExecutor {
       }
     }
 
-    // Estimate tokens from text length if stream didn't provide usage (Ollama)
-    if (inputTokens === 0 && outputTokens === 0) {
+    // Estimate tokens from text length if stream didn't provide usage (Groq/Ollama)
+    if (inputTokens === 0 && outputTokens === 0 && fullText.length > 0) {
       // Rough estimate: ~4 chars per token
       const contextLength = context.length + previousArtifacts.join('').length + systemPrompt.length;
       inputTokens = Math.round(contextLength / 4);
       outputTokens = Math.round(fullText.length / 4);
     }
 
-    const model = usedOllama
-      ? (process.env.OLLAMA_MODEL || 'llama3.1:8b')
-      : 'claude-sonnet-4-20250514';
+    // Detect which backend was actually used
+    const isGroq = !!(process.env.GROQ_API_KEY && usedOllama);
+    const isFallback = usedOllama || isGroq;
+    let model: string;
+    let backend: 'anthropic' | 'ollama';
+
+    // Check if this client is a Groq wrapper by looking for the class name or env
+    const clientName = (this.client as unknown as { constructor: { name: string } })?.constructor?.name || '';
+    if (clientName === 'GroqAnthropicCompat' || (process.env.GROQ_API_KEY && isFallback)) {
+      model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+      backend = 'ollama'; // Use 'ollama' for cost tracking (free tier)
+    } else if (usedOllama) {
+      model = process.env.OLLAMA_MODEL || 'llama3.1:8b';
+      backend = 'ollama';
+    } else {
+      model = 'claude-sonnet-4-20250514';
+      backend = 'anthropic';
+    }
 
     this.lastUsage = {
       inputTokens,
       outputTokens,
       model,
-      backend: usedOllama ? 'ollama' : 'anthropic',
+      backend,
     };
 
     return fullText;

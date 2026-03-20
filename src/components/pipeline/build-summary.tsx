@@ -154,9 +154,9 @@ export function BuildSummaryPanel({ runId }: { runId: string }) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatCard
               icon={<Clock className="h-3.5 w-3.5" />}
-              label="Duration"
+              label="Wall Clock"
               value={data.totalDurationFormatted}
-              sub={`${data.totalStages} stages`}
+              sub={`Compute: ${(data as unknown as Record<string, unknown>).computeTimeFormatted || '—'} · ${data.totalStages} stages`}
             />
             <StatCard
               icon={<Cpu className="h-3.5 w-3.5" />}

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "layer06-docs",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "docs", "-l", "3333"],
+      "port": 3333
+    }
+  ]
+}

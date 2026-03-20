@@ -10,6 +10,9 @@ import { CostTracker, type TokenUsage } from '@/src/services/cost-tracker';
 import { TraceLogger } from '@/src/services/trace-logger';
 import { AgentCoordinator } from '@/src/services/agent-coordinator';
 import { OutputValidator } from '@/src/services/output-validator';
+import { SentinelAgent } from '@/src/services/sentinel-agent';
+import { InspectorAgent } from '@/src/services/inspector-agent';
+import { LearningStore } from '@/src/services/learning-store';
 
 interface AdvanceResult {
   readyNodes: Array<{ id: string; nodeId: string; skillName: string; displayName: string; nodeType: string }>;
@@ -357,8 +360,14 @@ export class DAGExecutor {
     // Skill and agent nodes use StageExecutor
     const { context, previousArtifacts } = await DAGExecutor.getNodeContext(runId, stageId);
 
-    // Inject pipeline override for executor skills — don't wait for confirmation
+    // Inject Foreman warnings from learning store
     let finalContext = context;
+    try {
+      const warnings = await LearningStore.getWarningBlock(stage.skillName);
+      if (warnings) finalContext += warnings;
+    } catch { /* non-fatal */ }
+
+    // Inject pipeline override for executor skills — don't wait for confirmation
     if (stage.skillName === 'phase-executor' || stage.skillName === 'fix-executor') {
       // Extract tech stack from PRD context to enforce it
       const stackMatch = context.match(/(?:tech\s*stack|framework|language|runtime)[:\s]+([\s\S]{0,200})/i);
@@ -496,6 +505,65 @@ export class DAGExecutor {
       }
     }
 
+    // Run Sentinel on prompt-builder output (confidence check before execution)
+    if (stage.skillName === 'prompt-builder') {
+      try {
+        const prdStage = await prisma.pipelineStage.findFirst({
+          where: { runId: stage.runId, skillName: 'prd-architect', status: 'approved' },
+          select: { artifactContent: true },
+        });
+        const phaseStage = await prisma.pipelineStage.findFirst({
+          where: { runId: stage.runId, skillName: 'phase-builder', status: 'approved' },
+          select: { artifactContent: true },
+        });
+        const priorArtifacts = await prisma.pipelineStage.findMany({
+          where: { runId: stage.runId, status: 'approved', stageIndex: { lt: stage.stageIndex } },
+          select: { artifactContent: true },
+          orderBy: { stageIndex: 'asc' },
+        });
+
+        // We need a client — use Groq for cheap evaluation
+        const { getAnthropicClient } = await import('@/src/lib/anthropic');
+        const run = await prisma.pipelineRun.findUnique({
+          where: { id: stage.runId },
+          include: { project: { select: { userId: true } } },
+        });
+        if (run) {
+          const evalClient = await getAnthropicClient(run.project.userId);
+          const sentinelResult = await SentinelAgent.evaluate(
+            stage.runId,
+            stageId,
+            artifactContent,
+            phaseStage?.artifactContent || '',
+            prdStage?.artifactContent || '',
+            priorArtifacts.map((a) => a.artifactContent || '').filter(Boolean),
+            evalClient
+          );
+
+          // Append Sentinel verdict to the artifact so user sees it
+          const verdict = sentinelResult.passed
+            ? `\n\n---\n\n✅ **Sentinel Verdict: ${(sentinelResult.score * 100).toFixed(0)}% confidence — PASSED**\n${sentinelResult.reasoning}`
+            : `\n\n---\n\n❌ **Sentinel Verdict: ${(sentinelResult.score * 100).toFixed(0)}% confidence — BELOW THRESHOLD (${(SentinelAgent.getThreshold() * 100).toFixed(0)}%)**\n${sentinelResult.reasoning}\n\n**Issues:**\n${sentinelResult.issues.map((i) => `- ${i}`).join('\n')}\n\n**Suggestions:**\n${sentinelResult.suggestions.map((s) => `- ${s}`).join('\n')}`;
+
+          await prisma.pipelineStage.update({
+            where: { id: stageId },
+            data: { artifactContent: artifactContent + verdict },
+          });
+
+          // If rejected, record in learning store
+          if (!sentinelResult.passed) {
+            for (const issue of sentinelResult.issues) {
+              await LearningStore.recordRejection(
+                'sentinel', 'prompt-builder', issue, stage.runId, stageId
+              ).catch(() => {});
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[DAGExecutor] Sentinel evaluation failed (non-fatal):', err);
+      }
+    }
+
     console.log(`[DAGExecutor] Node "${stage.displayName}" complete (${durationMs}ms), awaiting approval`);
 
     // Don't advance yet — wait for human approval
@@ -547,6 +615,35 @@ export class DAGExecutor {
         } catch (err) {
           console.error('[DAGExecutor] Graph expansion failed:', err);
         }
+      }
+    }
+
+    // Run Inspector after phase-executor approval (verify completeness)
+    if (stage.skillName === 'phase-executor' && stage.phaseIndex !== null) {
+      try {
+        const { getAnthropicClient } = await import('@/src/lib/anthropic');
+        const run = await prisma.pipelineRun.findUnique({
+          where: { id: stage.runId },
+          include: { project: { select: { userId: true } } },
+        });
+        if (run) {
+          const inspClient = await getAnthropicClient(run.project.userId);
+          const inspResult = await InspectorAgent.verify(stage.runId, stage.phaseIndex!, inspClient);
+
+          if (!inspResult.passed) {
+            console.warn(`[DAGExecutor] Inspector: Phase ${stage.phaseIndex} incomplete — ${inspResult.failures.length} failures`);
+            // Record failures in learning store
+            for (const failure of inspResult.failures) {
+              await LearningStore.recordRejection(
+                'inspector', 'phase-executor',
+                `Phase ${stage.phaseIndex}: ${failure.criterion} — ${failure.reason}`,
+                stage.runId, stageId
+              ).catch(() => {});
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[DAGExecutor] Inspector verification failed (non-fatal):', err);
       }
     }
 

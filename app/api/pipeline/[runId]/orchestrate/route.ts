@@ -38,6 +38,7 @@ export async function POST(
       data: action,
       meta: {
         decisionLatencyMs: Orchestrator.getLastDecisionMs(),
+        decisionBackend: Orchestrator.getLastBackend(),
         orchestratorAvailable: await Orchestrator.isAvailable(),
       },
     });
@@ -71,13 +72,11 @@ export async function GET(
 
   try {
     const state = await OrchestratedRunner.buildPipelineState(params.runId);
-    const orchestratorUp = await Orchestrator.isAvailable();
+    const orchestratorStatus = await Orchestrator.getStatus();
 
     return NextResponse.json({
       data: {
-        orchestratorAvailable: orchestratorUp,
-        orchestratorModel: process.env.ORCHESTRATOR_MODEL || 'qwen2.5-coder:1.5b',
-        orchestratorUrl: process.env.ORCHESTRATOR_URL || 'http://10.10.3.7:11434',
+        orchestrator: orchestratorStatus,
         pipelineState: {
           runId: state.runId,
           type: state.type,

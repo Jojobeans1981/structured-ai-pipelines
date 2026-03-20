@@ -16,6 +16,7 @@ import { DAGView } from '@/src/components/pipeline/dag-view';
 import { PlanApproval } from '@/src/components/pipeline/plan-approval';
 import { CostDisplay } from '@/src/components/pipeline/cost-display';
 import { TraceTimeline } from '@/src/components/pipeline/trace-timeline';
+import { BuildSummaryPanel } from '@/src/components/pipeline/build-summary';
 import { useKeyboardShortcuts } from '@/src/hooks/use-keyboard-shortcuts';
 
 interface PipelineViewProps {
@@ -326,6 +327,7 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
             </div>
           </div>
           <CostDisplay runId={runId} />
+          <BuildSummaryPanel runId={runId} />
           <TraceTimeline runId={runId} />
         </div>
       )}

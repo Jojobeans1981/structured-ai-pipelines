@@ -16,8 +16,15 @@
  * looks at what's been built so far, and tells each worker what to do next.
  */
 
+/**
+ * Orchestrator backend priority:
+ * 1. Groq (free cloud, fast — llama-3.3-70b, ~200ms decisions)
+ * 2. Ollama/Qwen (free local, if available)
+ * 3. Static fallback (hardcoded routing rules)
+ */
 const ORCHESTRATOR_URL = process.env.ORCHESTRATOR_URL || 'http://10.10.3.7:11434';
-const ORCHESTRATOR_MODEL = process.env.ORCHESTRATOR_MODEL || 'qwen2.5-coder:1.5b';
+const ORCHESTRATOR_LOCAL_MODEL = process.env.ORCHESTRATOR_MODEL || 'qwen2.5-coder:1.5b';
+const GROQ_ORCHESTRATOR_MODEL = process.env.GROQ_ORCHESTRATOR_MODEL || 'llama-3.3-70b-versatile';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -101,50 +108,120 @@ ONLY output the JSON. No explanation. No markdown. No code fences.`;
 
 export class Orchestrator {
   private static lastDecisionMs = 0;
+  private static lastBackend: 'groq' | 'ollama' | 'static' = 'static';
 
   /**
    * Ask the foreman what to do next given the current pipeline state.
+   * Tries Groq first (free cloud, fast), then local Ollama, then static fallback.
    */
   static async decide(state: PipelineState): Promise<OrchestratorAction> {
+    const statePrompt = Orchestrator.buildStatePrompt(state);
+
+    // 1. Try Groq (free, cloud, fast, 70B model — best decisions)
+    const groqResult = await Orchestrator.tryGroq(statePrompt, state);
+    if (groqResult) return groqResult;
+
+    // 2. Try local Ollama/Qwen (free, local, 1.5B — fast but less smart)
+    const ollamaResult = await Orchestrator.tryOllama(statePrompt, state);
+    if (ollamaResult) return ollamaResult;
+
+    // 3. Static fallback (no LLM, hardcoded rules)
+    console.log('[Orchestrator] All LLMs unavailable, using static routing');
+    Orchestrator.lastBackend = 'static';
+    return Orchestrator.fallbackDecision(state);
+  }
+
+  /**
+   * Try Groq as the orchestrator (free tier, ~200ms, 70B model).
+   */
+  private static async tryGroq(statePrompt: string, state: PipelineState): Promise<OrchestratorAction | null> {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) return null;
+
     const startMs = Date.now();
 
-    const statePrompt = Orchestrator.buildStatePrompt(state);
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: GROQ_ORCHESTRATOR_MODEL,
+          messages: [
+            { role: 'system', content: FOREMAN_SYSTEM_PROMPT },
+            { role: 'user', content: statePrompt },
+          ],
+          temperature: 0.1,
+          max_tokens: 512,
+          response_format: { type: 'json_object' },
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.warn(`[Orchestrator] Groq error ${response.status}: ${text.substring(0, 200)}`);
+        return null;
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+
+      Orchestrator.lastDecisionMs = Date.now() - startMs;
+      Orchestrator.lastBackend = 'groq';
+      console.log(`[Orchestrator] Groq decision in ${Orchestrator.lastDecisionMs}ms`);
+
+      return Orchestrator.parseAction(content, state);
+    } catch (err) {
+      console.warn('[Orchestrator] Groq unreachable, trying next backend');
+      return null;
+    }
+  }
+
+  /**
+   * Try local Ollama as the orchestrator (Qwen 2.5 Coder on Mac Mini).
+   */
+  private static async tryOllama(statePrompt: string, state: PipelineState): Promise<OrchestratorAction | null> {
+    const startMs = Date.now();
 
     try {
       const response = await fetch(`${ORCHESTRATOR_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: ORCHESTRATOR_MODEL,
+          model: ORCHESTRATOR_LOCAL_MODEL,
           messages: [
             { role: 'system', content: FOREMAN_SYSTEM_PROMPT },
             { role: 'user', content: statePrompt },
           ],
           stream: false,
           options: {
-            temperature: 0.1,      // Low temp = deterministic decisions
-            num_predict: 512,      // Decisions are short
-            top_p: 0.9,
+            temperature: 0.1,
+            num_predict: 512,
           },
         }),
-        signal: AbortSignal.timeout(10000),  // 10s max — foreman must be fast
+        signal: AbortSignal.timeout(10000),
       });
 
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(`Orchestrator error ${response.status}: ${text}`);
+        console.warn(`[Orchestrator] Ollama error ${response.status}: ${text.substring(0, 200)}`);
+        return null;
       }
 
       const data = await response.json();
       const content = data.message?.content || '';
 
       Orchestrator.lastDecisionMs = Date.now() - startMs;
-      console.log(`[Orchestrator] Decision in ${Orchestrator.lastDecisionMs}ms`);
+      Orchestrator.lastBackend = 'ollama';
+      console.log(`[Orchestrator] Ollama decision in ${Orchestrator.lastDecisionMs}ms`);
 
       return Orchestrator.parseAction(content, state);
-    } catch (err) {
-      console.error('[Orchestrator] Qwen unavailable, falling back to static routing');
-      return Orchestrator.fallbackDecision(state);
+    } catch {
+      console.warn('[Orchestrator] Ollama unreachable, falling back to static');
+      return null;
     }
   }
 
@@ -301,21 +378,53 @@ export class Orchestrator {
   }
 
   /**
-   * Check if the Qwen orchestrator is reachable.
+   * Get which backend made the last decision.
+   */
+  static getLastBackend(): 'groq' | 'ollama' | 'static' {
+    return Orchestrator.lastBackend;
+  }
+
+  /**
+   * Check which orchestrator backends are available.
    */
   static async isAvailable(): Promise<boolean> {
+    // Check Groq
+    if (process.env.GROQ_API_KEY) return true;
+
+    // Check local Ollama
     try {
       const res = await fetch(`${ORCHESTRATOR_URL}/api/tags`, {
         signal: AbortSignal.timeout(3000),
       });
-      if (!res.ok) return false;
-      const data = await res.json();
-      const models = (data.models || []).map((m: { name: string }) => m.name);
-      return models.some((name: string) =>
-        name === ORCHESTRATOR_MODEL || name.startsWith(ORCHESTRATOR_MODEL.split(':')[0])
-      );
-    } catch {
-      return false;
-    }
+      if (res.ok) return true;
+    } catch { /* ignore */ }
+
+    // Static fallback always works
+    return true;
+  }
+
+  /**
+   * Get detailed status of all orchestrator backends.
+   */
+  static async getStatus(): Promise<{
+    groq: { available: boolean; model: string };
+    ollama: { available: boolean; model: string; url: string };
+    activeBackend: 'groq' | 'ollama' | 'static';
+    lastDecisionMs: number;
+  }> {
+    const groqAvailable = !!process.env.GROQ_API_KEY;
+
+    let ollamaAvailable = false;
+    try {
+      const res = await fetch(`${ORCHESTRATOR_URL}/api/tags`, { signal: AbortSignal.timeout(3000) });
+      ollamaAvailable = res.ok;
+    } catch { /* ignore */ }
+
+    return {
+      groq: { available: groqAvailable, model: GROQ_ORCHESTRATOR_MODEL },
+      ollama: { available: ollamaAvailable, model: ORCHESTRATOR_LOCAL_MODEL, url: ORCHESTRATOR_URL },
+      activeBackend: Orchestrator.lastBackend,
+      lastDecisionMs: Orchestrator.lastDecisionMs,
+    };
   }
 }

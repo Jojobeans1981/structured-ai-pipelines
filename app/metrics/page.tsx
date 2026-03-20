@@ -50,8 +50,14 @@ export default function MetricsPage() {
                 </div>
               ))}
             </div>
-          ) : summary ? (
+          ) : summary && (summary.build.totalRuns > 0 || summary.diagnostic.totalRuns > 0) ? (
             <MetricsCards summary={summary} />
+          ) : summary ? (
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <BarChart3 className="h-10 w-10 text-muted-foreground" />
+              <h3 className="text-lg font-semibold">No completed runs yet</h3>
+              <p className="text-sm text-muted-foreground">Complete a pipeline run to see metrics here. In-progress and cancelled runs will also show once they finish.</p>
+            </div>
           ) : (
             <div className="flex flex-col items-center gap-3 py-12 text-center">
               <BarChart3 className="h-10 w-10 text-muted-foreground" />

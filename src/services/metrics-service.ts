@@ -3,7 +3,7 @@ import { type MetricsSummary, type MetricsSummaryItem, type MetricHistoryEntry }
 import { CostTracker } from '@/src/services/cost-tracker';
 
 function emptyItem(): MetricsSummaryItem {
-  return { totalRuns: 0, successCount: 0, successRate: 0, avgDurationMs: 0, avgFirstPassRate: 0, totalRejections: 0 };
+  return { totalRuns: 0, successCount: 0, successRate: 0, avgDurationMs: 0, avgFirstPassRate: 0, totalRejections: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCostUsd: 0 };
 }
 
 export class MetricsService {
@@ -85,6 +85,10 @@ export class MetricsService {
       const totalStages = items.reduce((sum, m) => sum + m.stageCount, 0);
       const totalRejections = items.reduce((sum, m) => sum + m.rejectionCount, 0);
 
+      const totalInputTokens = items.reduce((sum, m) => sum + m.totalInputTokens, 0);
+      const totalOutputTokens = items.reduce((sum, m) => sum + m.totalOutputTokens, 0);
+      const totalCostUsd = items.reduce((sum, m) => sum + m.totalCostUsd, 0);
+
       return {
         totalRuns: items.length,
         successCount,
@@ -92,6 +96,9 @@ export class MetricsService {
         avgDurationMs: Math.round(totalDurationMs / items.length),
         avgFirstPassRate: totalStages > 0 ? Math.round((totalFirstPass / totalStages) * 100) : 0,
         totalRejections,
+        totalInputTokens,
+        totalOutputTokens,
+        totalCostUsd,
       };
     }
 

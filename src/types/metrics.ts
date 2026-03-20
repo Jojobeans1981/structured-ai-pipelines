@@ -5,6 +5,9 @@ export interface MetricsSummaryItem {
   avgDurationMs: number;
   avgFirstPassRate: number;
   totalRejections: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCostUsd: number;
 }
 
 export interface MetricsSummary {

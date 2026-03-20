@@ -26,8 +26,15 @@ export async function POST(
     return NextResponse.json({ error: 'Plan already approved' }, { status: 400 });
   }
 
-  // Initialize output directory for disk writing
-  const outputPath = DiskWriter.initOutputDir(run.project.name, run.id);
+  // Initialize output directory for disk writing.
+  // On serverless (Vercel), filesystem is read-only — files are stored in DB instead.
+  // On local dev, files are also written to ~/forge-output/ for direct use.
+  let outputPath: string | null = null;
+  try {
+    outputPath = DiskWriter.initOutputDir(run.project.name, run.id);
+  } catch (err) {
+    console.log('[PlanApprove] Disk writing unavailable (serverless environment) — files will be stored in DB and downloadable as ZIP');
+  }
 
   // Mark plan as approved and set output path
   await prisma.pipelineRun.update({

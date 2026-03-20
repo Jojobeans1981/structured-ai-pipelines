@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { ScrollArea } from '@/src/components/ui/scroll-area';
 
 interface StreamOutputProps {
@@ -10,10 +10,19 @@ interface StreamOutputProps {
 
 export function StreamOutput({ text, isStreaming }: StreamOutputProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleScroll = useCallback(() => {
+    if (scrollTimer.current) return;
+    scrollTimer.current = setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
+      scrollTimer.current = null;
+    }, 200);
+  }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [text]);
+    if (isStreaming) scheduleScroll();
+  }, [text, isStreaming, scheduleScroll]);
 
   return (
     <ScrollArea className="h-[400px] min-h-[200px] max-h-[500px] rounded-lg forge-terminal">

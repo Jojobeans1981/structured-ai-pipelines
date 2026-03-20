@@ -83,8 +83,26 @@ export const usePipelineStore = create<PipelineState>((set) => ({
       outputPath: outputPath || null,
     }),
 
-  appendToken: (text, nodeId) =>
-    set((state) => ({ streamingText: state.streamingText + text, streamingNodeId: nodeId || state.streamingNodeId, isStreaming: true })),
+  appendToken: (() => {
+    let buffer = '';
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    return (text: string, nodeId?: string) => {
+      buffer += text;
+      if (!timer) {
+        timer = setTimeout(() => {
+          const flushed = buffer;
+          buffer = '';
+          timer = null;
+          set((state) => ({
+            streamingText: state.streamingText + flushed,
+            streamingNodeId: nodeId || state.streamingNodeId,
+            isStreaming: true,
+          }));
+        }, 100); // Flush every 100ms — prevents thousands of re-renders
+      }
+    };
+  })(),
 
   setCheckpoint: (stageId, artifact) =>
     set((state) => ({

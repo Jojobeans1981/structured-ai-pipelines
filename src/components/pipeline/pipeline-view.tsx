@@ -146,6 +146,10 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
 
       // DAG mode: server tells us which nodes are now running
       const nextRunningIds = data.data?.nextNodes?.map((n: { id: string }) => n.id) || [];
+
+      // Pause to let the browser breathe before next stage
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
       store.approveStage(stageId, store.executionMode === 'dag' ? nextRunningIds : undefined);
     } catch (err) {
       store.setError(err instanceof Error ? err.message : 'Approval failed');

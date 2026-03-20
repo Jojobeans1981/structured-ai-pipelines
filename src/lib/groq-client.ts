@@ -1,6 +1,6 @@
 import Groq from 'groq-sdk';
 
-const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-70b-versatile';
+const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 
 let groqClient: Groq | null = null;
 

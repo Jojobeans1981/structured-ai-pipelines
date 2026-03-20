@@ -35,6 +35,22 @@ export async function GET(
     return NextResponse.json({ error: 'Node is not running' }, { status: 400 });
   }
 
+  // Handle gate nodes — they just await approval, no LLM needed
+  if (stage.nodeType === 'gate') {
+    const artifact = `Awaiting human approval for: ${stage.displayName}`;
+    await DAGExecutor.completeNode(stage.id, artifact, artifact);
+    const stream = new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder();
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'checkpoint', data: { stageId: stage.id, nodeId: stage.nodeId, artifact } })}\n\n`));
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
+    });
+  }
+
   // Handle verify nodes differently
   if (stage.nodeType === 'verify') {
     return handleVerifyNode(params.runId, stage.id, run.outputPath);

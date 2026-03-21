@@ -10,6 +10,7 @@ import { CostTracker, type TokenUsage } from '@/src/services/cost-tracker';
 import { TraceLogger } from '@/src/services/trace-logger';
 import { AgentCoordinator } from '@/src/services/agent-coordinator';
 import { OutputValidator } from '@/src/services/output-validator';
+import { SecretScanner } from '@/src/services/secret-scanner';
 import { SentinelAgent } from '@/src/services/sentinel-agent';
 import { InspectorAgent } from '@/src/services/inspector-agent';
 import { LearningStore } from '@/src/services/learning-store';
@@ -491,6 +492,18 @@ export class DAGExecutor {
         );
         console.log(`[DAGExecutor] Extracted ${count} files to DB from "${stage.displayName}" (${validation.warnings.length} warnings, ${validation.rejectedFiles.length} rejected)`);
 
+        // Secret scan on extracted files
+        const extractedForScan = extractFilesFromArtifact(cleanedArtifact);
+        const scanResult = SecretScanner.scan(extractedForScan);
+        if (!scanResult.clean) {
+          const scanReport = SecretScanner.formatResults(scanResult);
+          await prisma.pipelineStage.update({
+            where: { id: stageId },
+            data: { artifactContent: (cleanedArtifact + scanReport) },
+          });
+          console.warn(`[DAGExecutor] Secret scan: ${scanResult.findings.length} findings in "${stage.displayName}"`);
+        }
+
         // Write to disk if outputPath is set
         if (stage.run.outputPath) {
           const extracted = extractFilesFromArtifact(cleanedArtifact);
@@ -576,6 +589,30 @@ export class DAGExecutor {
       } catch (err) {
         console.error('[DAGExecutor] Sentinel evaluation failed (non-fatal):', err);
       }
+    }
+
+    // Enrich trace metadata with audit info
+    const run = await prisma.pipelineRun.findUnique({
+      where: { id: stage.runId },
+      select: { traceId: true },
+    });
+    if (run?.traceId) {
+      const fileCount = await prisma.projectFile.count({ where: { runId: stage.runId } });
+      await TraceLogger.log({
+        runId: stage.runId,
+        traceId: run.traceId,
+        spanId: TraceLogger.generateSpanId(),
+        eventType: 'stage_complete',
+        source: 'dag-executor',
+        message: `Node "${stage.displayName}" complete (${durationMs}ms)`,
+        metadata: {
+          artifactSize: artifactContent.length,
+          fileCount,
+          skillName: stage.skillName,
+          retryCount: stage.retryCount,
+        } as Record<string, string | number | boolean | null>,
+        durationMs: durationMs ?? undefined,
+      });
     }
 
     console.log(`[DAGExecutor] Node "${stage.displayName}" complete (${durationMs}ms), awaiting approval`);
@@ -675,6 +712,11 @@ export class DAGExecutor {
     });
 
     const previousOutput = current?.artifactContent || current?.streamContent || null;
+
+    // Exponential backoff before retry: 1s, 2s, 4s, 8s... max 30s
+    const backoffMs = Math.min(1000 * Math.pow(2, current?.retryCount || 0), 30000);
+    console.log(`[DAGExecutor] Backoff ${backoffMs}ms before retry #${(current?.retryCount || 0) + 1}`);
+    await new Promise((resolve) => setTimeout(resolve, backoffMs));
 
     await prisma.pipelineStage.update({
       where: { id: stageId },

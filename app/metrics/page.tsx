@@ -66,6 +66,9 @@ export default function MetricsPage() {
             </div>
           )}
 
+          {/* Prompt Health */}
+          <PromptHealthPanel />
+
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
               <TabsTrigger value="build">Build Pipeline</TabsTrigger>
@@ -108,6 +111,56 @@ export default function MetricsPage() {
         </div>
       </PageContainer>
     </>
+  );
+}
+
+function PromptHealthPanel() {
+  const [health, setHealth] = useState<{
+    totalEvaluations: number;
+    passRate: number;
+    avgConfidence: number;
+    totalRetries: number;
+  } | null>(null);
+
+  useState(() => {
+    fetch('/api/metrics/prompt-health').then(r => r.ok ? r.json() : null).then(j => j && setHealth(j.data)).catch(() => {});
+  });
+
+  if (!health || health.totalEvaluations === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-cyan-400" />
+          Prompt Health — Sentinel Verification
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-4 gap-3 text-sm">
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+            <div className="text-zinc-500 text-xs">Evaluations</div>
+            <div className="text-xl font-bold text-zinc-200">{health.totalEvaluations}</div>
+          </div>
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+            <div className="text-zinc-500 text-xs">Pass Rate</div>
+            <div className={`text-xl font-bold ${health.passRate >= 80 ? 'text-emerald-400' : health.passRate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+              {health.passRate}%
+            </div>
+          </div>
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+            <div className="text-zinc-500 text-xs">Avg Confidence</div>
+            <div className={`text-xl font-bold ${health.avgConfidence >= 80 ? 'text-emerald-400' : 'text-yellow-400'}`}>
+              {health.avgConfidence}%
+            </div>
+          </div>
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+            <div className="text-zinc-500 text-xs">Retries Needed</div>
+            <div className="text-xl font-bold text-orange-400">{health.totalRetries}</div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

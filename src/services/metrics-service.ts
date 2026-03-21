@@ -108,6 +108,39 @@ export class MetricsService {
     };
   }
 
+  static async getPromptHealth(): Promise<{
+    totalEvaluations: number;
+    passRate: number;
+    avgConfidence: number;
+    totalRetries: number;
+    recentScores: Array<{ score: number; passed: boolean; createdAt: string }>;
+  }> {
+    const scores = await prisma.confidenceScore.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    if (scores.length === 0) {
+      return { totalEvaluations: 0, passRate: 0, avgConfidence: 0, totalRetries: 0, recentScores: [] };
+    }
+
+    const passed = scores.filter((s) => s.passed).length;
+    const avgScore = scores.reduce((sum, s) => sum + s.score, 0) / scores.length;
+    const retries = scores.filter((s) => s.attempt > 1).length;
+
+    return {
+      totalEvaluations: scores.length,
+      passRate: Math.round((passed / scores.length) * 100),
+      avgConfidence: Math.round(avgScore * 100),
+      totalRetries: retries,
+      recentScores: scores.slice(0, 10).map((s) => ({
+        score: s.score,
+        passed: s.passed,
+        createdAt: s.createdAt.toISOString(),
+      })),
+    };
+  }
+
   static async getMetricsHistory(
     userId: string,
     type?: string,

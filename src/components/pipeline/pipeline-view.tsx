@@ -288,8 +288,8 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
         </div>
       )}
 
-      {/* Checkpoint gates (approval needed) */}
-      {awaitingStages.map((stage) => (
+      {/* Checkpoint gate — only show ONE at a time */}
+      {awaitingStages.slice(0, 1).map((stage) => (
         <div key={stage.id} className="space-y-4">
           <CheckpointGate
             stage={stage}

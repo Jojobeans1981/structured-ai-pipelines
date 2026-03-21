@@ -20,9 +20,20 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={inter.className}>
         <SessionProvider>
-          <div className="flex h-screen">
+          {/* Forge lava background */}
+          <div className="forge-lava-bg" />
+          <div className="forge-ember" />
+          <div className="forge-ember" />
+          <div className="forge-ember" />
+          <div className="forge-ember" />
+          <div className="forge-ember" />
+          <div className="forge-ember" />
+          <div className="forge-ember" />
+          <div className="forge-ember" />
+
+          <div className="flex h-screen relative z-0">
             <Sidebar />
-            <div className="flex flex-1 flex-col min-h-0">
+            <div className="flex flex-1 flex-col min-h-0 overflow-y-auto">
               {children}
             </div>
           </div>

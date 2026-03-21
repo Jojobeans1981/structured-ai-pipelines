@@ -1,7 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useCallback } from 'react';
-import { ScrollArea } from '@/src/components/ui/scroll-area';
+import { useRef, useEffect } from 'react';
 
 interface StreamOutputProps {
   text: string;
@@ -9,23 +8,26 @@ interface StreamOutputProps {
 }
 
 export function StreamOutput({ text, isStreaming }: StreamOutputProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const scheduleScroll = useCallback(() => {
+  // Scroll only within the container — never moves the page
+  useEffect(() => {
+    if (!isStreaming || !containerRef.current) return;
     if (scrollTimer.current) return;
     scrollTimer.current = setTimeout(() => {
-      bottomRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
+      if (containerRef.current) {
+        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      }
       scrollTimer.current = null;
-    }, 200);
-  }, []);
-
-  useEffect(() => {
-    if (isStreaming) scheduleScroll();
-  }, [text, isStreaming, scheduleScroll]);
+    }, 300);
+  }, [text, isStreaming]);
 
   return (
-    <ScrollArea className="h-[400px] min-h-[200px] max-h-[500px] rounded-lg forge-terminal">
+    <div
+      ref={containerRef}
+      className="h-[400px] max-h-[500px] overflow-y-auto rounded-lg forge-terminal"
+    >
       <div className="p-4 font-mono text-sm text-zinc-200 whitespace-pre-wrap break-words">
         {text || (
           <span className="text-zinc-600">
@@ -35,8 +37,7 @@ export function StreamOutput({ text, isStreaming }: StreamOutputProps) {
         {isStreaming && (
           <span className="inline-block w-2 h-4 bg-orange-500 ember-glow ml-0.5 rounded-sm" />
         )}
-        <div ref={bottomRef} />
       </div>
-    </ScrollArea>
+    </div>
   );
 }

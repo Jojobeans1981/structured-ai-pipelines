@@ -550,13 +550,27 @@ export class DAGExecutor {
             data: { artifactContent: artifactContent + verdict },
           });
 
-          // If rejected, record in learning store
+          // If rejected, record in learning store AND auto-reject the stage
           if (!sentinelResult.passed) {
             for (const issue of sentinelResult.issues) {
               await LearningStore.recordRejection(
                 'sentinel', 'prompt-builder', issue, stage.runId, stageId
               ).catch(() => {});
             }
+
+            // Auto-reject: reset stage for re-generation with Sentinel feedback
+            const feedback = `SENTINEL REJECTION (${(sentinelResult.score * 100).toFixed(0)}% < ${(SentinelAgent.getThreshold() * 100).toFixed(0)}% threshold):\n\n` +
+              `Issues:\n${sentinelResult.issues.map((i) => `- ${i}`).join('\n')}\n\n` +
+              `Suggestions:\n${sentinelResult.suggestions.map((s) => `- ${s}`).join('\n')}\n\n` +
+              `Fix these issues and regenerate the prompts.`;
+
+            if (stage.retryCount < stage.maxRetries) {
+              console.log(`[DAGExecutor] Sentinel auto-rejecting "${stage.displayName}" (attempt ${stage.retryCount + 1}/${stage.maxRetries})`);
+              await DAGExecutor.rejectNode(stageId, feedback);
+              return { readyNodes: [{ id: stageId, nodeId: stage.nodeId || stageId, skillName: stage.skillName, displayName: stage.displayName, nodeType: stage.nodeType }], runComplete: false, allApproved: false };
+            }
+            // Max retries exceeded — let human decide
+            console.warn(`[DAGExecutor] Sentinel rejected but max retries reached — presenting to human`);
           }
         }
       } catch (err) {

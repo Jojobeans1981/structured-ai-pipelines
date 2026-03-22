@@ -236,12 +236,122 @@ async function handleVerifyNode(
           return;
         }
 
-        // Serverless fallback — no Docker, no filesystem
+        // Serverless fallback — static file analysis (no Docker, no filesystem)
         {
-          const artifact = '## Build Verification — Serverless Mode\n\n' +
-            '**Status:** SKIPPED (no Docker or filesystem available)\n\n' +
-            'Files are stored in the database and downloadable as a ZIP.\n' +
-            'To verify: download ZIP → extract → `npm install && npm run build`';
+          send({ type: 'token', data: { text: '## Build Verification — Static Analysis\n\n' } });
+
+          const projectFiles = await prisma.projectFile.findMany({
+            where: { runId },
+            select: { filePath: true, content: true, language: true },
+          });
+
+          if (projectFiles.length === 0) {
+            const artifact = '## Build Verification — No Files\n\n**Status:** FAILED\n\nNo files were generated.';
+            send({ type: 'token', data: { text: artifact } });
+            await DAGExecutor.completeNode(stageId, artifact, artifact);
+            send({ type: 'checkpoint', data: { stageId, artifact } });
+            controller.close();
+            return;
+          }
+
+          let output = `Analyzing ${projectFiles.length} files...\n\n`;
+          send({ type: 'token', data: { text: output } });
+
+          const checks: string[] = [];
+          const warnings: string[] = [];
+          const errors: string[] = [];
+
+          // Check 1: package.json exists
+          const pkgFile = projectFiles.find((f) => f.filePath === 'package.json');
+          if (pkgFile) {
+            checks.push('package.json exists');
+            try {
+              const pkg = JSON.parse(pkgFile.content);
+              if (pkg.dependencies) checks.push(`${Object.keys(pkg.dependencies).length} dependencies declared`);
+              if (pkg.scripts?.build) checks.push('build script defined');
+              else warnings.push('No build script in package.json');
+              if (pkg.scripts?.dev || pkg.scripts?.start) checks.push('dev/start script defined');
+              else warnings.push('No dev or start script');
+            } catch {
+              errors.push('package.json is not valid JSON');
+            }
+          } else {
+            errors.push('No package.json found — app cannot be installed');
+          }
+
+          // Check 2: Entry point exists
+          const entryFiles = ['src/main.tsx', 'src/main.ts', 'src/index.tsx', 'src/index.ts', 'src/App.tsx', 'src/app.tsx', 'index.html'];
+          const hasEntry = entryFiles.some((e) => projectFiles.find((f) => f.filePath === e));
+          if (hasEntry) checks.push('Entry point found');
+          else warnings.push('No standard entry point found (src/main.tsx, index.html, etc.)');
+
+          // Check 3: Import resolution
+          const allPaths = new Set(projectFiles.map((f) => f.filePath));
+          let resolvedImports = 0;
+          let brokenImports = 0;
+          for (const file of projectFiles) {
+            const importMatches = file.content.matchAll(/(?:import|from)\s+['"]\.\/([^'"]+)['"]/g);
+            for (const match of importMatches) {
+              let importPath = match[1];
+              // Try with extensions
+              const dir = file.filePath.includes('/') ? file.filePath.substring(0, file.filePath.lastIndexOf('/')) + '/' : '';
+              const candidates = [
+                dir + importPath,
+                dir + importPath + '.ts',
+                dir + importPath + '.tsx',
+                dir + importPath + '.js',
+                dir + importPath + '.jsx',
+                dir + importPath + '/index.ts',
+                dir + importPath + '/index.tsx',
+              ];
+              if (candidates.some((c) => allPaths.has(c))) {
+                resolvedImports++;
+              } else {
+                brokenImports++;
+                if (brokenImports <= 5) {
+                  warnings.push(`Unresolved import: "${match[1]}" in ${file.filePath}`);
+                }
+              }
+            }
+          }
+          if (resolvedImports > 0) checks.push(`${resolvedImports} imports resolved`);
+          if (brokenImports > 0) warnings.push(`${brokenImports} total unresolved imports`);
+
+          // Check 4: No empty files
+          const emptyFiles = projectFiles.filter((f) => f.content.trim().length === 0);
+          if (emptyFiles.length > 0) warnings.push(`${emptyFiles.length} empty files: ${emptyFiles.map((f) => f.filePath).join(', ')}`);
+
+          // Check 5: No TODO/stub code
+          let todoCount = 0;
+          for (const file of projectFiles) {
+            const todos = (file.content.match(/TODO|FIXME|implement later|not implemented/gi) || []).length;
+            todoCount += todos;
+          }
+          if (todoCount > 0) warnings.push(`${todoCount} TODO/FIXME markers found`);
+          else checks.push('No TODO/FIXME markers');
+
+          // Check 6: Config files
+          const hasTs = projectFiles.some((f) => f.filePath.endsWith('.ts') || f.filePath.endsWith('.tsx'));
+          if (hasTs) {
+            const hasTsConfig = projectFiles.some((f) => f.filePath === 'tsconfig.json');
+            if (hasTsConfig) checks.push('tsconfig.json exists');
+            else warnings.push('TypeScript files found but no tsconfig.json');
+          }
+
+          // Build result
+          const passed = errors.length === 0;
+          let artifact = `## Build Verification — Static Analysis ${passed ? '✅ PASSED' : '❌ ISSUES FOUND'}\n\n`;
+          artifact += `**Files analyzed:** ${projectFiles.length}\n\n`;
+
+          if (checks.length > 0) {
+            artifact += `### Checks Passed\n${checks.map((c) => `- ✅ ${c}`).join('\n')}\n\n`;
+          }
+          if (warnings.length > 0) {
+            artifact += `### Warnings\n${warnings.map((w) => `- ⚠️ ${w}`).join('\n')}\n\n`;
+          }
+          if (errors.length > 0) {
+            artifact += `### Errors\n${errors.map((e) => `- ❌ ${e}`).join('\n')}\n\n`;
+          }
 
           send({ type: 'token', data: { text: artifact } });
           await DAGExecutor.completeNode(stageId, artifact, artifact);

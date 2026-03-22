@@ -8,6 +8,9 @@ import { DockerSandbox } from '@/src/services/docker-sandbox';
 import { TestGenerator } from '@/src/services/test-generator';
 import { DockerfileGenerator } from '@/src/services/dockerfile-generator';
 import { CompletenessPass, detectProjectType } from '@/src/services/completeness-pass';
+import { CIGenerator } from '@/src/services/ci-generator';
+import { SBOMScanner } from '@/src/services/sbom-scanner';
+import { CostGuard } from '@/src/services/cost-guard';
 
 // Vercel serverless: max execution time (hobby=60s, pro=300s)
 export const maxDuration = 60;
@@ -61,6 +64,35 @@ export async function GET(
   // Handle verify nodes differently
   if (stage.nodeType === 'verify') {
     return handleVerifyNode(params.runId, stage.id, run.outputPath);
+  }
+
+  // Cost guard: check budget before running LLM nodes
+  if (stage.nodeType === 'skill' || stage.nodeType === 'agent') {
+    try {
+      const budgetCheck = await CostGuard.checkBudget(params.runId, user.id);
+      if (!budgetCheck.allowed) {
+        console.warn(`[SSE /nodes/stream] Budget exceeded: ${budgetCheck.reason}`);
+        await prisma.pipelineStage.update({
+          where: { id: stage.id },
+          data: {
+            status: 'awaiting_approval',
+            artifactContent: `**Budget Exceeded**\n\n${budgetCheck.reason}\n\nApprove this stage to continue anyway, or cancel the run.`,
+          },
+        });
+        const budgetStream = new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder();
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'checkpoint', data: { stageId: stage.id, nodeId: stage.nodeId, artifact: budgetCheck.reason } })}\n\n`));
+            controller.close();
+          },
+        });
+        return new Response(budgetStream, {
+          headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
+        });
+      }
+    } catch (err) {
+      console.error('[SSE /nodes/stream] Cost guard check failed (non-fatal):', err);
+    }
   }
 
   // Route to optimal backend based on skill complexity
@@ -607,6 +639,94 @@ async function scaffoldTestsAndDocker(
     const msg = err instanceof Error ? err.message : 'unknown';
     output += `Docker generation failed (non-fatal): ${msg}\n\n`;
     console.error('[Verify] Docker generation failed:', err);
+  }
+
+  // --- CI/CD Pipeline Generation ---
+  send({ type: 'token', data: { text: '## CI/CD Pipeline\n\n' } });
+
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { name: true },
+    });
+
+    const ciResult = CIGenerator.generate(projectFiles, projectType, project?.name || 'app');
+
+    if (ciResult.files.length > 0) {
+      for (const file of ciResult.files) {
+        await prisma.projectFile.upsert({
+          where: { projectId_filePath: { projectId, filePath: file.filePath } },
+          create: {
+            projectId,
+            runId,
+            filePath: file.filePath,
+            content: file.content,
+            language: file.language,
+            createdByStage: stageId,
+          },
+          update: { content: file.content, runId },
+        });
+      }
+
+      let ciOutput = `**Provider:** ${ciResult.provider}\n`;
+      ciOutput += `**Files generated:**\n`;
+      for (const f of ciResult.files) {
+        ciOutput += `- \`${f.filePath}\`\n`;
+      }
+      ciOutput += '\n';
+
+      output += ciOutput;
+      send({ type: 'token', data: { text: ciOutput } });
+      console.log(`[Verify] Generated ${ciResult.files.length} CI files`);
+    } else {
+      output += 'Project type not supported for CI generation.\n\n';
+      send({ type: 'token', data: { text: 'Project type not supported for CI generation.\n\n' } });
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown';
+    output += `CI generation failed (non-fatal): ${msg}\n\n`;
+    console.error('[Verify] CI generation failed:', err);
+  }
+
+  // --- SBOM & Dependency Security Scan ---
+  send({ type: 'token', data: { text: '## SBOM & Dependency Scan\n\n' } });
+
+  try {
+    const sbomResult = SBOMScanner.scan(projectFiles);
+
+    output += sbomResult.report + '\n';
+    send({ type: 'token', data: { text: sbomResult.report + '\n' } });
+
+    // Save CycloneDX SBOM as a project file
+    if (sbomResult.components.length > 0) {
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { name: true },
+      });
+      const sbomJson = SBOMScanner.toCycloneDX(sbomResult, project?.name || 'app');
+
+      await prisma.projectFile.upsert({
+        where: { projectId_filePath: { projectId, filePath: 'sbom.cdx.json' } },
+        create: {
+          projectId,
+          runId,
+          filePath: 'sbom.cdx.json',
+          content: sbomJson,
+          language: 'json',
+          createdByStage: stageId,
+        },
+        update: { content: sbomJson, runId },
+      });
+
+      send({ type: 'token', data: { text: '`sbom.cdx.json` saved to project files.\n\n' } });
+      output += '`sbom.cdx.json` saved to project files.\n\n';
+    }
+
+    console.log(`[Verify] SBOM: ${sbomResult.totalDeps} deps, ${sbomResult.vulnerabilities.length} findings`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown';
+    output += `SBOM scan failed (non-fatal): ${msg}\n\n`;
+    console.error('[Verify] SBOM scan failed:', err);
   }
 
   return output;

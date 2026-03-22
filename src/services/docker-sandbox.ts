@@ -202,6 +202,111 @@ export class DockerSandbox {
   }
 
   /**
+   * Launch a live preview container that stays running for a specified duration.
+   * Returns the mapped host port so the user can access the app.
+   * The container auto-stops after `ttlSeconds` (default 30 minutes).
+   */
+  static async launchPreview(
+    files: SandboxFile[],
+    ttlSeconds: number = 1800
+  ): Promise<{
+    success: boolean;
+    url: string | null;
+    containerId: string | null;
+    port: number | null;
+    expiresAt: string | null;
+    error: string | null;
+  }> {
+    if (!DockerSandbox.isAvailable()) {
+      return { success: false, url: null, containerId: null, port: null, expiresAt: null, error: 'Docker not available' };
+    }
+
+    const sandboxId = randomBytes(4).toString('hex');
+    const containerName = `forge-preview-${sandboxId}`;
+    const projectDir = join(tmpdir(), `forge-preview-${sandboxId}`);
+
+    try {
+      // Write files to temp dir
+      mkdirSync(projectDir, { recursive: true });
+      for (const file of files) {
+        const fullPath = join(projectDir, file.filePath);
+        const dir = fullPath.substring(0, fullPath.lastIndexOf('/'));
+        if (dir && dir !== projectDir) mkdirSync(dir, { recursive: true });
+        writeFileSync(fullPath, file.content, 'utf-8');
+      }
+
+      if (!existsSync(join(projectDir, 'package.json'))) {
+        return { success: false, url: null, containerId: null, port: null, expiresAt: null, error: 'No package.json — cannot preview' };
+      }
+
+      // Start container with port mapping (random host port)
+      const containerId = execSync(
+        `docker run -d --name ${containerName} ` +
+        `-v "${projectDir}:/app" -w /app ` +
+        `-p 0:3000 -p 0:5173 -p 0:4173 -p 0:8080 ` +
+        `--stop-timeout ${ttlSeconds} ` +
+        `${DOCKER_IMAGE} sh -c "npm install --no-audit --no-fund && (npm run dev || npm start)" 2>&1`,
+        { encoding: 'utf-8', timeout: 30000 }
+      ).trim();
+
+      // Wait for app to boot
+      await new Promise((resolve) => setTimeout(resolve, 8000));
+
+      // Find the mapped host port
+      let hostPort: number | null = null;
+      try {
+        const portOutput = execSync(
+          `docker port ${containerName} 2>/dev/null`,
+          { encoding: 'utf-8', timeout: 5000 }
+        );
+        // Parse output like "3000/tcp -> 0.0.0.0:49152"
+        const portMatch = portOutput.match(/-> [\d.]+:(\d+)/);
+        if (portMatch) hostPort = parseInt(portMatch[1], 10);
+      } catch { /* ignore */ }
+
+      // Schedule auto-cleanup
+      const cleanupCmd = `sleep ${ttlSeconds} && docker rm -f ${containerName} 2>/dev/null && rm -rf ${projectDir}`;
+      exec(`sh -c '${cleanupCmd}'`);
+
+      const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+      const url = hostPort ? `http://localhost:${hostPort}` : null;
+
+      console.log(`[DockerSandbox] Preview launched: ${url} (expires: ${expiresAt})`);
+
+      return {
+        success: !!url,
+        url,
+        containerId,
+        port: hostPort,
+        expiresAt,
+        error: url ? null : 'Container started but no port mapped',
+      };
+    } catch (err) {
+      // Cleanup on error
+      try { execSync(`docker rm -f ${containerName} 2>/dev/null`, { stdio: 'pipe' }); } catch { /* */ }
+      try { rmSync(projectDir, { recursive: true, force: true }); } catch { /* */ }
+      return {
+        success: false,
+        url: null,
+        containerId: null,
+        port: null,
+        expiresAt: null,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Stop a running preview container.
+   */
+  static stopPreview(containerId: string): void {
+    try {
+      execSync(`docker rm -f ${containerId} 2>/dev/null`, { stdio: 'pipe', timeout: 10000 });
+      console.log(`[DockerSandbox] Preview stopped: ${containerId}`);
+    } catch { /* container may already be gone */ }
+  }
+
+  /**
    * Execute a command inside a running container.
    */
   private static execInContainer(

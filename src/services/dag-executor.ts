@@ -457,23 +457,25 @@ export class DAGExecutor {
   ): Promise<AdvanceResult> {
     const stage = await prisma.pipelineStage.findUnique({
       where: { id: stageId },
-      include: { run: { select: { id: true, projectId: true, outputPath: true } } },
+      include: { run: { select: { id: true, projectId: true, outputPath: true, autoApprove: true } } },
     });
 
     if (!stage) throw new Error(`Stage not found: ${stageId}`);
 
     const now = new Date();
     const durationMs = stage.startedAt ? now.getTime() - stage.startedAt.getTime() : null;
+    const isAutoApprove = stage.run.autoApprove;
 
-    // Update stage to awaiting_approval
+    // Update stage — auto-approve skips awaiting_approval
     await prisma.pipelineStage.update({
       where: { id: stageId },
       data: {
-        status: 'awaiting_approval',
+        status: isAutoApprove ? 'approved' : 'awaiting_approval',
         artifactContent,
         streamContent,
         completedAt: now,
         durationMs,
+        ...(isAutoApprove ? { approvedAt: now } : {}),
       },
     });
 
@@ -633,6 +635,25 @@ export class DAGExecutor {
         } as Record<string, string | number | boolean | null>,
         durationMs: durationMs ?? undefined,
       });
+    }
+
+    if (isAutoApprove) {
+      console.log(`[DAGExecutor] Node "${stage.displayName}" auto-approved (${durationMs}ms), advancing DAG`);
+
+      // Run graph expansion for phase-builder (same as approveNode)
+      if (stage.skillName === 'phase-builder') {
+        try {
+          const { GraphExpander } = await import('@/src/services/graph-expander');
+          const { nodesCreated } = await GraphExpander.expandAfterPhaseBuilder(
+            stage.runId, stage.id, artifactContent
+          );
+          console.log(`[DAGExecutor] Auto-approve: graph expanded with ${nodesCreated} new nodes`);
+        } catch (err) {
+          console.error('[DAGExecutor] Auto-approve graph expansion failed:', err);
+        }
+      }
+
+      return DAGExecutor.advanceDAG(stage.runId);
     }
 
     console.log(`[DAGExecutor] Node "${stage.displayName}" complete (${durationMs}ms), awaiting approval`);

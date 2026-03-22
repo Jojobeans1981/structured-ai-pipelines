@@ -42,6 +42,16 @@ export class CompletenessPass {
         return { files: [], report: 'No JS/TS files found — completeness pass skipped.\n' };
       }
 
+      // 0. Repair broken package.json (invalid JSON)
+      const repairResult = CompletenessPass.repairPackageJson(projectFiles, existing);
+      if (repairResult) {
+        files.push(repairResult);
+        reportLines.push(`- Repaired \`package.json\` (${repairResult.reason})`);
+        // Update existing set so checkPackageJson doesn't try to create a new one
+        // and reconcile sees the repaired version
+        existing.add('package.json');
+      }
+
       // 1. package.json
       const pkgResult = CompletenessPass.checkPackageJson(projectFiles, existing);
       if (pkgResult) {
@@ -111,6 +121,74 @@ export class CompletenessPass {
       : 'All critical scaffolding files present.\n\n';
 
     return { files, report };
+  }
+
+  /**
+   * If package.json exists but is invalid JSON, attempt to repair it.
+   * Tries to extract what it can, then regenerates from imports.
+   */
+  private static repairPackageJson(
+    projectFiles: Array<{ filePath: string; content: string }>,
+    existing: Set<string>
+  ): GeneratedFile | null {
+    if (!existing.has('package.json')) return null;
+
+    const pkgFile = projectFiles.find((f) => f.filePath === 'package.json');
+    if (!pkgFile) return null;
+
+    // Try to parse — if valid, no repair needed
+    try {
+      JSON.parse(pkgFile.content);
+      return null;
+    } catch {
+      // Invalid JSON — regenerate from imports
+    }
+
+    // Try to salvage the name from the broken JSON
+    const nameMatch = pkgFile.content.match(/"name"\s*:\s*"([^"]+)"/);
+    const projectName = nameMatch ? nameMatch[1] : 'generated-project';
+
+    // Resolve deps from source files
+    const resolution = DependencyResolver.resolve(projectFiles, 'node');
+    const deps = DependencyResolver.buildDepsObject(resolution.dependencies);
+    const devDeps = DependencyResolver.buildDepsObject(resolution.devDependencies);
+
+    // Detect framework
+    const hasReact = resolution.dependencies.some((d) => d.packageName === 'react');
+    const hasVite = resolution.devDependencies.some((d) => d.packageName === 'vite');
+    const hasNext = resolution.dependencies.some((d) => d.packageName === 'next');
+    const hasExpress = resolution.dependencies.some((d) => d.packageName === 'express');
+
+    let scripts: Record<string, string>;
+    if (hasNext) {
+      scripts = { dev: 'next dev', build: 'next build', start: 'next start' };
+    } else if (hasVite || hasReact) {
+      scripts = { dev: 'vite', build: 'vite build', preview: 'vite preview' };
+      if (!devDeps['vite']) devDeps['vite'] = '^6.0.0';
+      if (!devDeps['@vitejs/plugin-react']) devDeps['@vitejs/plugin-react'] = '^4.3.0';
+    } else if (hasExpress) {
+      scripts = { dev: 'tsx watch src/index.ts', build: 'tsc', start: 'node dist/index.js' };
+    } else {
+      scripts = { dev: 'vite', build: 'vite build', preview: 'vite preview' };
+      if (!devDeps['vite']) devDeps['vite'] = '^6.0.0';
+    }
+
+    const pkg = {
+      name: projectName,
+      private: true,
+      version: '0.0.1',
+      type: 'module',
+      scripts,
+      dependencies: deps,
+      devDependencies: devDeps,
+    };
+
+    return {
+      filePath: 'package.json',
+      content: JSON.stringify(pkg, null, 2),
+      language: 'json',
+      reason: 'existing package.json was invalid JSON — regenerated from imports',
+    };
   }
 
   private static checkPackageJson(

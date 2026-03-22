@@ -68,14 +68,17 @@ export async function POST(
     }
 
     // DAG mode: create run, generate plan, create stages
+    const autoApprove = parsed.data.autoApprove ?? false;
     const run = await prisma.pipelineRun.create({
       data: {
         projectId: params.id,
         type: parsed.data.type,
-        status: 'planning',
+        status: autoApprove ? 'running' : 'planning',
         userInput: parsed.data.input,
         currentStageIndex: 0,
         executionMode: 'dag',
+        autoApprove,
+        planApproved: autoApprove,
       },
     });
 
@@ -147,6 +150,12 @@ export async function POST(
 
     // Create stages from plan
     await DAGExecutor.createStagesFromPlan(run.id, plan);
+
+    // Auto-approve mode: skip plan approval, advance DAG immediately
+    if (autoApprove) {
+      const advanced = await DAGExecutor.advanceDAG(run.id);
+      console.log(`[POST /pipeline/start] Auto-approve mode: ${advanced.readyNodes.length} nodes ready`);
+    }
 
     // Fetch the full run with stages
     const fullRun = await prisma.pipelineRun.findUnique({

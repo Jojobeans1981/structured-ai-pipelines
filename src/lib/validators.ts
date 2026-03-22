@@ -19,6 +19,7 @@ export const startPipelineSchema = z.object({
   type: z.enum(['build', 'diagnostic', 'refactor', 'enhance', 'test', 'deploy']),
   input: z.string().min(1, 'Input is required'),
   mode: z.enum(['linear', 'dag']).optional(),
+  autoApprove: z.boolean().optional(),
 });
 
 export const approveStageSchema = z.object({

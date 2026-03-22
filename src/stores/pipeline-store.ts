@@ -32,10 +32,11 @@ interface PipelineState {
   isStreaming: boolean;
   error: string | null;
   planApproved: boolean;
+  autoApprove: boolean;
   executionPlan: Record<string, unknown> | null;
   outputPath: string | null;
 
-  initRun: (runId: string, projectId: string, type: string, stages: StageState[], mode?: string, planApproved?: boolean, plan?: Record<string, unknown> | null, outputPath?: string | null) => void;
+  initRun: (runId: string, projectId: string, type: string, stages: StageState[], mode?: string, planApproved?: boolean, plan?: Record<string, unknown> | null, outputPath?: string | null, autoApprove?: boolean) => void;
   appendToken: (text: string, nodeId?: string) => void;
   setCheckpoint: (stageId: string, artifact: string) => void;
   approveStage: (stageId: string, nextRunningIds?: string[]) => void;
@@ -62,10 +63,11 @@ export const usePipelineStore = create<PipelineState>((set) => ({
   isStreaming: false,
   error: null,
   planApproved: false,
+  autoApprove: false,
   executionPlan: null,
   outputPath: null,
 
-  initRun: (runId, projectId, type, stages, mode, planApproved, plan, outputPath) =>
+  initRun: (runId, projectId, type, stages, mode, planApproved, plan, outputPath, autoApprove) =>
     set({
       runId,
       projectId,
@@ -79,6 +81,7 @@ export const usePipelineStore = create<PipelineState>((set) => ({
       isStreaming: false,
       error: null,
       planApproved: planApproved || false,
+      autoApprove: autoApprove || false,
       executionPlan: plan || null,
       outputPath: outputPath || null,
     }),
@@ -196,6 +199,6 @@ export const usePipelineStore = create<PipelineState>((set) => ({
     runId: null, projectId: null, pipelineType: null, executionMode: 'linear',
     status: 'idle', stages: [], currentStageIndex: 0, streamingText: '',
     streamingNodeId: null, isStreaming: false, error: null, planApproved: false,
-    executionPlan: null, outputPath: null,
+    autoApprove: false, executionPlan: null, outputPath: null,
   }),
 }));

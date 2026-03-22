@@ -36,6 +36,7 @@ export function BuildStartDialog({ projectId, open, onOpenChange }: BuildStartDi
   const router = useRouter();
   const [input, setInput] = useState('');
   const [selectedType, setSelectedType] = useState<string>('build');
+  const [autoApprove, setAutoApprove] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +53,7 @@ export function BuildStartDialog({ projectId, open, onOpenChange }: BuildStartDi
           type: selectedType,
           input: input.trim(),
           mode: 'dag',
+          autoApprove,
         }),
       });
 
@@ -121,9 +123,31 @@ export function BuildStartDialog({ projectId, open, onOpenChange }: BuildStartDi
             className="bg-zinc-900/50 border-zinc-700 focus:border-orange-500/50"
           />
 
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <GitBranch className="h-3.5 w-3.5" />
-            <span>DAG execution — the forge generates an execution plan for your approval</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-zinc-500">
+              <GitBranch className="h-3.5 w-3.5" />
+              <span>{autoApprove ? 'Full auto — no approvals needed' : 'DAG execution — approve each stage'}</span>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <span className="text-xs text-zinc-400">Auto-pilot</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoApprove}
+                onClick={() => setAutoApprove(!autoApprove)}
+                className={cn(
+                  'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+                  autoApprove ? 'bg-orange-500' : 'bg-zinc-700'
+                )}
+              >
+                <span
+                  className={cn(
+                    'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
+                    autoApprove ? 'translate-x-4.5' : 'translate-x-0.5'
+                  )}
+                />
+              </button>
+            </label>
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}

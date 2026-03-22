@@ -48,12 +48,20 @@ export async function GET(
 
   // Handle gate nodes — they just await approval, no LLM needed
   if (stage.nodeType === 'gate') {
-    const artifact = `Awaiting human approval for: ${stage.displayName}`;
-    await DAGExecutor.completeNode(stage.id, artifact, artifact);
+    const isAutoApprove = run.autoApprove;
+    const artifact = isAutoApprove
+      ? `Auto-approved: ${stage.displayName}`
+      : `Awaiting human approval for: ${stage.displayName}`;
+    const result = await DAGExecutor.completeNode(stage.id, artifact, artifact);
     const stream = new ReadableStream({
       start(controller) {
         const encoder = new TextEncoder();
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'checkpoint', data: { stageId: stage.id, nodeId: stage.nodeId, artifact } })}\n\n`));
+        if (isAutoApprove && result.readyNodes.length > 0) {
+          // In auto-approve mode, tell frontend about newly running nodes
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'auto-fix', data: { cycle: false, runId: params.runId, message: 'Gate auto-approved, advancing' } })}\n\n`));
+        } else {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'checkpoint', data: { stageId: stage.id, nodeId: stage.nodeId, artifact } })}\n\n`));
+        }
         controller.close();
       },
     });

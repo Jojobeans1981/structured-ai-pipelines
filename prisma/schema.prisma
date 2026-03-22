@@ -95,6 +95,9 @@ model PipelineRun {
   outputPath        String?        // disk path for generated project files
   executionMode     String         @default("linear") // 'linear' | 'dag'
 
+  // Automation
+  autoApprove       Boolean        @default(false)  // skip human gates, auto-approve all stages
+
   // Traceability
   traceId           String?        @unique
 

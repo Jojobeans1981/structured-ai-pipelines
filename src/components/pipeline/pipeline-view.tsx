@@ -59,7 +59,7 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
       store.initRun(
         runId, projectId, run.type, stages,
         run.executionMode, run.planApproved,
-        run.executionPlan, run.outputPath
+        run.executionPlan, run.outputPath, run.autoApprove
       );
     } catch (err) {
       store.setError(err instanceof Error ? err.message : 'Failed to load run');
@@ -113,6 +113,10 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
               store.setCheckpoint(parsed.data.stageId, parsed.data.artifact);
               es.close();
               eventSourcesRef.current.delete(node.id);
+              // In auto-approve mode, reload to pick up next running stages
+              if (store.autoApprove) {
+                setTimeout(() => reloadRunState(), 500);
+              }
               break;
             case 'auto-fix':
               // Auto-fix cycle triggered — reload run state to pick up reset stages

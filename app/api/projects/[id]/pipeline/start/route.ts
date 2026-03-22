@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, unauthorizedResponse } from '@/src/lib/auth-helpers';
 import { prisma } from '@/src/lib/prisma';
+
+export const maxDuration = 60;
 import { startPipelineSchema } from '@/src/lib/validators';
 import { PipelineEngine } from '@/src/services/pipeline-engine';
 import { getAnthropicClient } from '@/src/lib/anthropic';

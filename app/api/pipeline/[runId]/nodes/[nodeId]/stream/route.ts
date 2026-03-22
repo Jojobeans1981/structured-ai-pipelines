@@ -6,6 +6,9 @@ import { DAGExecutor } from '@/src/services/dag-executor';
 import { BuildVerifier } from '@/src/services/build-verifier';
 import { DockerSandbox } from '@/src/services/docker-sandbox';
 
+// Vercel serverless: max execution time (hobby=60s, pro=300s)
+export const maxDuration = 60;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { runId: string; nodeId: string } }

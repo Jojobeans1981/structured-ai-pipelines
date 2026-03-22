@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, unauthorizedResponse } from '@/src/lib/auth-helpers';
 import { prisma } from '@/src/lib/prisma';
+
+export const maxDuration = 60;
 import { approveStageSchema } from '@/src/lib/validators';
 import { PipelineEngine } from '@/src/services/pipeline-engine';
 import { DAGExecutor } from '@/src/services/dag-executor';

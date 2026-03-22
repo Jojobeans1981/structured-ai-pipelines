@@ -4,6 +4,8 @@ import { getAnthropicClient } from '@/src/lib/anthropic';
 import { PipelineEngine } from '@/src/services/pipeline-engine';
 import { StageExecutor } from '@/src/services/stage-executor';
 
+export const maxDuration = 60;
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: { runId: string } }

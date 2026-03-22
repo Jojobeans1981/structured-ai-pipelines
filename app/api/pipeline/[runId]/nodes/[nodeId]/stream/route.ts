@@ -11,6 +11,7 @@ import { CompletenessPass, detectProjectType } from '@/src/services/completeness
 import { CIGenerator } from '@/src/services/ci-generator';
 import { SBOMScanner } from '@/src/services/sbom-scanner';
 import { CostGuard } from '@/src/services/cost-guard';
+import { LearningStore } from '@/src/services/learning-store';
 
 // Vercel serverless: max execution time (hobby=60s, pro=300s)
 export const maxDuration = 60;
@@ -283,6 +284,16 @@ async function handleVerifyNode(
 
           send({ type: 'token', data: { text: output } });
 
+          // AUTO-FIX: If Docker build failed, try to auto-fix
+          if (!result.success) {
+            const errorForFix = [result.stderr, result.stdout].filter(Boolean).join('\n');
+            const autoFixed = await tryAutoFix(runId, stageId, errorForFix, send);
+            if (autoFixed) {
+              controller.close();
+              return;
+            }
+          }
+
           // Scaffold tests + Docker after build verification
           const scaffoldOutput = await scaffoldTestsAndDocker(runId, stage?.run.projectId || '', stageId, send);
           output += scaffoldOutput;
@@ -317,6 +328,16 @@ async function handleVerifyNode(
           }
 
           send({ type: 'token', data: { text: output } });
+
+          // AUTO-FIX: If filesystem build failed, try to auto-fix
+          if (!result.success) {
+            const errorForFix = result.errors.join('\n');
+            const autoFixed = await tryAutoFix(runId, stageId, errorForFix, send);
+            if (autoFixed) {
+              controller.close();
+              return;
+            }
+          }
 
           // Scaffold tests + Docker after filesystem verification
           const fsStage = await prisma.pipelineStage.findUnique({
@@ -456,6 +477,16 @@ async function handleVerifyNode(
           }
 
           send({ type: 'token', data: { text: artifact } });
+
+          // AUTO-FIX: If static analysis found critical errors, try to auto-fix
+          if (errors.length > 0) {
+            const errorForFix = errors.join('\n') + '\n\nWarnings:\n' + warnings.join('\n');
+            const autoFixed = await tryAutoFix(runId, stageId, errorForFix, send);
+            if (autoFixed) {
+              controller.close();
+              return;
+            }
+          }
 
           // Scaffold tests + Docker after static analysis
           const staticScaffoldOutput = await scaffoldTestsAndDocker(runId, staticProjectId, stageId, send);
@@ -730,4 +761,192 @@ async function scaffoldTestsAndDocker(
   }
 
   return output;
+}
+
+/** Max number of auto-fix cycles before escalating to the user. */
+const MAX_AUTO_FIX_CYCLES = parseInt(process.env.FORGE_MAX_AUTO_FIX || '3', 10);
+
+/**
+ * When build verification fails, auto-reject the last phase-executor stages
+ * with the error output injected, reset the verify node, and let the DAG
+ * re-execute. Records failures in the learning store so future runs avoid
+ * the same mistakes.
+ *
+ * Returns true if an auto-fix cycle was triggered (caller should NOT call
+ * completeNode — the pipeline will re-run). Returns false if max retries
+ * exceeded or no executor stages found (caller should proceed normally).
+ */
+async function tryAutoFix(
+  runId: string,
+  stageId: string,
+  errorOutput: string,
+  send: (event: object) => void
+): Promise<boolean> {
+  // Check how many times the verify node has already retried
+  const verifyStage = await prisma.pipelineStage.findUnique({
+    where: { id: stageId },
+    select: { retryCount: true, maxRetries: true, runId: true },
+  });
+
+  if (!verifyStage) return false;
+
+  const cycleCount = verifyStage.retryCount;
+  if (cycleCount >= MAX_AUTO_FIX_CYCLES) {
+    send({ type: 'token', data: { text: `\n\n---\n\n**Auto-fix limit reached (${cycleCount}/${MAX_AUTO_FIX_CYCLES} cycles).** Presenting to you for manual review.\n\n` } });
+    console.log(`[AutoFix] Max cycles (${MAX_AUTO_FIX_CYCLES}) reached — escalating to human`);
+    return false;
+  }
+
+  // Find all phase-executor stages that produced code for this run
+  const executorStages = await prisma.pipelineStage.findMany({
+    where: {
+      runId,
+      skillName: { in: ['phase-executor', 'fix-executor'] },
+      status: 'approved',
+    },
+    orderBy: { stageIndex: 'desc' },
+    select: {
+      id: true,
+      displayName: true,
+      nodeId: true,
+      retryCount: true,
+      maxRetries: true,
+      artifactContent: true,
+    },
+  });
+
+  if (executorStages.length === 0) {
+    send({ type: 'token', data: { text: '\n\nNo executor stages found to retry.\n\n' } });
+    return false;
+  }
+
+  // Truncate error for prompt injection (keep the most useful part)
+  const errorTruncated = errorOutput.substring(0, 3000);
+
+  // Build a feedback message that tells the executor what went wrong
+  const feedback =
+    `BUILD VERIFICATION FAILED (auto-fix cycle ${cycleCount + 1}/${MAX_AUTO_FIX_CYCLES}):\n\n` +
+    `The code you generated previously did not compile or run successfully.\n` +
+    `Here is the error output from the build verification:\n\n` +
+    '```\n' + errorTruncated + '\n```\n\n' +
+    `FIX THESE ERRORS. Regenerate the files that are broken. Do NOT regenerate files that are working.\n` +
+    `Pay special attention to:\n` +
+    `- Missing imports or wrong import paths\n` +
+    `- Missing dependencies in package.json\n` +
+    `- TypeScript type errors\n` +
+    `- Missing or mismatched exports\n` +
+    `- Syntax errors\n\n` +
+    `Output ONLY the fixed files with complete contents.`;
+
+  send({ type: 'token', data: { text: `\n\n---\n\n## Auto-Fix Cycle ${cycleCount + 1}/${MAX_AUTO_FIX_CYCLES}\n\n` } });
+  send({ type: 'token', data: { text: `Build failed — automatically re-running executor stages with error feedback...\n\n` } });
+
+  // Record failure pattern in learning store for future runs
+  try {
+    // Extract the core error type
+    const errorType = extractErrorType(errorOutput);
+    for (const stage of executorStages) {
+      await LearningStore.recordRejection(
+        'build-verifier',
+        'phase-executor',
+        `Build failed: ${errorType}`,
+        runId,
+        stage.id
+      );
+    }
+    console.log(`[AutoFix] Recorded build failure pattern: "${errorType}"`);
+  } catch { /* non-fatal */ }
+
+  // Reset the executor stages that need fixing
+  // Strategy: reset the LAST executor stage (most likely to contain the bug)
+  // If it fails again, we'll reset more stages on the next cycle
+  const stagesToReset = cycleCount === 0
+    ? executorStages.slice(0, 1) // First cycle: just the last executor
+    : executorStages.slice(0, Math.min(cycleCount + 1, executorStages.length)); // Widen on subsequent cycles
+
+  for (const stage of stagesToReset) {
+    if (stage.retryCount >= (stage.maxRetries || 2)) {
+      send({ type: 'token', data: { text: `- "${stage.displayName}" — max retries exhausted, skipping\n` } });
+      continue;
+    }
+
+    // Reset executor stage with error feedback
+    await prisma.pipelineStage.update({
+      where: { id: stage.id },
+      data: {
+        status: 'running',
+        startedAt: new Date(),
+        completedAt: null,
+        approvedAt: null,
+        durationMs: null,
+        artifactContent: null,
+        streamContent: stage.artifactContent, // preserve previous output
+        userFeedback: feedback,
+        retryCount: stage.retryCount + 1,
+      },
+    });
+
+    send({ type: 'token', data: { text: `- Resetting "${stage.displayName}" with build errors (retry ${stage.retryCount + 1})\n` } });
+    console.log(`[AutoFix] Reset "${stage.displayName}" with error feedback (retry ${stage.retryCount + 1})`);
+  }
+
+  // Reset the verify node itself to pending so it re-runs after executors complete
+  await prisma.pipelineStage.update({
+    where: { id: stageId },
+    data: {
+      status: 'pending',
+      startedAt: null,
+      completedAt: null,
+      approvedAt: null,
+      durationMs: null,
+      artifactContent: null,
+      streamContent: errorOutput, // preserve the error for context
+      retryCount: cycleCount + 1,
+    },
+  });
+
+  send({ type: 'token', data: { text: `\nVerify node reset — pipeline will re-execute failed stages and re-verify.\n\n` } });
+  console.log(`[AutoFix] Verify node reset to pending (cycle ${cycleCount + 1})`);
+
+  return true;
+}
+
+/**
+ * Extract a concise error type from build output for learning store.
+ */
+function extractErrorType(errorOutput: string): string {
+  // Check for common error patterns
+  if (errorOutput.includes('Cannot find module')) {
+    const match = errorOutput.match(/Cannot find module '([^']+)'/);
+    return match ? `Missing module: ${match[1]}` : 'Missing module import';
+  }
+  if (errorOutput.includes('is not a function')) {
+    return 'Runtime: called non-function';
+  }
+  if (errorOutput.includes('SyntaxError')) {
+    return 'Syntax error in generated code';
+  }
+  if (errorOutput.match(/TS\d{4}/)) {
+    const match = errorOutput.match(/(TS\d{4}): (.+?)[\r\n]/);
+    return match ? `TypeScript ${match[1]}: ${match[2].substring(0, 80)}` : 'TypeScript compilation error';
+  }
+  if (errorOutput.includes('Module not found')) {
+    const match = errorOutput.match(/Module not found: (.+?)[\r\n]/);
+    return match ? `Module not found: ${match[1].substring(0, 80)}` : 'Module not found';
+  }
+  if (errorOutput.includes('ENOENT')) {
+    return 'File not found (ENOENT)';
+  }
+  if (errorOutput.includes('npm ERR!')) {
+    return 'npm install failed';
+  }
+  if (errorOutput.includes('package.json')) {
+    return 'package.json issue';
+  }
+
+  // Generic fallback — first error-ish line
+  const errorLine = errorOutput.split('\n').find(
+    (l) => l.match(/error|Error|ERROR|failed|Failed/) && l.trim().length > 10
+  );
+  return errorLine ? errorLine.trim().substring(0, 100) : 'Unknown build error';
 }

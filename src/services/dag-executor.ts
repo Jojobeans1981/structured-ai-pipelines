@@ -368,6 +368,26 @@ export class DAGExecutor {
       if (warnings) finalContext += warnings;
     } catch { /* non-fatal */ }
 
+    // Inject comprehensiveness instruction for phase-builder (Groq/Llama needs this)
+    if (stage.skillName === 'phase-builder') {
+      finalContext += '\n\n---\n\n## CRITICAL: COMPREHENSIVE OUTPUT REQUIRED\n\n' +
+        'You MUST produce AT LEAST 3 separate phases (Phase 0 through Phase 2 minimum). ' +
+        'Phase 0 should ALWAYS be project scaffolding (package.json, config files, directory structure). ' +
+        'Subsequent phases should cover the ACTUAL FEATURES described in the PRD. ' +
+        'Each phase MUST have: Objective, Prerequisites, Deliverables, Technical Specification, and a Prompt Blueprint. ' +
+        'Do NOT produce only a log initialization phase. The user needs a COMPLETE, BUILDABLE application. ' +
+        'Output EVERY phase in full — do not abbreviate, truncate, or say "similar to above."';
+    }
+
+    // Inject comprehensiveness for prompt-builder too
+    if (stage.skillName === 'prompt-builder') {
+      finalContext += '\n\n---\n\n## CRITICAL: COMPLETE PROMPTS REQUIRED\n\n' +
+        'Generate implementation prompts that include COMPLETE file contents. ' +
+        'Every prompt must specify exact file paths and complete code — not pseudocode or outlines. ' +
+        'The executor receiving this prompt has NO context beyond what you provide. ' +
+        'Include package.json with all dependencies, config files, and every source file.';
+    }
+
     // Inject pipeline override for executor skills — don't wait for confirmation
     if (stage.skillName === 'phase-executor' || stage.skillName === 'fix-executor') {
       // Extract tech stack from PRD context to enforce it

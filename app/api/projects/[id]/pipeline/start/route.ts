@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, unauthorizedResponse } from '@/src/lib/auth-helpers';
 import { prisma } from '@/src/lib/prisma';
+import { createHash } from 'crypto';
 
 export const maxDuration = 60;
 import { startPipelineSchema } from '@/src/lib/validators';
@@ -8,6 +9,9 @@ import { PipelineEngine } from '@/src/services/pipeline-engine';
 import { getAnthropicClient } from '@/src/lib/anthropic';
 import { IntakeAgent } from '@/src/services/intake-agent';
 import { DAGExecutor } from '@/src/services/dag-executor';
+import { type ExecutionPlan } from '@/src/types/dag';
+
+const CACHE_TTL_DAYS = parseInt(process.env.FORGE_CACHE_TTL_DAYS || '30', 10);
 
 export async function POST(
   request: NextRequest,
@@ -75,14 +79,70 @@ export async function POST(
       },
     });
 
-    // Generate execution plan
-    let plan;
+    // Check spec cache before calling LLM
+    const inputHash = createHash('sha256')
+      .update(parsed.data.input.trim().toLowerCase())
+      .digest('hex');
+
+    let plan: ExecutionPlan;
+    let cacheHit = false;
+
     try {
-      const client = await getAnthropicClient(user.id);
-      plan = await IntakeAgent.generatePlan(parsed.data.input, client);
-    } catch (err) {
-      console.warn('[POST /pipeline/start] Intake agent failed, using default plan:', err);
-      plan = IntakeAgent.defaultBuildPlan(3);
+      const cached = await prisma.specCache.findUnique({
+        where: { userId_inputHash: { userId: user.id, inputHash } },
+      });
+
+      if (cached && cached.expiresAt > new Date()) {
+        plan = cached.executionPlan as unknown as ExecutionPlan;
+        cacheHit = true;
+        await prisma.specCache.update({
+          where: { id: cached.id },
+          data: { hitCount: cached.hitCount + 1 },
+        });
+        console.log(`[POST /pipeline/start] Cache HIT (${cached.hitCount + 1} hits) for hash ${inputHash.substring(0, 12)}`);
+      } else {
+        // Cache miss or expired — generate fresh plan
+        try {
+          const client = await getAnthropicClient(user.id);
+          plan = await IntakeAgent.generatePlan(parsed.data.input, client);
+        } catch (err) {
+          console.warn('[POST /pipeline/start] Intake agent failed, using default plan:', err);
+          plan = IntakeAgent.defaultBuildPlan(3);
+        }
+
+        // Save to cache
+        try {
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + CACHE_TTL_DAYS);
+          await prisma.specCache.upsert({
+            where: { userId_inputHash: { userId: user.id, inputHash } },
+            create: {
+              userId: user.id,
+              inputHash,
+              pipelineType: parsed.data.type,
+              executionPlan: JSON.parse(JSON.stringify(plan)),
+              expiresAt,
+            },
+            update: {
+              executionPlan: JSON.parse(JSON.stringify(plan)),
+              expiresAt,
+              hitCount: 0,
+            },
+          });
+          console.log(`[POST /pipeline/start] Cache MISS — saved plan for hash ${inputHash.substring(0, 12)}`);
+        } catch (err) {
+          console.warn('[POST /pipeline/start] Failed to cache plan (non-fatal):', err);
+        }
+      }
+    } catch {
+      // Cache lookup failed — generate normally
+      try {
+        const client = await getAnthropicClient(user.id);
+        plan = await IntakeAgent.generatePlan(parsed.data.input, client);
+      } catch (err) {
+        console.warn('[POST /pipeline/start] Intake agent failed, using default plan:', err);
+        plan = IntakeAgent.defaultBuildPlan(3);
+      }
     }
 
     // Create stages from plan

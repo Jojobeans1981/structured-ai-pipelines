@@ -21,6 +21,8 @@ model User {
   sessions Session[]
   projects Project[]
   metrics  PipelineMetric[]
+  feedback ProjectFeedback[]
+  specCaches SpecCache[]
 }
 
 model Account {
@@ -73,6 +75,7 @@ model Project {
   runs    PipelineRun[]
   files   ProjectFile[]
   metrics PipelineMetric[]
+  feedback ProjectFeedback[]
 }
 
 model PipelineRun {
@@ -287,4 +290,37 @@ model CompletenessCheck {
   run PipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([runId, phaseIndex])
+}
+
+model ProjectFeedback {
+  id          String   @id @default(cuid())
+  projectId   String
+  userId      String
+  runId       String?
+  rating      Int               // 1 = thumbs down, 2 = thumbs up
+  comment     String?  @db.Text
+  workedOutOfBox Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+}
+
+model SpecCache {
+  id             String   @id @default(cuid())
+  userId         String
+  inputHash      String            // SHA-256 of normalized userInput
+  pipelineType   String            // 'build', 'diagnostic', etc.
+  executionPlan  Json              // cached ExecutionPlan
+  hitCount       Int      @default(0)
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, inputHash])
+  @@index([inputHash])
 }

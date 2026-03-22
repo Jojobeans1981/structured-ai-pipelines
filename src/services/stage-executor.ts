@@ -20,7 +20,7 @@ export class StageExecutor {
     signal?: AbortSignal
   ): AsyncGenerator<string, string, undefined> {
     this.lastUsage = null;
-    const systemPrompt = SkillLoader.getSkillPrompt(skillName);
+    const systemPrompt = await SkillLoader.getSkillPromptAsync(skillName);
 
     // Build messages: include previous artifacts as context
     const messages: Anthropic.MessageParam[] = [];

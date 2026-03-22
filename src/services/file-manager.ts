@@ -154,12 +154,14 @@ export function extractFilesFromArtifact(artifactContent: string): ExtractedFile
       continue;
     }
 
-    // Pattern 2: Code block with first-line comment // file: or # file:
+    // Pattern 2: Code block with first-line comment containing a file path
+    // Matches: // file: src/App.tsx  OR  // src/App.tsx  OR  # src/app.py  OR  /* src/styles.css */
     const codeBlockMatch = lines[i].match(/^```(\w+)?$/);
     if (codeBlockMatch && i + 1 < lines.length) {
       const nextLine = lines[i + 1];
-      const fileCommentMatch = nextLine.match(/^(?:\/\/|#)\s*file:\s*(.+)$/);
-      if (fileCommentMatch) {
+      // Try explicit "file:" prefix first
+      const fileCommentMatch = nextLine.match(/^(?:\/\/|#|\/\*)\s*(?:file:\s*)?([^\s*]+\.\w{1,10})\s*\*?\/?$/);
+      if (fileCommentMatch && fileCommentMatch[1].match(/\.\w{1,10}$/)) {
         const filePath = fileCommentMatch[1].trim();
         i += 2; // skip ``` and comment line
         const contentLines: string[] = [];

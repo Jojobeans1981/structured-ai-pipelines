@@ -43,6 +43,19 @@ export async function GET(
   }
 
   if (stage.status !== 'running') {
+    // If already approved (auto-approve beat the SSE connection), return gracefully
+    if (stage.status === 'approved' || stage.status === 'awaiting_approval') {
+      const stream = new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'checkpoint', data: { stageId: stage.id, nodeId: stage.nodeId, artifact: stage.artifactContent || '' } })}\n\n`));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
+      });
+    }
     return NextResponse.json({ error: 'Node is not running' }, { status: 400 });
   }
 

@@ -44,7 +44,17 @@ export async function POST(
       return NextResponse.json({ error: 'Stage not found' }, { status: 404 });
     }
 
-    if (stage.status !== 'awaiting_approval') {
+    // Idempotent: if already approved, return success
+    if (stage.status === 'approved') {
+      if (stage.run.executionMode === 'dag') {
+        const result = await DAGExecutor.advanceDAG(params.runId);
+        return NextResponse.json({ data: { nextNodes: result.readyNodes, runComplete: result.runComplete } });
+      }
+      return NextResponse.json({ data: { status: 'approved' } });
+    }
+
+    // Allow approve from awaiting_approval or running (race condition with auto-fix)
+    if (stage.status !== 'awaiting_approval' && stage.status !== 'running') {
       return NextResponse.json(
         { error: `Cannot approve stage with status: ${stage.status}` },
         { status: 400 }

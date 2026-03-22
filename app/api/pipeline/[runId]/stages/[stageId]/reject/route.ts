@@ -48,6 +48,16 @@ export async function POST(
       );
     }
 
+    // If already running (auto-fix beat the user), just return current state
+    if (stage.status === 'running') {
+      return NextResponse.json({ data: { status: 'running' } });
+    }
+
+    // If already approved, can't reject — return gracefully
+    if (stage.status === 'approved') {
+      return NextResponse.json({ data: { status: 'approved', message: 'Stage already approved' } });
+    }
+
     if (stage.status !== 'awaiting_approval') {
       return NextResponse.json(
         { error: `Cannot reject stage with status: ${stage.status}` },

@@ -7,6 +7,7 @@ import { BuildVerifier } from '@/src/services/build-verifier';
 import { DockerSandbox } from '@/src/services/docker-sandbox';
 import { TestGenerator } from '@/src/services/test-generator';
 import { DockerfileGenerator } from '@/src/services/dockerfile-generator';
+import { CompletenessPass, detectProjectType } from '@/src/services/completeness-pass';
 
 // Vercel serverless: max execution time (hobby=60s, pro=300s)
 export const maxDuration = 60;
@@ -147,6 +148,53 @@ async function handleVerifyNode(
       };
 
       try {
+        // --- Completeness Pass: scaffold missing config files before verification ---
+        const verifyStage = await prisma.pipelineStage.findUnique({
+          where: { id: stageId },
+          include: { run: { select: { projectId: true } } },
+        });
+        const verifyProjectId = verifyStage?.run.projectId || '';
+
+        let allProjectFiles = await prisma.projectFile.findMany({
+          where: { runId },
+          select: { filePath: true, content: true },
+        });
+
+        if (allProjectFiles.length > 0) {
+          send({ type: 'token', data: { text: '## Completeness Pass\n\n' } });
+          const projectType = detectProjectType(allProjectFiles);
+          const completenessResult = CompletenessPass.run(allProjectFiles, projectType);
+
+          if (completenessResult.files.length > 0) {
+            for (const file of completenessResult.files) {
+              await prisma.projectFile.upsert({
+                where: { projectId_filePath: { projectId: verifyProjectId, filePath: file.filePath } },
+                create: {
+                  projectId: verifyProjectId,
+                  runId,
+                  filePath: file.filePath,
+                  content: file.content,
+                  language: file.language,
+                  createdByStage: stageId,
+                },
+                update: { content: file.content, language: file.language, runId },
+              });
+            }
+
+            send({ type: 'token', data: { text: completenessResult.report } });
+            console.log(`[Verify] Completeness pass scaffolded ${completenessResult.files.length} files`);
+
+            // Reload files so verification sees the scaffolded files
+            allProjectFiles = await prisma.projectFile.findMany({
+              where: { runId },
+              select: { filePath: true, content: true },
+            });
+          } else {
+            send({ type: 'token', data: { text: completenessResult.report } });
+          }
+        }
+
+        // --- Build Verification ---
         // Strategy: Docker sandbox → filesystem verify → skip
         const dockerAvailable = DockerSandbox.isAvailable();
 

@@ -229,10 +229,34 @@ export function extractFilesFromArtifact(artifactContent: string): ExtractedFile
     }
   }
 
-  // Deduplicate: if same file path appears multiple times, keep the last occurrence
+  // Filter out paths where directory segments are ALL-CAPS (e.g. SRC/COMPONENTS/Message.tsx)
+  // — these come from LLM summary headings, not actual file declarations.
+  const filtered = files.filter((f) => {
+    const segments = f.filePath.split('/').slice(0, -1); // directories only
+    if (segments.length === 0) return true;
+    const allCapsSegments = segments.filter((s) => s === s.toUpperCase() && /[A-Z]/.test(s));
+    return allCapsSegments.length === 0;
+  });
+
+  // Deduplicate: case-insensitive dedup — keep the version with the most lowercase
+  // characters (the "real" path, not an ALL-CAPS heading artifact).
   const deduped = new Map<string, ExtractedFile>();
-  for (const file of files) {
-    deduped.set(file.filePath, file);
+  for (const file of filtered) {
+    const key = file.filePath.toLowerCase();
+    const existing = deduped.get(key);
+    if (!existing) {
+      deduped.set(key, file);
+    } else {
+      // Prefer the path with more lowercase chars (less likely from a heading)
+      const existingLower = (existing.filePath.match(/[a-z]/g) || []).length;
+      const newLower = (file.filePath.match(/[a-z]/g) || []).length;
+      if (newLower > existingLower) {
+        deduped.set(key, file);
+      } else if (newLower === existingLower) {
+        // Same case ratio — keep the later occurrence (last-write-wins)
+        deduped.set(key, file);
+      }
+    }
   }
 
   return Array.from(deduped.values());

@@ -36,7 +36,7 @@ interface PipelineState {
   executionPlan: Record<string, unknown> | null;
   outputPath: string | null;
 
-  initRun: (runId: string, projectId: string, type: string, stages: StageState[], mode?: string, planApproved?: boolean, plan?: Record<string, unknown> | null, outputPath?: string | null, autoApprove?: boolean) => void;
+  initRun: (runId: string, projectId: string, type: string, stages: StageState[], mode?: string, planApproved?: boolean, plan?: Record<string, unknown> | null, outputPath?: string | null, autoApprove?: boolean, serverStatus?: string) => void;
   appendToken: (text: string, nodeId?: string) => void;
   setCheckpoint: (stageId: string, artifact: string) => void;
   approveStage: (stageId: string, nextRunningIds?: string[]) => void;
@@ -67,14 +67,25 @@ export const usePipelineStore = create<PipelineState>((set) => ({
   executionPlan: null,
   outputPath: null,
 
-  initRun: (runId, projectId, type, stages, mode, planApproved, plan, outputPath, autoApprove) =>
+  initRun: (runId, projectId, type, stages, mode, planApproved, plan, outputPath, autoApprove, serverStatus) => {
+    // Determine UI status from server state
+    let status: PipelineState['status'];
+    if (serverStatus === 'completed') status = 'completed';
+    else if (serverStatus === 'failed') status = 'failed';
+    else if (serverStatus === 'cancelled') status = 'cancelled';
+    else if (mode === 'dag' && !planApproved) status = 'planning';
+    else if (stages.some((s: StageState) => s.status === 'awaiting_approval')) status = 'paused';
+    else if (stages.some((s: StageState) => s.status === 'running')) status = 'running';
+    else if (stages.every((s: StageState) => s.status === 'approved' || s.status === 'skipped')) status = 'completed';
+    else status = 'running';
+
     set({
       runId,
       projectId,
       pipelineType: type as PipelineState['pipelineType'],
       executionMode: (mode || 'linear') as 'linear' | 'dag',
       stages,
-      status: mode === 'dag' && !planApproved ? 'planning' : 'running',
+      status,
       currentStageIndex: 0,
       streamingText: '',
       streamingNodeId: null,
@@ -84,7 +95,8 @@ export const usePipelineStore = create<PipelineState>((set) => ({
       autoApprove: autoApprove || false,
       executionPlan: plan || null,
       outputPath: outputPath || null,
-    }),
+    });
+  },
 
   appendToken: (() => {
     let buffer = '';

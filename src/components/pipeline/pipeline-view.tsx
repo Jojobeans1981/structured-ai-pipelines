@@ -59,7 +59,7 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
       store.initRun(
         runId, projectId, run.type, stages,
         run.executionMode, run.planApproved,
-        run.executionPlan, run.outputPath, run.autoApprove
+        run.executionPlan, run.outputPath, run.autoApprove, run.status
       );
     } catch (err) {
       store.setError(err instanceof Error ? err.message : 'Failed to load run');
@@ -78,6 +78,48 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
       store.reset();
     };
   }, [runId, projectId]);
+
+  // Poll server for state changes every 3 seconds while pipeline is active.
+  // This catches transitions that SSE events miss (auto-approve, gate passthrough,
+  // auto-fix resets, SSE disconnects).
+  useEffect(() => {
+    if (!store.runId) return;
+    const activeStatuses = ['running', 'paused', 'planning'];
+    if (!activeStatuses.includes(store.status)) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/pipeline/${runId}`);
+        if (!res.ok) return;
+        const { data: run } = await res.json();
+
+        // Check if server state diverged from local state
+        const serverStages = run.stages as Array<{ id: string; status: string }>;
+        const localStages = store.stages;
+
+        let changed = false;
+        for (const ss of serverStages) {
+          const ls = localStages.find((l) => l.id === ss.id);
+          if (ls && ls.status !== ss.status) {
+            changed = true;
+            break;
+          }
+        }
+        // Also check if new stages appeared (graph expansion)
+        if (serverStages.length !== localStages.length) changed = true;
+        // Check if run completed server-side
+        if (run.status === 'completed' && store.status !== 'completed') changed = true;
+
+        if (changed) {
+          reloadRunState();
+        }
+      } catch {
+        // Network error — skip this poll
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [store.runId, store.status, runId, reloadRunState]);
 
   // Linear mode: auto-connect to running stage
   useEffect(() => {

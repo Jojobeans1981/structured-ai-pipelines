@@ -39,7 +39,7 @@ const INTAKE_SYSTEM_PROMPT = `You are the Gauntlet Forge Intake Agent. Your job 
    - Phases that don't depend on each other can run in parallel (same parallelGroup)
    - Phase 0 (scaffolding) must complete before other phases
    - Add a verify node after ALL phase-executor nodes complete
-   - End with a final_review gate
+   - Do NOT add gate nodes — the pipeline handles approval automatically
 
 2. For DIAGNOSTIC requests:
    - bug-intake → code-archaeologist → root-cause-analyzer → fix-planner → fix-prompt-builder → fix-executor → verify → lessons-learned
@@ -252,19 +252,6 @@ export class IntakeAgent {
       parallelGroup: null,
       gateType: null,
       maxRetries: 2,
-      phaseIndex: null,
-    });
-
-    nodes.push({
-      id: 'final-gate',
-      skillName: null,
-      displayName: 'Final Review',
-      description: 'Human review of the complete generated project',
-      nodeType: 'gate',
-      dependsOn: ['verify'],
-      parallelGroup: null,
-      gateType: 'final_review',
-      maxRetries: 0,
       phaseIndex: null,
     });
 

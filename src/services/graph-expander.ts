@@ -247,23 +247,6 @@ export class GraphExpander {
       retryCount: 0,
     });
 
-    // Final review gate
-    newNodes.push({
-      runId,
-      stageIndex: nextStageIndex++,
-      skillName: '__gate__',
-      displayName: 'Final Review',
-      status: 'pending',
-      dependsOn: [verifyNodeId],
-      nodeType: 'gate',
-      gateType: 'final_review',
-      parallelGroup: null,
-      maxRetries: 0,
-      phaseIndex: null,
-      nodeId: 'final-gate',
-      retryCount: 0,
-    });
-
     // Apply in transaction
     await prisma.$transaction(async (tx) => {
       // Remove old placeholder nodes

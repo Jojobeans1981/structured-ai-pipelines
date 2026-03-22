@@ -36,7 +36,7 @@ export function BuildStartDialog({ projectId, open, onOpenChange }: BuildStartDi
   const router = useRouter();
   const [input, setInput] = useState('');
   const [selectedType, setSelectedType] = useState<string>('build');
-  const [autoApprove, setAutoApprove] = useState(false);
+  const [autoApprove, setAutoApprove] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

@@ -11,9 +11,22 @@ function stripFrontmatter(content: string): string {
 export class SkillLoader {
   private static skillsDir = join(process.cwd(), '.claude', 'skills');
 
+  // Internal pseudo-skills that don't have SKILL.md files
+  private static readonly INTERNAL_SKILLS: Record<string, string> = {
+    '__gate__': 'You are a pipeline gate. Pause and await human approval.',
+    '__verify__': 'You are a build verification node. Run install and build checks.',
+  };
+
   static getSkillPrompt(skillName: string): string {
     if (skillCache.has(skillName)) {
       return skillCache.get(skillName)!;
+    }
+
+    // Handle internal pseudo-skills
+    if (SkillLoader.INTERNAL_SKILLS[skillName]) {
+      const prompt = SkillLoader.INTERNAL_SKILLS[skillName];
+      skillCache.set(skillName, prompt);
+      return prompt;
     }
 
     const skillPath = join(this.skillsDir, skillName, 'SKILL.md');

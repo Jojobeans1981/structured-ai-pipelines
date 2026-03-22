@@ -5,6 +5,8 @@ import { prisma } from '@/src/lib/prisma';
 import { DAGExecutor } from '@/src/services/dag-executor';
 import { BuildVerifier } from '@/src/services/build-verifier';
 import { DockerSandbox } from '@/src/services/docker-sandbox';
+import { TestGenerator } from '@/src/services/test-generator';
+import { DockerfileGenerator } from '@/src/services/dockerfile-generator';
 
 // Vercel serverless: max execution time (hobby=60s, pro=300s)
 export const maxDuration = 60;
@@ -200,6 +202,11 @@ async function handleVerifyNode(
           }
 
           send({ type: 'token', data: { text: output } });
+
+          // Scaffold tests + Docker after build verification
+          const scaffoldOutput = await scaffoldTestsAndDocker(runId, stage?.run.projectId || '', stageId, send);
+          output += scaffoldOutput;
+
           await DAGExecutor.completeNode(stageId, output, output);
           send({ type: 'checkpoint', data: { stageId, artifact: output } });
           controller.close();
@@ -230,6 +237,15 @@ async function handleVerifyNode(
           }
 
           send({ type: 'token', data: { text: output } });
+
+          // Scaffold tests + Docker after filesystem verification
+          const fsStage = await prisma.pipelineStage.findUnique({
+            where: { id: stageId },
+            include: { run: { select: { projectId: true } } },
+          });
+          const fsScaffoldOutput = await scaffoldTestsAndDocker(runId, fsStage?.run.projectId || '', stageId, send);
+          output += fsScaffoldOutput;
+
           await DAGExecutor.completeNode(stageId, output, output);
           send({ type: 'checkpoint', data: { stageId, artifact: output } });
           controller.close();
@@ -239,6 +255,12 @@ async function handleVerifyNode(
         // Serverless fallback — static file analysis (no Docker, no filesystem)
         {
           send({ type: 'token', data: { text: '## Build Verification — Static Analysis\n\n' } });
+
+          const staticStage = await prisma.pipelineStage.findUnique({
+            where: { id: stageId },
+            include: { run: { select: { projectId: true } } },
+          });
+          const staticProjectId = staticStage?.run.projectId || '';
 
           const projectFiles = await prisma.projectFile.findMany({
             where: { runId },
@@ -354,6 +376,11 @@ async function handleVerifyNode(
           }
 
           send({ type: 'token', data: { text: artifact } });
+
+          // Scaffold tests + Docker after static analysis
+          const staticScaffoldOutput = await scaffoldTestsAndDocker(runId, staticProjectId, stageId, send);
+          artifact += staticScaffoldOutput;
+
           await DAGExecutor.completeNode(stageId, artifact, artifact);
           send({ type: 'checkpoint', data: { stageId, artifact } });
           controller.close();
@@ -384,4 +411,155 @@ async function handleVerifyNode(
       Connection: 'keep-alive',
     },
   });
+}
+
+/**
+ * Scaffold test files and Docker config for a completed project.
+ * Saves generated files to DB and returns a markdown summary.
+ */
+async function scaffoldTestsAndDocker(
+  runId: string,
+  projectId: string,
+  stageId: string,
+  send: (event: object) => void
+): Promise<string> {
+  let output = '';
+
+  const projectFiles = await prisma.projectFile.findMany({
+    where: { runId },
+    select: { filePath: true, content: true },
+  });
+
+  if (projectFiles.length === 0) return '';
+
+  // Detect project type
+  const projectType = projectFiles.some((f) => f.filePath === 'package.json')
+    ? 'node' as const
+    : projectFiles.some((f) => f.filePath === 'requirements.txt' || f.filePath === 'pyproject.toml')
+      ? 'python' as const
+      : projectFiles.some((f) => f.filePath === 'go.mod')
+        ? 'go' as const
+        : projectFiles.some((f) => f.filePath === 'index.html')
+          ? 'static' as const
+          : 'unknown' as const;
+
+  // --- Test Scaffolding ---
+  send({ type: 'token', data: { text: '\n---\n\n## Test Scaffolding\n\n' } });
+
+  try {
+    const testResult = TestGenerator.scaffold(projectFiles, projectType);
+
+    if (testResult.files.length > 0 || testResult.configFiles.length > 0) {
+      const allTestFiles = [...testResult.configFiles, ...testResult.files];
+
+      // Save test files to DB
+      for (const file of allTestFiles) {
+        await prisma.projectFile.upsert({
+          where: { projectId_filePath: { projectId, filePath: file.filePath } },
+          create: {
+            projectId,
+            runId,
+            filePath: file.filePath,
+            content: file.content,
+            language: file.language,
+            createdByStage: stageId,
+          },
+          update: {
+            content: file.content,
+            language: file.language,
+            runId,
+          },
+        });
+      }
+
+      // Update package.json with test deps if Node project
+      if (projectType === 'node') {
+        const pkgFile = projectFiles.find((f) => f.filePath === 'package.json');
+        if (pkgFile) {
+          const updatedPkg = TestGenerator.mergeTestDeps(pkgFile.content, projectType);
+          await prisma.projectFile.update({
+            where: { projectId_filePath: { projectId, filePath: 'package.json' } },
+            data: { content: updatedPkg },
+          });
+        }
+      }
+
+      let testOutput = `**Framework:** ${testResult.framework}\n`;
+      testOutput += `**Config files:** ${testResult.configFiles.map((f) => f.filePath).join(', ') || 'none'}\n`;
+      testOutput += `**Test files generated:** ${testResult.files.length}\n`;
+      for (const f of testResult.files) {
+        testOutput += `- \`${f.filePath}\`\n`;
+      }
+      testOutput += '\n';
+
+      output += testOutput;
+      send({ type: 'token', data: { text: testOutput } });
+      console.log(`[Verify] Scaffolded ${allTestFiles.length} test files (${testResult.framework})`);
+    } else {
+      output += 'No testable files found — skipped.\n\n';
+      send({ type: 'token', data: { text: 'No testable files found — skipped.\n\n' } });
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown';
+    output += `Test scaffolding failed (non-fatal): ${msg}\n\n`;
+    console.error('[Verify] Test scaffolding failed:', err);
+  }
+
+  // --- Dockerfile Generation ---
+  send({ type: 'token', data: { text: '## Docker Configuration\n\n' } });
+
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { name: true },
+    });
+    const projectName = project?.name || 'app';
+
+    const dockerResult = DockerfileGenerator.generate(projectFiles, {
+      projectName,
+      projectType,
+    });
+
+    if (dockerResult.files.length > 0) {
+      for (const file of dockerResult.files) {
+        await prisma.projectFile.upsert({
+          where: { projectId_filePath: { projectId, filePath: file.filePath } },
+          create: {
+            projectId,
+            runId,
+            filePath: file.filePath,
+            content: file.content,
+            language: file.filePath.endsWith('.yml') ? 'yaml' : file.filePath === 'Dockerfile' ? 'dockerfile' : 'plaintext',
+            createdByStage: stageId,
+          },
+          update: {
+            content: file.content,
+            runId,
+          },
+        });
+      }
+
+      let dockerOutput = `**Project type:** ${dockerResult.projectType}\n`;
+      dockerOutput += `**Port:** ${dockerResult.port}\n`;
+      dockerOutput += `**Image:** \`${dockerResult.imageName}\`\n`;
+      dockerOutput += `**Files generated:**\n`;
+      for (const f of dockerResult.files) {
+        dockerOutput += `- \`${f.filePath}\`\n`;
+      }
+      dockerOutput += `\n**Quick start:**\n\`\`\`bash\ndocker compose up --build\n\`\`\`\n\n`;
+
+      output += dockerOutput;
+      send({ type: 'token', data: { text: dockerOutput } });
+      console.log(`[Verify] Generated ${dockerResult.files.length} Docker files (${dockerResult.imageName})`);
+    } else {
+      output += 'Could not detect project type — Docker generation skipped.\n\n';
+      send({ type: 'token', data: { text: 'Could not detect project type — Docker generation skipped.\n\n' } });
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown';
+    output += `Docker generation failed (non-fatal): ${msg}\n\n`;
+    console.error('[Verify] Docker generation failed:', err);
+  }
+
+  return output;
 }

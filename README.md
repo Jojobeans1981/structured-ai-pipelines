@@ -1,192 +1,177 @@
-# Structured AI Development Pipelines
+# Gauntlet Forge
 
-**Build software in record time with record accuracy.**
+**Type a sentence. Get a runnable project.**
 
-Two mirrored pipelines — one builds applications, one reverse-engineers and fixes them — sharing the same architecture. Both produce auditable artifacts at every stage. Both require human approval at every checkpoint. Both are composable.
+Gauntlet Forge is a self-correcting AI code generation platform. It turns natural language into complete, downloadable projects — source code, tests, Dockerfile, CI pipeline, and dependency security scan — through a structured, multi-agent pipeline that fixes its own build errors.
 
 ```
-BUILD:     Idea --> PRD --> Phases --> Prompts --> Validation --> Working Code
-DIAGNOSE:  Bug --> Intake --> Code Map --> Root Cause --> Fix Plan --> Fix Prompts --> Validation --> Verified Fix --> Lessons Learned
+"Build me a todo app with React and Tailwind"
+    → PRD → Phases → Code → Verify → Auto-Fix → Tests → Docker → CI → Download
 ```
 
-## What This Solves
+**Live at:** https://structured-ai-pipelines.vercel.app
 
-AI coding tools today either give you a black box (Devin, Sweep) or a chat window (Cursor, Copilot). Neither gives you what enterprise software development actually needs: **structured, auditable, verifiable pipelines with human checkpoints at every decision point.**
+## What It Does
 
-This system:
-- **Decomposes complex projects** into atomic, dependency-ordered implementation prompts with validation gates between stages
-- **Produces an auditable artifact at every stage** — every line of code traces back through prompts to phase docs to the PRD to something a human actually said
-- **Reverse-engineers bugs** through a structured 8-stage diagnostic pipeline with proven root causes and verified fixes
-- **Connects build and diagnose into a learning system** — every bug fixed feeds prevention rules back into future builds
+1. You describe what you want
+2. The forge generates a DAG execution plan
+3. Each stage runs through Claude — PRD, phase extraction, prompt generation, code execution
+4. A completeness pass fills missing config files (package.json, tsconfig, entry points)
+5. Build verification catches errors; the auto-fix loop retries with error context (up to 3 cycles)
+6. Tests, Dockerfile, CI pipeline, and SBOM are scaffolded automatically
+7. You download a ZIP that compiles and runs
 
 ## Quick Start
 
-### Prerequisites
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and configured
+Visit https://structured-ai-pipelines.vercel.app, sign in with GitLab, add your Anthropic API key in Settings, create a project, and click **Start Pipeline**.
 
-### Installation
+Auto-pilot is on by default — the pipeline runs end-to-end without stopping.
+
+## Admin Commands
+
+### Database
 
 ```bash
-# Clone the repo
-git clone https://github.com/YOUR_USERNAME/structured-ai-pipelines.git
+# Push schema changes to production (Neon)
+DATABASE_URL="<neon-url>" npx prisma db push
 
-# Copy the skills into your Claude Code configuration
-cp -r structured-ai-pipelines/.claude/skills/* ~/.claude/skills/
+# Pull production env vars
+npx vercel env pull .env.local
+
+# Regenerate Prisma client after schema changes
+npx prisma generate
 ```
 
-That's it. The skills are now available in every Claude Code session.
+### Skills
 
-### Build a New Application
+Skills (pipeline prompts) are stored in the database, not the filesystem. To update them:
 
+```bash
+# Seed all skills from local .claude/skills/ to production database
+DATABASE_URL="<neon-url>" node -e "
+const { PrismaClient } = require('@prisma/client');
+const { readFileSync, existsSync } = require('fs');
+const { join } = require('path');
+const prisma = new PrismaClient();
+const skills = ['prd-architect','phase-builder','prompt-builder','prompt-validator','phase-executor','educator','project-orchestrator','bug-intake','code-archaeologist','root-cause-analyzer','fix-planner','fix-prompt-builder','fix-executor','lessons-learned','diagnostic-orchestrator','metrics-tracker','code-mentor'];
+async function seed() {
+  for (const name of skills) {
+    const p = join(process.cwd(), '.claude', 'skills', name, 'SKILL.md');
+    if (!existsSync(p)) continue;
+    await prisma.skill.upsert({ where: { name }, create: { name, prompt: readFileSync(p, 'utf-8') }, update: { prompt: readFileSync(p, 'utf-8') } });
+    console.log('Seeded:', name);
+  }
+  await prisma.\$disconnect();
+}
+seed();
+"
+
+# Or via the API (when running locally with .claude/skills/ present):
+curl -X POST http://localhost:3000/api/admin/seed-skills
 ```
-/project-orchestrator
+
+### Vercel Environment Variables
+
+```bash
+# List current env vars
+npx vercel env ls
+
+# Add a new env var
+echo "value" | npx vercel env add VAR_NAME production
+
+# Remove an env var
+npx vercel env rm VAR_NAME production
 ```
 
-Provide your idea. The orchestrator handles the rest — asking questions, producing artifacts, building code, one verified stage at a time.
+### Testing
 
-### Diagnose and Fix a Bug
+```bash
+# Run all tests (29 smoke tests + metrics tests)
+npx vitest run
 
+# Run with verbose output
+npx vitest run --reporter verbose
+
+# Watch mode
+npx vitest
 ```
-/diagnostic-orchestrator
-```
 
-Describe the symptom. The orchestrator traces it through the code, identifies root cause, plans the fix, generates instructions, executes them, verifies the fix works, and extracts lessons.
+### Environment Variables
 
-### Use Individual Stages
-
-Every skill works standalone:
-
-```
-/prd-architect          — create a PRD from a project idea
-/phase-builder          — extract standalone phases from a PRD
-/prompt-builder         — generate implementation prompts from a phase doc
-/prompt-validator       — validate prompts against codebase state
-/phase-executor         — execute prompts into working code
-/bug-intake             — document a bug with structured intake
-/code-archaeologist     — trace a bug through the codebase
-/root-cause-analyzer    — identify the definitive root cause
-/fix-planner            — plan the minimal fix
-/fix-prompt-builder     — generate atomic fix instructions
-/fix-executor           — apply fixes with verification
-/lessons-learned        — extract prevention recommendations
-/metrics                — generate pipeline performance report
-/code-mentor            — real-time teaching during any stage
-```
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `FORGE_MAX_AUTO_FIX` | `3` | Max auto-fix cycles before escalating |
+| `FORGE_RUN_BUDGET_USD` | `5.00` | Max spend per pipeline run |
+| `FORGE_DAILY_BUDGET_USD` | `20.00` | Max spend per user per day |
+| `FORGE_CACHE_TTL_DAYS` | `30` | Spec cache duration |
+| `FORGE_BUILD_TIMEOUT` | `120000` | Build verification timeout (ms) |
 
 ## Architecture
 
-### Build Pipeline (6 stages)
-
-| Stage | Skill | Input | Output | Artifact |
-|-------|-------|-------|--------|----------|
-| 1 | `prd-architect` | Raw idea + requirements | Complete PRD | `docs/PRD.md` |
-| 2 | `phase-builder` | PRD | Standalone phase docs (SSOT) | `docs/phases/phase-{N}.md` |
-| 3 | `prompt-builder` | Phase doc | Atomic implementation prompts | `docs/prompts/phase-{N}-prompts.md` |
-| 3.5 | `prompt-validator` | Prompts + codebase state | Validation report | `docs/validation/phase-{N}-validation.md` |
-| 4 | `phase-executor` | Validated prompts | Working, tested code | Git commits + `docs/state/phase-{N}-actual.md` |
-
-### Diagnostic Pipeline (8 stages)
-
-| Stage | Skill | Input | Output | Artifact |
-|-------|-------|-------|--------|----------|
-| 1 | `bug-intake` | Symptoms, errors, logs | Structured bug report | `docs/diagnostic/bug-intake.md` |
-| 2 | `code-archaeologist` | Bug report | Annotated code map | `docs/diagnostic/code-archaeology.md` |
-| 3 | `root-cause-analyzer` | Code map + evidence | Proven diagnosis | `docs/diagnostic/root-cause-analysis.md` |
-| 4 | `fix-planner` | Root cause | Ordered fix steps | `docs/diagnostic/fix-plan.md` |
-| 5 | `fix-prompt-builder` | Fix plan | Atomic fix instructions | `docs/diagnostic/fix-prompts.md` |
-| 5.5 | `prompt-validator` | Fix prompts + codebase | Validation report | `docs/validation/diagnostic-validation.md` |
-| 6 | `fix-executor` | Validated fix prompts | Verified fix | Git commits + `docs/diagnostic/fix-log.md` |
-| 7 | `lessons-learned` | All diagnostic artifacts | Prevention recommendations | `docs/diagnostic/lessons-learned.md` |
-
-### Cross-Pipeline Intelligence
+### Pipeline Flow
 
 ```
-BUILD --> deploys code --> bug found --> DIAGNOSE --> fix verified --> LESSONS LEARNED --> BUILD (coding standards updated) --> fewer bugs
+User Input
+    ↓
+IntakeAgent → DAG Execution Plan
+    ↓
+┌─────────────────────────────────────────────┐
+│  PRD Architect                              │
+│  Phase Builder → Graph Expander             │
+│  ┌──────────────────────────────────┐       │
+│  │ Per Phase:                       │       │
+│  │  Prompt Builder (Sentinel-scored)│       │
+│  │  Phase Executor (code gen)       │       │
+│  └──────────────────────────────────┘       │
+│  Build Verification                         │
+│  ├─ PASS → Scaffold tests/Docker/CI/SBOM    │
+│  └─ FAIL → Auto-fix loop (retry with errors)│
+└─────────────────────────────────────────────┘
+    ↓
+Download ZIP / Docker Preview
 ```
 
-The lessons-learned skill closes the loop: every bug diagnosed feeds prevention rules back into the build pipeline's coding standards. The metrics-tracker proves it's working with data.
+### Services (src/services/)
 
-## What Makes This Different
+| Service | What It Does |
+|---------|-------------|
+| `intake-agent` | Generates DAG from natural language |
+| `dag-executor` | Executes DAG with topological sort, parallel nodes |
+| `graph-expander` | Dynamically adds nodes after phase discovery |
+| `triage-agent` | Failure recovery: retry, reroute, or escalate |
+| `stage-executor` | Runs individual skill through Claude |
+| `skill-loader` | Loads skill prompts from DB (filesystem fallback) |
+| `sentinel-agent` | Pre-execution confidence scoring |
+| `inspector-agent` | Post-execution completeness check |
+| `completeness-pass` | Scaffolds missing config files |
+| `dependency-resolver` | Scans imports, fills package.json |
+| `output-validator` | Filters wrong-language files |
+| `file-manager` | Extracts code files from LLM output |
+| `build-verifier` | npm install + build verification |
+| `docker-sandbox` | Isolated Docker build + health check + live preview |
+| `test-generator` | Vitest/pytest/go test scaffolding |
+| `dockerfile-generator` | Multi-stage Dockerfile + compose |
+| `ci-generator` | GitHub Actions workflow |
+| `sbom-scanner` | CycloneDX SBOM + vulnerability scan |
+| `secret-scanner` | API key / credential detection |
+| `cost-tracker` | Per-stage token + USD tracking |
+| `cost-guard` | Budget enforcement |
+| `learning-store` | Failure pattern memory |
+| `trace-logger` | Span-based execution tracing |
+| `metrics-service` | Dashboard analytics |
+| `zip-generator` | Project ZIP download |
 
-### vs. Devin / Sweep (Autonomous Agents)
-They're black boxes. You assign a task, wait, and review a PR. No intermediate artifacts, no checkpoints, no visibility into decisions.
+### Key Metrics (Dashboard at /metrics)
 
-**We produce an auditable artifact at every stage.** Every line of code traces back through prompts to phase docs to the PRD. If something is wrong, you know exactly which stage introduced the error.
-
-### vs. Cursor / Windsurf / Cline (IDE Agents)
-They're reactive — good at individual tasks, but no structured process. Quality depends entirely on prompt quality.
-
-**We decompose complex projects into atomic, dependency-ordered prompts** with validation gates between stages. A 50-file application gets built in verified steps where each step's output is the next step's verified input.
-
-### vs. Kiro (Amazon) — Spec-Driven IDE
-Kiro is closest with 3-phase spec-driven development. But:
-- **No reverse pipeline.** Kiro can't diagnose a bug.
-- **No prompt validation.** Tasks aren't validated against codebase state before execution.
-- **No lessons-learned feedback loop.** Bugs don't feed back into future build standards.
-- **Limited composability.** You can't run "just the design stage" on an existing project.
-
-**We have 6 forward stages + 8 reverse stages, all composable, with validation and feedback loops.**
-
-### vs. Everyone
-**Nobody has a structured diagnostic pipeline.** Every tool either debugs as part of its forward loop (black box) or offers rollback/checkpoint (undo, not diagnose).
-
-**Nobody connects build and diagnose into a learning system.** We do.
-
-## Core Principles
-
-### 1. Zero Assumptions
-Every skill asks questions instead of guessing. A 30-second clarification prevents hours of debugging hallucinated code.
-
-### 2. Mandatory Human Checkpoints
-Every stage requires explicit user approval before the next stage begins. The human is always in the loop at every decision point.
-
-### 3. Auditable Artifacts
-Every stage produces a file. Every file is the single source of truth for the next stage. Every decision is traceable.
-
-### 4. Composable Stages
-Every skill works standalone or orchestrated. Use the full pipeline for new projects. Use individual stages for targeted work.
-
-### 5. Never Continue Past a Problem
-If any stage produces uncertain results, the pipeline stops and asks for help. Problems are resolved where they occur, not accumulated across stages.
-
-## Skill Inventory (16 skills)
-
-### Build Pipeline
-| Skill | Purpose |
-|-------|---------|
-| `prd-architect` | Requirements to complete PRD |
-| `phase-builder` | PRD to standalone phase documents |
-| `prompt-builder` | Phase doc to atomic implementation prompts |
-| `prompt-validator` | Validates prompts against codebase state |
-| `phase-executor` | Executes prompts into working, tested code |
-| `project-orchestrator` | Chains all stages end-to-end |
-
-### Diagnostic Pipeline
-| Skill | Purpose |
-|-------|---------|
-| `bug-intake` | Symptoms to structured bug report |
-| `code-archaeologist` | Bug report to annotated code map |
-| `root-cause-analyzer` | Code map to proven root cause |
-| `fix-planner` | Root cause to ordered fix steps |
-| `fix-prompt-builder` | Fix plan to atomic fix instructions |
-| `fix-executor` | Fix prompts to verified fix |
-| `lessons-learned` | Diagnostic results to prevention recommendations |
-| `diagnostic-orchestrator` | Chains all stages end-to-end |
-
-### Cross-Pipeline
-| Skill | Purpose |
-|-------|---------|
-| `metrics-tracker` | Performance data across both pipelines |
-| `code-mentor` | Real-time teaching during any stage |
-
-## Artifact Trail
-
-Every piece of code is fully traceable:
-
-**Build:** User Input -> `docs/PRD.md` -> `docs/phases/phase-N.md` -> `docs/prompts/phase-N-prompts.md` -> `docs/validation/phase-N-validation.md` -> `docs/state/phase-N-actual.md` -> Git commit
-
-**Diagnostic:** User Report -> `docs/diagnostic/bug-intake.md` -> `docs/diagnostic/code-archaeology.md` -> `docs/diagnostic/root-cause-analysis.md` -> `docs/diagnostic/fix-plan.md` -> `docs/diagnostic/fix-prompts.md` -> `docs/validation/diagnostic-validation.md` -> `docs/diagnostic/fix-log.md` -> `docs/diagnostic/lessons-learned.md` -> Git commit
+| Metric | What It Tells You |
+|--------|-------------------|
+| Build Pass Rate | % of runs that compiled without auto-fix |
+| Worked Out of Box | % of users who confirmed output worked |
+| Auto-Fix Rate | How often the self-correction loop fires |
+| Avg LLM Time | Execution time excluding human wait |
+| Avg Cost / Run | Token cost per pipeline run |
+| Sentinel Pass Rate | Prompt quality before execution |
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT

@@ -6,19 +6,10 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Project artifacts (generated per-project, not part of the skill definitions)
-docs/PRD.md
-docs/phases/
-docs/prompts/
-docs/validation/
+# Generated docs (per-run artifacts, not source of truth)
 docs/state/
 docs/diagnostic/
-docs/metrics/
-docs/lessons-learned-index.md
 docs/DEV_LOG.md
-docs/ISSUES_TRACKER.md
-docs/AI_DECISIONS.md
-docs/AI_COST_LOG.md
 
 # Dependencies
 node_modules/
@@ -32,6 +23,7 @@ out/
 # Environment
 .env
 .env.local
+.env.production
 .env.development.local
 .env.test.local
 .env.production.local
@@ -44,3 +36,4 @@ npm-debug.log*
 
 # Prisma
 prisma/*.db
+.env*.local

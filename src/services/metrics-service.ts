@@ -3,7 +3,18 @@ import { type MetricsSummary, type MetricsSummaryItem, type MetricHistoryEntry }
 import { CostTracker } from '@/src/services/cost-tracker';
 
 function emptyItem(): MetricsSummaryItem {
-  return { totalRuns: 0, successCount: 0, successRate: 0, avgDurationMs: 0, avgFirstPassRate: 0, totalRejections: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCostUsd: 0 };
+  return {
+    totalRuns: 0,
+    buildPassRate: 0,
+    workedOutOfBoxRate: 0,
+    autoFixRate: 0,
+    avgAutoFixCycles: 0,
+    totalCostUsd: 0,
+    avgCostPerRun: 0,
+    avgLlmTimeMs: 0,
+    totalRejections: 0,
+    feedbackCount: 0,
+  };
 }
 
 export class MetricsService {
@@ -38,7 +49,6 @@ export class MetricsService {
       }
     }
 
-    // Aggregate token usage
     const tokenData = await CostTracker.aggregateRunCost(runId);
 
     await prisma.pipelineMetric.create({
@@ -61,9 +71,7 @@ export class MetricsService {
     });
 
     console.log(
-      `[Metrics] Collected metrics for run ${runId}: ${outcome}, ` +
-      `${CostTracker.formatTokens(tokenData.totalInputTokens)} in / ` +
-      `${CostTracker.formatTokens(tokenData.totalOutputTokens)} out, ` +
+      `[Metrics] Run ${runId}: ${outcome}, ` +
       `cost: ${CostTracker.formatCost(tokenData.totalCostUsd)}`
     );
   }
@@ -76,35 +84,96 @@ export class MetricsService {
     const build = metrics.filter((m) => m.pipelineType === 'build');
     const diagnostic = metrics.filter((m) => m.pipelineType === 'diagnostic');
 
-    function summarize(items: typeof metrics): MetricsSummaryItem {
-      if (items.length === 0) return emptyItem();
+    // Get feedback data for this user
+    const feedback = await prisma.projectFeedback.findMany({
+      where: { userId },
+    });
 
-      const successCount = items.filter((m) => m.outcome === 'success').length;
-      const totalDurationMs = items.reduce((sum, m) => sum + m.totalDurationMs, 0);
-      const totalFirstPass = items.reduce((sum, m) => sum + m.approvedFirstPass, 0);
-      const totalStages = items.reduce((sum, m) => sum + m.stageCount, 0);
-      const totalRejections = items.reduce((sum, m) => sum + m.rejectionCount, 0);
+    // Get verify stage retry counts to calculate auto-fix rate
+    const verifyStages = await prisma.pipelineStage.findMany({
+      where: {
+        run: { project: { userId } },
+        nodeType: 'verify',
+      },
+      select: { runId: true, retryCount: true, status: true },
+    });
 
-      const totalInputTokens = items.reduce((sum, m) => sum + m.totalInputTokens, 0);
-      const totalOutputTokens = items.reduce((sum, m) => sum + m.totalOutputTokens, 0);
-      const totalCostUsd = items.reduce((sum, m) => sum + m.totalCostUsd, 0);
-
-      return {
-        totalRuns: items.length,
-        successCount,
-        successRate: Math.round((successCount / items.length) * 100),
-        avgDurationMs: Math.round(totalDurationMs / items.length),
-        avgFirstPassRate: totalStages > 0 ? Math.round((totalFirstPass / totalStages) * 100) : 0,
-        totalRejections,
-        totalInputTokens,
-        totalOutputTokens,
-        totalCostUsd,
-      };
-    }
+    // Get LLM-only durations (stages that actually ran LLM, not gates/verify)
+    const llmStages = await prisma.pipelineStage.findMany({
+      where: {
+        run: { project: { userId } },
+        nodeType: 'skill',
+        durationMs: { not: null },
+      },
+      select: { runId: true, durationMs: true, run: { select: { type: true } } },
+    });
 
     return {
-      build: summarize(build),
-      diagnostic: summarize(diagnostic),
+      build: MetricsService.summarize(build, feedback, verifyStages, llmStages, 'build'),
+      diagnostic: MetricsService.summarize(build, feedback, verifyStages, llmStages, 'diagnostic'),
+    };
+  }
+
+  private static summarize(
+    metrics: Array<{
+      id: string; runId: string; outcome: string;
+      totalDurationMs: number; stageCount: number;
+      approvedFirstPass: number; rejectionCount: number;
+      totalCostUsd: number; pipelineType: string;
+    }>,
+    feedback: Array<{ runId: string | null; rating: number; workedOutOfBox: boolean }>,
+    verifyStages: Array<{ runId: string; retryCount: number; status: string }>,
+    llmStages: Array<{ runId: string; durationMs: number | null; run: { type: string } }>,
+    type: string
+  ): MetricsSummaryItem {
+    const items = metrics.filter((m) => m.pipelineType === type);
+    if (items.length === 0) return emptyItem();
+
+    const runIds = new Set(items.map((m) => m.runId));
+
+    // Build pass rate: runs where verify node passed without retries
+    const relevantVerify = verifyStages.filter((v) => runIds.has(v.runId));
+    const verifyPassed = relevantVerify.filter((v) => v.retryCount === 0 && v.status === 'approved').length;
+    const buildPassRate = relevantVerify.length > 0
+      ? Math.round((verifyPassed / relevantVerify.length) * 100) : 0;
+
+    // Auto-fix rate: runs where verify needed retries
+    const verifyRetried = relevantVerify.filter((v) => v.retryCount > 0);
+    const autoFixRate = relevantVerify.length > 0
+      ? Math.round((verifyRetried.length / relevantVerify.length) * 100) : 0;
+    const avgAutoFixCycles = verifyRetried.length > 0
+      ? Math.round((verifyRetried.reduce((s, v) => s + v.retryCount, 0) / verifyRetried.length) * 10) / 10 : 0;
+
+    // Worked out of box rate: from user feedback
+    const relevantFeedback = feedback.filter((f) => f.runId && runIds.has(f.runId));
+    const workedCount = relevantFeedback.filter((f) => f.workedOutOfBox).length;
+    const workedOutOfBoxRate = relevantFeedback.length > 0
+      ? Math.round((workedCount / relevantFeedback.length) * 100) : 0;
+
+    // Cost
+    const totalCostUsd = items.reduce((sum, m) => sum + m.totalCostUsd, 0);
+    const avgCostPerRun = Math.round((totalCostUsd / items.length) * 10000) / 10000;
+
+    // LLM time (excludes human wait, gates, verify)
+    const relevantLlm = llmStages.filter((s) => runIds.has(s.runId) && s.run.type === type);
+    const totalLlmMs = relevantLlm.reduce((sum, s) => sum + (s.durationMs || 0), 0);
+    const llmRunCount = new Set(relevantLlm.map((s) => s.runId)).size;
+    const avgLlmTimeMs = llmRunCount > 0 ? Math.round(totalLlmMs / llmRunCount) : 0;
+
+    // Rejections
+    const totalRejections = items.reduce((sum, m) => sum + m.rejectionCount, 0);
+
+    return {
+      totalRuns: items.length,
+      buildPassRate,
+      workedOutOfBoxRate,
+      autoFixRate,
+      avgAutoFixCycles,
+      totalCostUsd: Math.round(totalCostUsd * 100) / 100,
+      avgCostPerRun,
+      avgLlmTimeMs,
+      totalRejections,
+      feedbackCount: relevantFeedback.length,
     };
   }
 

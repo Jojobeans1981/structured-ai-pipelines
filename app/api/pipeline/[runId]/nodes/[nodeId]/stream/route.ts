@@ -289,6 +289,7 @@ async function handleVerifyNode(
             const errorForFix = [result.stderr, result.stdout].filter(Boolean).join('\n');
             const autoFixed = await tryAutoFix(runId, stageId, errorForFix, send);
             if (autoFixed) {
+              send({ type: 'auto-fix', data: { cycle: true, runId, message: 'Auto-fix triggered — re-running failed stages' } });
               controller.close();
               return;
             }
@@ -334,6 +335,7 @@ async function handleVerifyNode(
             const errorForFix = result.errors.join('\n');
             const autoFixed = await tryAutoFix(runId, stageId, errorForFix, send);
             if (autoFixed) {
+              send({ type: 'auto-fix', data: { cycle: true, runId, message: 'Auto-fix triggered — re-running failed stages' } });
               controller.close();
               return;
             }
@@ -483,6 +485,7 @@ async function handleVerifyNode(
             const errorForFix = errors.join('\n') + '\n\nWarnings:\n' + warnings.join('\n');
             const autoFixed = await tryAutoFix(runId, stageId, errorForFix, send);
             if (autoFixed) {
+              send({ type: 'auto-fix', data: { cycle: true, runId, message: 'Auto-fix triggered — re-running failed stages' } });
               controller.close();
               return;
             }

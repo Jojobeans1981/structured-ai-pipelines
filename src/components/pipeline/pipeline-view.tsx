@@ -31,42 +31,44 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
   const { connect, disconnect } = usePipelineStream(runId);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const eventSourcesRef = useRef<Map<string, EventSource>>(new Map());
-  // Load run data
-  useEffect(() => {
-    async function loadRun() {
-      try {
-        const res = await fetch(`/api/pipeline/${runId}`);
-        if (!res.ok) throw new Error('Failed to load pipeline run');
-        const { data: run } = await res.json();
+  // Shared function to load/reload run state from the server
+  const reloadRunState = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/pipeline/${runId}`);
+      if (!res.ok) throw new Error('Failed to load pipeline run');
+      const { data: run } = await res.json();
 
-        const stages: StageState[] = run.stages.map((s: Record<string, unknown>) => ({
-          id: s.id as string,
-          stageIndex: s.stageIndex as number,
-          skillName: s.skillName as string,
-          displayName: s.displayName as string,
-          status: s.status as StageState['status'],
-          artifactContent: (s.artifactContent as string) || null,
-          streamContent: (s.streamContent as string) || null,
-          durationMs: (s.durationMs as number) || null,
-          nodeId: (s.nodeId as string) || null,
-          nodeType: (s.nodeType as string) || null,
-          dependsOn: (s.dependsOn as string[]) || [],
-          parallelGroup: (s.parallelGroup as string) || null,
-          gateType: (s.gateType as string) || null,
-          phaseIndex: (s.phaseIndex as number) ?? null,
-          retryCount: (s.retryCount as number) || 0,
-        }));
+      const stages: StageState[] = run.stages.map((s: Record<string, unknown>) => ({
+        id: s.id as string,
+        stageIndex: s.stageIndex as number,
+        skillName: s.skillName as string,
+        displayName: s.displayName as string,
+        status: s.status as StageState['status'],
+        artifactContent: (s.artifactContent as string) || null,
+        streamContent: (s.streamContent as string) || null,
+        durationMs: (s.durationMs as number) || null,
+        nodeId: (s.nodeId as string) || null,
+        nodeType: (s.nodeType as string) || null,
+        dependsOn: (s.dependsOn as string[]) || [],
+        parallelGroup: (s.parallelGroup as string) || null,
+        gateType: (s.gateType as string) || null,
+        phaseIndex: (s.phaseIndex as number) ?? null,
+        retryCount: (s.retryCount as number) || 0,
+      }));
 
-        store.initRun(
-          runId, projectId, run.type, stages,
-          run.executionMode, run.planApproved,
-          run.executionPlan, run.outputPath
-        );
-      } catch (err) {
-        store.setError(err instanceof Error ? err.message : 'Failed to load run');
-      }
+      store.initRun(
+        runId, projectId, run.type, stages,
+        run.executionMode, run.planApproved,
+        run.executionPlan, run.outputPath
+      );
+    } catch (err) {
+      store.setError(err instanceof Error ? err.message : 'Failed to load run');
     }
-    loadRun();
+  }, [runId, projectId, store]);
+
+  // Load run data on mount
+  useEffect(() => {
+    reloadRunState();
 
     return () => {
       disconnect();
@@ -111,6 +113,12 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
               store.setCheckpoint(parsed.data.stageId, parsed.data.artifact);
               es.close();
               eventSourcesRef.current.delete(node.id);
+              break;
+            case 'auto-fix':
+              // Auto-fix cycle triggered — reload run state to pick up reset stages
+              es.close();
+              eventSourcesRef.current.delete(node.id);
+              reloadRunState();
               break;
             case 'error':
               store.setError(parsed.data.message);

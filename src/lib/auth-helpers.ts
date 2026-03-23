@@ -18,28 +18,34 @@ async function getOrCreateDemoUser() {
 }
 
 export async function getAuthenticatedUser() {
+  // Always try real session first
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) {
+    return session.user;
+  }
+  // Fall back to demo user if bypass is enabled
   if (AUTH_BYPASS) {
     return getOrCreateDemoUser();
   }
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return null;
-  }
-  return session.user;
+  return null;
 }
 
 /**
- * Get the authenticated session, or a mock session when auth is bypassed.
- * Use this in forge routes that need session.user.id.
+ * Get the authenticated session, or a demo session when auth is bypassed.
+ * Real sessions always take priority over the demo user.
  */
 export async function getSessionOrDemo(): Promise<{ user: { id: string; name?: string | null; email?: string | null } } | null> {
+  // Always try real session first
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) {
+    return session as { user: { id: string; name?: string | null; email?: string | null } };
+  }
+  // Fall back to demo user if bypass is enabled
   if (AUTH_BYPASS) {
     const user = await getOrCreateDemoUser();
     return { user };
   }
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
-  return session as { user: { id: string; name?: string | null; email?: string | null } };
+  return null;
 }
 
 export function unauthorizedResponse() {

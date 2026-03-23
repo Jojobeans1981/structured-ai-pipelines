@@ -93,6 +93,8 @@ export class SkillLoader {
       'phase-executor', 'educator', 'project-orchestrator', 'bug-intake', 'code-archaeologist',
       'root-cause-analyzer', 'fix-planner', 'fix-prompt-builder', 'fix-executor',
       'lessons-learned', 'diagnostic-orchestrator', 'metrics-tracker', 'code-mentor',
+      'forge-analyzer', 'forge-prd', 'forge-prompt', 'forge-scaffolder', 'forge-validator',
+      'forge-archaeologist', 'forge-root-cause', 'forge-fix-planner', 'forge-fix-scaffolder',
     ];
 
     let seeded = 0;

@@ -23,6 +23,7 @@ model User {
   metrics  PipelineMetric[]
   feedback ProjectFeedback[]
   specCaches SpecCache[]
+  forgeRuns ForgeRun[]
 }
 
 model Account {
@@ -335,4 +336,102 @@ model SpecCache {
 
   @@unique([userId, inputHash])
   @@index([inputHash])
+}
+
+// ============================================================
+// Forge UI Integration Models
+// ============================================================
+
+model ForgeRun {
+  id              String    @id @default(cuid())
+  userId          String
+  mode            String    // 'build' | 'debug'
+  status          String    @default("pending") // pending | running | awaiting_approval | publishing | complete | failed | rejected
+  stage           String?   // 'plan' | 'code' — which approval gate we're at
+  repoUrl         String
+  branchName      String?
+  specContent     String?   @db.Text
+  specFilename    String?
+  bugDescription  String?   @db.Text
+  prdTitle        String?
+  prdSummary      String?
+  error           String?   @db.Text
+  createdAt       DateTime  @default(now())
+  completedAt     DateTime?
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs       ForgeRunLog[]
+  diff       ForgeRunDiff?
+  diagnosis  ForgeRunDiagnosis?
+  result     ForgeRunResult?
+  lessons    ForgeLessonLearned[]
+
+  @@index([userId, createdAt])
+}
+
+model ForgeRunLog {
+  id        String   @id @default(cuid())
+  runId     String
+  step      String
+  level     String   // info | warn | error | success
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+
+  run ForgeRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, createdAt])
+}
+
+model ForgeRunDiff {
+  id          String   @id @default(cuid())
+  runId       String   @unique
+  files       Json     // Array<{ path: string, content: string }>
+  lintPassed  Boolean  @default(false)
+  testsPassed Boolean  @default(false)
+  errors      Json     @default("[]") // string[]
+  createdAt   DateTime @default(now())
+
+  run ForgeRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model ForgeRunDiagnosis {
+  id            String   @id @default(cuid())
+  runId         String   @unique
+  rootCause     String   @db.Text
+  affectedFiles Json     // string[]
+  fixPlan       Json     // Array<{ file: string, action: string, description: string }>
+  createdAt     DateTime @default(now())
+
+  run ForgeRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model ForgeRunResult {
+  id        String   @id @default(cuid())
+  runId     String   @unique
+  mrUrl     String
+  mrIid     Int
+  branch    String
+  title     String
+  createdAt DateTime @default(now())
+
+  run ForgeRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model ForgeLessonLearned {
+  id             String   @id @default(cuid())
+  runId          String?
+  phase          Int
+  phaseName      String
+  error          String   @db.Text
+  fix            String   @db.Text
+  rootCause      String   @db.Text
+  preventionRule String   @db.Text
+  language       String?
+  framework      String?
+  createdAt      DateTime @default(now())
+
+  run ForgeRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([language])
 }

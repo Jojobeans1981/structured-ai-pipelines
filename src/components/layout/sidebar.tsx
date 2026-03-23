@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { LayoutDashboard, BarChart3, Settings, LogIn, LogOut, Flame } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Settings, LogIn, LogOut, Flame, Hammer } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Button } from '@/src/components/ui/button';
 
@@ -16,6 +16,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'Forge', href: '/forge', icon: Hammer },
   { label: 'Metrics', href: '/metrics', icon: BarChart3 },
   { label: 'Settings', href: '/settings', icon: Settings },
 ];

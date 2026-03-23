@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/src/lib/auth'
+import { getSessionOrDemo } from '@/src/lib/auth-helpers'
 import { z } from 'zod'
 import { createForgeRun, listForgeRuns } from '@/src/services/forge/db'
 import { extractTextFromFile } from '@/src/services/forge/utils/markdown'
@@ -24,7 +23,7 @@ const DebugJsonSchema = z.object({
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getSessionOrDemo()
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -90,7 +89,7 @@ export async function POST(req: Request): Promise<NextResponse> {
 
 export async function GET(): Promise<NextResponse> {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getSessionOrDemo()
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

@@ -4,8 +4,7 @@ import { rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/src/lib/auth'
+import { getSessionOrDemo } from '@/src/lib/auth-helpers'
 import { getForgeRunWithDetails, updateForgeRun, saveForgeRunResult } from '@/src/services/forge/db'
 import { publishToGitLab, getGitLabToken } from '@/src/services/forge/utils/publish'
 
@@ -13,7 +12,7 @@ export async function POST(
   _req: Request,
   { params }: { params: { id: string } },
 ): Promise<NextResponse> {
-  const session = await getServerSession(authOptions)
+  const session = await getSessionOrDemo()
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/src/lib/auth'
+import { getSessionOrDemo } from '@/src/lib/auth-helpers'
 import { getForgeRun, updateForgeRun } from '@/src/services/forge/db'
 import type { SSEEvent } from '@/src/services/forge/types/sse'
 import { runBuildPipelineStage2 } from '@/src/services/forge/build-pipeline'
@@ -12,7 +11,7 @@ export async function GET(
   _req: Request,
   { params }: { params: { id: string } },
 ): Promise<Response> {
-  const session = await getServerSession(authOptions)
+  const session = await getSessionOrDemo()
   if (!session?.user?.id) {
     return new Response('Unauthorized', { status: 401 })
   }

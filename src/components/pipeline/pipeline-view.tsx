@@ -206,10 +206,13 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       store.approveStage(stageId, store.executionMode === 'dag' ? nextRunningIds : undefined);
+
+      // Force reload to catch any server-side transitions the local store missed
+      setTimeout(() => reloadRunState(), 500);
     } catch (err) {
       store.setError(err instanceof Error ? err.message : 'Approval failed');
     }
-  }, [runId, disconnect, store]);
+  }, [runId, disconnect, store, reloadRunState]);
 
   // Reject handler
   const handleReject = useCallback(async (stageId: string, feedback: string) => {
@@ -237,10 +240,13 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
       if (!res.ok) throw new Error('Failed to approve plan');
       const { data } = await res.json();
       store.setPlanApproved(data.nextNodes?.map((n: { id: string }) => n.id) || []);
+      // Force reload from server to ensure stages are in sync — the server
+      // may have advanced nodes that setPlanApproved didn't capture.
+      setTimeout(() => reloadRunState(), 500);
     } catch (err) {
       store.setError(err instanceof Error ? err.message : 'Plan approval failed');
     }
-  }, [runId, store]);
+  }, [runId, store, reloadRunState]);
 
   // Cancel handler
   const handleCancel = useCallback(async () => {

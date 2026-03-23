@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/src/components/ui/dialog';
 import { Button } from '@/src/components/ui/button';
 import { Textarea } from '@/src/components/ui/textarea';
-import { Loader2, Flame, Stethoscope, RefreshCw, Sparkles, TestTube, Rocket, GitBranch } from 'lucide-react';
+import { Loader2, Flame, Stethoscope, RefreshCw, Sparkles, TestTube, Rocket, GitBranch, Upload, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 interface BuildStartDialogProps {
@@ -39,6 +39,31 @@ export function BuildStartDialog({ projectId, open, onOpenChange }: BuildStartDi
   const [autoApprove, setAutoApprove] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleUpload = async (file: File) => {
+    setIsUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`/api/projects/${projectId}/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Upload failed');
+      }
+      const data = await res.json();
+      setUploadedFiles(data.imported);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleStart = async () => {
     if (!input.trim()) return;
@@ -122,6 +147,57 @@ export function BuildStartDialog({ projectId, open, onOpenChange }: BuildStartDi
             disabled={isLoading}
             className="bg-zinc-900/50 border-zinc-700 focus:border-orange-500/50"
           />
+
+          {/* Upload zone — shown for types that work with existing code */}
+          {['enhance', 'diagnostic', 'refactor', 'test', 'deploy'].includes(selectedType) && (
+            <div
+              className={cn(
+                'rounded-lg border-2 border-dashed p-4 text-center transition-colors cursor-pointer',
+                uploadedFiles > 0
+                  ? 'border-emerald-500/30 bg-emerald-500/5'
+                  : 'border-zinc-700 bg-zinc-900/30 hover:border-zinc-600'
+              )}
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.zip';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) handleUpload(file);
+                };
+                input.click();
+              }}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const file = e.dataTransfer.files[0];
+                if (file) handleUpload(file);
+              }}
+            >
+              {isUploading ? (
+                <div className="flex items-center justify-center gap-2 text-sm text-zinc-400">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Importing files...
+                </div>
+              ) : uploadedFiles > 0 ? (
+                <div className="flex items-center justify-center gap-2 text-sm text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {uploadedFiles} files imported — ready to {selectedType}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1.5">
+                  <Upload className="h-5 w-5 text-zinc-500" />
+                  <span className="text-sm text-zinc-400">
+                    Drop a project ZIP here or click to upload
+                  </span>
+                  <span className="text-xs text-zinc-600">
+                    Existing code will be used as context for {selectedType}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs text-zinc-500">

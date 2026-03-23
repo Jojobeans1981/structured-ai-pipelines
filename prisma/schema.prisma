@@ -153,17 +153,17 @@ model PipelineStage {
 model ProjectFile {
   id             String   @id @default(cuid())
   projectId      String
-  runId          String
+  runId          String?
   filePath       String
   content        String   @db.Text
   language       String   @default("plaintext")
-  createdByStage String
+  createdByStage String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  project Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  run     PipelineRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
-  stage   PipelineStage @relation(fields: [createdByStage], references: [id])
+  project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  run     PipelineRun?   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  stage   PipelineStage? @relation(fields: [createdByStage], references: [id])
 
   @@unique([projectId, filePath])
 }

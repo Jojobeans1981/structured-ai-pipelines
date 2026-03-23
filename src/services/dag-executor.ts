@@ -295,6 +295,27 @@ export class DAGExecutor {
     const parts: string[] = [`## User Input\n\n${run.userInput}`];
     const previousArtifacts: string[] = [];
 
+    // For enhance/diagnostic/refactor: include existing project files as context
+    if (['diagnostic', 'enhance', 'refactor', 'test'].includes(run.type)) {
+      const existingFiles = await prisma.projectFile.findMany({
+        where: { projectId: run.projectId, runId: null }, // runId null = imported baseline files
+        select: { filePath: true, content: true },
+        take: 50, // limit to avoid token explosion
+      });
+
+      if (existingFiles.length > 0) {
+        let codeContext = '## Existing Project Code\n\nThe following files are the current codebase you are working with:\n\n';
+        for (const file of existingFiles) {
+          // Truncate large files to keep context manageable
+          const truncated = file.content.length > 5000
+            ? file.content.substring(0, 5000) + '\n\n... (truncated)'
+            : file.content;
+          codeContext += `### ${file.filePath}\n\`\`\`\n${truncated}\n\`\`\`\n\n`;
+        }
+        parts.push(codeContext);
+      }
+    }
+
     // Get artifacts from dependency nodes only (not all prior stages)
     const depNodeIds = new Set(currentStage.dependsOn);
     const depStages = run.stages.filter(

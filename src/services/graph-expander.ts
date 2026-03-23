@@ -108,12 +108,15 @@ export class GraphExpander {
       (s) => s.phaseIndex !== null && s.skillName !== 'prd-architect' && s.skillName !== 'phase-builder'
     );
 
-    // Also remove verify and final-gate nodes — we'll recreate them
+    // Also remove verify, gate, and setup-guide nodes — we'll recreate them
     const existingVerifyGates = run.stages.filter(
       (s) => s.nodeType === 'verify' || s.nodeType === 'gate'
     );
+    const existingSetupGuide = run.stages.filter(
+      (s) => s.skillName === 'setup-analyzer'
+    );
 
-    const toRemove = [...existingPhaseNodes, ...existingVerifyGates].map((s) => s.id);
+    const toRemove = [...existingPhaseNodes, ...existingVerifyGates, ...existingSetupGuide].map((s) => s.id);
 
     let nextStageIndex = run.stages.length;
     const newNodes: Array<{
@@ -244,6 +247,24 @@ export class GraphExpander {
       maxRetries: 2,
       phaseIndex: null,
       nodeId: verifyNodeId,
+      retryCount: 0,
+    });
+
+    // Setup guide node — depends on verify, generates "how to run this" guide
+    const setupGuideNodeId = 'setup-guide';
+    newNodes.push({
+      runId,
+      stageIndex: nextStageIndex++,
+      skillName: 'setup-analyzer',
+      displayName: 'Generate Setup Guide',
+      status: 'pending',
+      dependsOn: [verifyNodeId],
+      nodeType: 'skill',
+      parallelGroup: null,
+      gateType: null,
+      maxRetries: 1,
+      phaseIndex: null,
+      nodeId: setupGuideNodeId,
       retryCount: 0,
     });
 

@@ -1,6 +1,5 @@
-import { getServerSession } from 'next-auth';
 import { redirect, notFound } from 'next/navigation';
-import { authOptions } from '@/src/lib/auth';
+import { getSessionOrDemo } from '@/src/lib/auth-helpers';
 import { prisma } from '@/src/lib/prisma';
 import { Header } from '@/src/components/layout/header';
 import { PageContainer } from '@/src/components/layout/page-container';
@@ -11,7 +10,7 @@ interface Props {
 }
 
 export default async function ProjectDetailPage({ params }: Props) {
-  const session = await getServerSession(authOptions);
+  const session = await getSessionOrDemo();
   if (!session?.user?.id) redirect('/api/auth/signin');
 
   const project = await prisma.project.findUnique({

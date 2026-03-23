@@ -1,7 +1,6 @@
-import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { authOptions } from '@/src/lib/auth';
+import { getSessionOrDemo } from '@/src/lib/auth-helpers';
 import { prisma } from '@/src/lib/prisma';
 import { Header } from '@/src/components/layout/header';
 import { PageContainer } from '@/src/components/layout/page-container';
@@ -11,7 +10,7 @@ import { Plus, Flame, GitBranch, Zap, FolderOpen } from 'lucide-react';
 import { type ProjectSummary } from '@/src/types/project';
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSessionOrDemo();
   if (!session?.user?.id) redirect('/api/auth/signin');
 
   const projects = await prisma.project.findMany({

@@ -42,6 +42,81 @@ export function BuildStartDialog({ projectId, open, onOpenChange }: BuildStartDi
   const [uploadedFiles, setUploadedFiles] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
 
+  const showFilePicker = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.zip';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) handleUpload(file);
+    };
+    input.click();
+  };
+
+  const showFolderPicker = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    (input as HTMLInputElement & { webkitdirectory: boolean }).webkitdirectory = true;
+    input.onchange = async (e) => {
+      const files = Array.from((e.target as HTMLInputElement).files || []);
+      if (files.length > 0) await handleUploadFiles(files);
+    };
+    input.click();
+  };
+
+  const handleUploadFiles = async (files: File[]) => {
+    setIsUploading(true);
+    setError(null);
+    try {
+      // Filter to text files, read contents, send as JSON
+      const SKIP = ['node_modules/', '.git/', '.next/', 'dist/', 'build/', '__pycache__/', '.DS_Store', 'package-lock.json', 'yarn.lock'];
+      const TEXT_EXT = /\.(tsx?|jsx?|mjs|cjs|py|go|rs|java|rb|php|css|scss|html|svg|json|yaml|yml|toml|xml|md|txt|sql|prisma|graphql|sh|bash)$/i;
+
+      const fileData: Array<{ filePath: string; content: string }> = [];
+
+      for (const file of files) {
+        const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+
+        // Strip the top-level folder from webkitRelativePath (e.g., "my-project/src/App.tsx" → "src/App.tsx")
+        const parts = path.split('/');
+        const relativePath = parts.length > 1 ? parts.slice(1).join('/') : path;
+
+        if (SKIP.some((s) => relativePath.includes(s))) continue;
+        if (!TEXT_EXT.test(relativePath) && !['Dockerfile', 'Makefile', 'Procfile'].includes(relativePath.split('/').pop() || '')) continue;
+        if (file.size > 500 * 1024) continue; // skip files > 500KB
+
+        try {
+          const content = await file.text();
+          if (content.includes('\0')) continue; // binary
+          fileData.push({ filePath: relativePath, content });
+        } catch { continue; }
+      }
+
+      if (fileData.length === 0) {
+        setError('No importable source files found in selection');
+        return;
+      }
+
+      const res = await fetch(`/api/projects/${projectId}/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: fileData }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      const data = await res.json();
+      setUploadedFiles(data.imported);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleUpload = async (file: File) => {
     setIsUploading(true);
     setError(null);
@@ -148,56 +223,82 @@ export function BuildStartDialog({ projectId, open, onOpenChange }: BuildStartDi
             className="bg-zinc-900/50 border-zinc-700 focus:border-orange-500/50"
           />
 
-          {/* Upload zone — shown for types that work with existing code */}
-          {['enhance', 'diagnostic', 'refactor', 'test', 'deploy'].includes(selectedType) && (
-            <div
-              className={cn(
-                'rounded-lg border-2 border-dashed p-4 text-center transition-colors cursor-pointer',
-                uploadedFiles > 0
-                  ? 'border-emerald-500/30 bg-emerald-500/5'
-                  : 'border-zinc-700 bg-zinc-900/30 hover:border-zinc-600'
-              )}
-              onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.zip';
-                input.onchange = (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0];
-                  if (file) handleUpload(file);
-                };
-                input.click();
-              }}
-              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const file = e.dataTransfer.files[0];
-                if (file) handleUpload(file);
-              }}
-            >
-              {isUploading ? (
-                <div className="flex items-center justify-center gap-2 text-sm text-zinc-400">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Importing files...
+          {/* Upload zone — upload existing project for context */}
+          <div
+            className={cn(
+              'rounded-lg border-2 border-dashed p-4 text-center transition-colors cursor-pointer',
+              uploadedFiles > 0
+                ? 'border-emerald-500/30 bg-emerald-500/5'
+                : 'border-zinc-700 bg-zinc-900/30 hover:border-zinc-600'
+            )}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onDrop={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              // Handle dropped files — could be a ZIP or multiple files from a folder drag
+              const items = e.dataTransfer.items;
+              if (items && items.length > 0) {
+                const firstItem = items[0];
+                const file = firstItem.getAsFile();
+                if (file && file.name.endsWith('.zip')) {
+                  handleUpload(file);
+                  return;
+                }
+                // Multiple files dropped (folder drag) — zip them client-side
+                const files = Array.from(e.dataTransfer.files);
+                if (files.length > 0) {
+                  await handleUploadFiles(files);
+                }
+              }
+            }}
+          >
+            {isUploading ? (
+              <div className="flex items-center justify-center gap-2 text-sm text-zinc-400">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Importing files...
+              </div>
+            ) : uploadedFiles > 0 ? (
+              <div className="flex items-center justify-center gap-2 text-sm text-emerald-400">
+                <CheckCircle2 className="h-4 w-4" />
+                {uploadedFiles} files imported
+                <button
+                  onClick={(e) => { e.stopPropagation(); setUploadedFiles(0); }}
+                  className="text-xs text-zinc-500 hover:text-zinc-300 ml-2 underline"
+                >
+                  clear
+                </button>
+              </div>
+            ) : (
+              <div
+                className="flex flex-col items-center gap-1.5"
+                onClick={() => showFilePicker()}
+              >
+                <Upload className="h-5 w-5 text-zinc-500" />
+                <span className="text-sm text-zinc-400">
+                  Upload existing project (ZIP or folder)
+                </span>
+                <div className="flex gap-3 mt-1">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); showFilePicker(); }}
+                    className="text-xs text-orange-400 hover:text-orange-300 underline"
+                  >
+                    Select ZIP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); showFolderPicker(); }}
+                    className="text-xs text-orange-400 hover:text-orange-300 underline"
+                  >
+                    Select folder
+                  </button>
                 </div>
-              ) : uploadedFiles > 0 ? (
-                <div className="flex items-center justify-center gap-2 text-sm text-emerald-400">
-                  <CheckCircle2 className="h-4 w-4" />
-                  {uploadedFiles} files imported — ready to {selectedType}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-1.5">
-                  <Upload className="h-5 w-5 text-zinc-500" />
-                  <span className="text-sm text-zinc-400">
-                    Drop a project ZIP here or click to upload
-                  </span>
-                  <span className="text-xs text-zinc-600">
-                    Existing code will be used as context for {selectedType}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
+                <span className="text-xs text-zinc-600">
+                  Optional — gives the forge your existing code as context
+                </span>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs text-zinc-500">

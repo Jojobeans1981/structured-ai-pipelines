@@ -12,7 +12,9 @@ export interface LearningPattern {
 
 export class LearningStore {
   /**
-   * Record a rejection pattern. If the pattern already exists, increment the count.
+   * Record a rejection pattern. If an identical active pattern exists for the
+   * same targetAgent, increment its count. Matching uses the full pattern
+   * string for accuracy — not a substring prefix.
    */
   static async recordRejection(
     sourceAgent: string,
@@ -21,10 +23,9 @@ export class LearningStore {
     runId?: string,
     stageId?: string
   ): Promise<void> {
-    // Check if this pattern already exists
     const existing = await prisma.learningEntry.findFirst({
       where: {
-        pattern: { contains: pattern.substring(0, 50) },
+        pattern,
         targetAgent,
         status: 'active',
       },
@@ -100,7 +101,30 @@ export class LearningStore {
   }
 
   /**
-   * Get all active patterns for display.
+   * Get all patterns (active + resolved) for display, ordered by status
+   * then rejection count.
+   */
+  static async getAllPatterns(): Promise<LearningPattern[]> {
+    const entries = await prisma.learningEntry.findMany({
+      orderBy: [
+        { status: 'asc' }, // 'active' sorts before 'resolved'
+        { rejectionCount: 'desc' },
+      ],
+    });
+
+    return entries.map((e) => ({
+      id: e.id,
+      pattern: e.pattern,
+      sourceAgent: e.sourceAgent,
+      targetAgent: e.targetAgent,
+      rejectionCount: e.rejectionCount,
+      resolution: e.resolution,
+      status: e.status,
+    }));
+  }
+
+  /**
+   * Get active patterns only (kept for backward compat with warning injection).
    */
   static async getActivePatterns(): Promise<LearningPattern[]> {
     const entries = await prisma.learningEntry.findMany({
@@ -120,7 +144,7 @@ export class LearningStore {
   }
 
   /**
-   * Get stats for the learning store.
+   * Get stats using DB aggregation instead of loading all rows.
    */
   static async getStats(): Promise<{
     totalPatterns: number;
@@ -129,27 +153,29 @@ export class LearningStore {
     totalRejections: number;
     topOffenders: Array<{ agent: string; count: number }>;
   }> {
-    const all = await prisma.learningEntry.findMany();
-    const active = all.filter((e) => e.status === 'active');
-    const resolved = all.filter((e) => e.status === 'resolved');
-    const totalRejections = all.reduce((sum, e) => sum + e.rejectionCount, 0);
-
-    // Count rejections by target agent
-    const agentCounts = new Map<string, number>();
-    for (const e of all) {
-      agentCounts.set(e.targetAgent, (agentCounts.get(e.targetAgent) || 0) + e.rejectionCount);
-    }
-    const topOffenders = Array.from(agentCounts.entries())
-      .map(([agent, count]) => ({ agent, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
+    const [totalPatterns, activePatterns, resolvedPatterns, rejectionAgg, offenderAgg] =
+      await Promise.all([
+        prisma.learningEntry.count(),
+        prisma.learningEntry.count({ where: { status: 'active' } }),
+        prisma.learningEntry.count({ where: { status: 'resolved' } }),
+        prisma.learningEntry.aggregate({ _sum: { rejectionCount: true } }),
+        prisma.learningEntry.groupBy({
+          by: ['targetAgent'],
+          _sum: { rejectionCount: true },
+          orderBy: { _sum: { rejectionCount: 'desc' } },
+          take: 5,
+        }),
+      ]);
 
     return {
-      totalPatterns: all.length,
-      activePatterns: active.length,
-      resolvedPatterns: resolved.length,
-      totalRejections,
-      topOffenders,
+      totalPatterns,
+      activePatterns,
+      resolvedPatterns,
+      totalRejections: rejectionAgg._sum.rejectionCount || 0,
+      topOffenders: offenderAgg.map((row) => ({
+        agent: row.targetAgent,
+        count: row._sum.rejectionCount || 0,
+      })),
     };
   }
 }

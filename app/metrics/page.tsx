@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/src/components/layout/header';
 import { PageContainer } from '@/src/components/layout/page-container';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
@@ -9,7 +9,7 @@ import { useMetricsSummary, useMetricsHistory } from '@/src/hooks/use-metrics';
 import { MetricsCards } from '@/src/components/metrics/metrics-cards';
 import { StageTimeChart } from '@/src/components/metrics/stage-time-chart';
 import { HistoryTable } from '@/src/components/metrics/history-table';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, BookOpen, AlertTriangle } from 'lucide-react';
 
 function avgStageDurations(history: { stageDurations: Record<string, number> }[]): Record<string, number> {
   const totals: Record<string, { sum: number; count: number }> = {};
@@ -66,8 +66,11 @@ export default function MetricsPage() {
             </div>
           )}
 
-          {/* Prompt Health */}
-          <PromptHealthPanel />
+          {/* Prompt Health + Learning Store side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <PromptHealthPanel />
+            <LearningStorePanel />
+          </div>
 
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
@@ -105,9 +108,6 @@ export default function MetricsPage() {
               </Card>
             </TabsContent>
           </Tabs>
-
-          {/* Learning Store */}
-          <LearningStorePanel />
         </div>
       </PageContainer>
     </>
@@ -121,12 +121,51 @@ function PromptHealthPanel() {
     avgConfidence: number;
     totalRetries: number;
   } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useState(() => {
-    fetch('/api/metrics/prompt-health').then(r => r.ok ? r.json() : null).then(j => j && setHealth(j.data)).catch(() => {});
-  });
+  useEffect(() => {
+    fetch('/api/metrics/prompt-health')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setHealth(j.data))
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
 
-  if (!health || health.totalEvaluations === 0) return null;
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-cyan-400" />
+            Prompt Health
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!health || health.totalEvaluations === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-cyan-400" />
+            Prompt Health
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No sentinel evaluations recorded yet.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -137,7 +176,7 @@ function PromptHealthPanel() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-4 gap-3 text-sm">
+        <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
             <div className="text-zinc-500 text-xs">Evaluations</div>
             <div className="text-xl font-bold text-zinc-200">{health.totalEvaluations}</div>
@@ -164,28 +203,87 @@ function PromptHealthPanel() {
   );
 }
 
+interface LearningPattern {
+  id: string;
+  pattern: string;
+  sourceAgent: string;
+  targetAgent: string;
+  rejectionCount: number;
+  status: string;
+  resolution?: string | null;
+}
+
+interface LearningStats {
+  totalPatterns: number;
+  activePatterns: number;
+  resolvedPatterns: number;
+  totalRejections: number;
+  topOffenders: Array<{ agent: string; count: number }>;
+}
+
 function LearningStorePanel() {
-  const [data, setData] = useState<{
-    patterns: Array<{ id: string; pattern: string; sourceAgent: string; targetAgent: string; rejectionCount: number; status: string }>;
-    stats: { totalPatterns: number; activePatterns: number; resolvedPatterns: number; totalRejections: number; topOffenders: Array<{ agent: string; count: number }> };
-  } | null>(null);
+  const [data, setData] = useState<{ patterns: LearningPattern[]; stats: LearningStats } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showResolved, setShowResolved] = useState(false);
 
-  useState(() => {
-    fetch('/api/learning').then(r => r.ok ? r.json() : null).then(j => j && setData(j.data)).catch(() => {});
-  });
+  useEffect(() => {
+    fetch('/api/learning')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setData(j.data))
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
 
-  if (!data || data.patterns.length === 0) return null;
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-orange-400" />
+            Learning Store
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data || data.stats.totalPatterns === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-orange-400" />
+            Learning Store
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No rejection patterns recorded yet. Patterns appear here when the sentinel catches issues during pipeline runs.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const displayPatterns = showResolved
+    ? data.patterns
+    : data.patterns.filter((p) => p.status === 'active');
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-orange-400" />
+          <BookOpen className="h-4 w-4 text-orange-400" />
           Learning Store — Self-Improvement Patterns
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-4 gap-3 text-sm">
+        <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
             <div className="text-zinc-500 text-xs">Active Patterns</div>
             <div className="text-xl font-bold text-orange-400">{data.stats.activePatterns}</div>
@@ -200,19 +298,40 @@ function LearningStorePanel() {
           </div>
           <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
             <div className="text-zinc-500 text-xs">Top Offender</div>
-            <div className="text-sm font-medium text-zinc-200 truncate">{data.stats.topOffenders[0]?.agent || '—'}</div>
+            <div className="text-sm font-medium text-zinc-200 truncate">
+              {data.stats.topOffenders[0]?.agent || '—'}
+            </div>
           </div>
         </div>
+
+        {data.stats.resolvedPatterns > 0 && (
+          <button
+            onClick={() => setShowResolved(!showResolved)}
+            className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+          >
+            {showResolved ? 'Hide resolved' : `Show resolved (${data.stats.resolvedPatterns})`}
+          </button>
+        )}
+
         <div className="space-y-2">
-          {data.patterns.slice(0, 5).map((p) => (
-            <div key={p.id} className="flex items-start gap-3 text-sm py-2 px-3 rounded-lg border border-zinc-700/30 bg-zinc-800/20">
-              <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${p.status === 'active' ? 'bg-orange-400' : 'bg-emerald-400'}`} />
-              <div className="flex-1 min-w-0">
-                <div className="text-zinc-300 text-xs truncate">{p.pattern}</div>
-                <div className="text-zinc-600 text-xs mt-0.5">{p.sourceAgent} → {p.targetAgent} · seen {p.rejectionCount}x</div>
+          {displayPatterns.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2">No active patterns — all resolved.</p>
+          ) : (
+            displayPatterns.slice(0, 8).map((p) => (
+              <div key={p.id} className="flex items-start gap-3 text-sm py-2 px-3 rounded-lg border border-zinc-700/30 bg-zinc-800/20">
+                <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${p.status === 'active' ? 'bg-orange-400' : 'bg-emerald-400'}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-zinc-300 text-xs">{p.pattern}</div>
+                  <div className="text-zinc-600 text-xs mt-0.5">
+                    {p.sourceAgent} → {p.targetAgent} · seen {p.rejectionCount}x
+                    {p.status === 'resolved' && p.resolution && (
+                      <span className="text-emerald-500 ml-1">· {p.resolution}</span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </CardContent>
     </Card>

@@ -7,7 +7,7 @@ export async function GET() {
   if (!user) return unauthorizedResponse();
 
   const [patterns, stats] = await Promise.all([
-    LearningStore.getActivePatterns(),
+    LearningStore.getAllPatterns(),
     LearningStore.getStats(),
   ]);
 

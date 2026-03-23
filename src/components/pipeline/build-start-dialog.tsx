@@ -320,7 +320,7 @@ export function BuildStartDialog({ projectId, open, onOpenChange }: BuildStartDi
                 <span
                   className={cn(
                     'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
-                    autoApprove ? 'translate-x-4.5' : 'translate-x-0.5'
+                    autoApprove ? 'translate-x-[18px]' : 'translate-x-[2px]'
                   )}
                 />
               </button>

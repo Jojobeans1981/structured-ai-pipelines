@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/src/components/ui/button';
-import { XCircle, CheckCircle2, AlertTriangle, Loader2, Flame, FolderOpen } from 'lucide-react';
+import { XCircle, CheckCircle2, AlertTriangle, Loader2, Flame, FolderOpen, RotateCcw } from 'lucide-react';
 import { usePipelineStore, type StageState } from '@/src/stores/pipeline-store';
 import { usePipelineStream } from '@/src/hooks/use-pipeline-stream';
 import { StageProgress } from '@/src/components/pipeline/stage-progress';
@@ -263,6 +263,21 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
     }
   }, [runId, disconnect, store]);
 
+  // Rerun handler
+  const [isRerunning, setIsRerunning] = useState(false);
+  const handleRerun = useCallback(async () => {
+    setIsRerunning(true);
+    try {
+      const res = await fetch(`/api/pipeline/${runId}/rerun`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to start rerun');
+      const { data } = await res.json();
+      router.push(`/projects/${projectId}/pipeline/${data.id}`);
+    } catch (err) {
+      store.setError(err instanceof Error ? err.message : 'Rerun failed');
+      setIsRerunning(false);
+    }
+  }, [runId, projectId, router, store]);
+
   const completedStages = store.stages.filter((s) => s.status === 'approved');
   const currentStage = store.stages.find((s) => s.status === 'running' || s.status === 'awaiting_approval');
   const awaitingStages = store.stages.filter((s) => s.status === 'awaiting_approval');
@@ -411,6 +426,19 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
           <AlertTriangle className="h-10 w-10 text-red-400" />
           <h3 className="text-lg font-semibold text-zinc-100">Forge Failed</h3>
           <p className="text-sm text-red-400">{store.error}</p>
+          <div className="flex gap-2 mt-2">
+            <Button variant="outline" onClick={() => router.push(`/projects/${projectId}`)}>
+              Back to Project
+            </Button>
+            <Button onClick={handleRerun} disabled={isRerunning}>
+              {isRerunning ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-2 h-4 w-4" />
+              )}
+              {isRerunning ? 'Starting...' : 'Rerun Pipeline'}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -419,6 +447,19 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
         <div className="flex flex-col items-center gap-3 rounded-lg border border-zinc-700 p-8 text-center">
           <XCircle className="h-10 w-10 text-zinc-500" />
           <h3 className="text-lg font-semibold text-zinc-300">Forge Cancelled</h3>
+          <div className="flex gap-2 mt-2">
+            <Button variant="outline" onClick={() => router.push(`/projects/${projectId}`)}>
+              Back to Project
+            </Button>
+            <Button onClick={handleRerun} disabled={isRerunning}>
+              {isRerunning ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-2 h-4 w-4" />
+              )}
+              {isRerunning ? 'Starting...' : 'Rerun Pipeline'}
+            </Button>
+          </div>
         </div>
       )}
 

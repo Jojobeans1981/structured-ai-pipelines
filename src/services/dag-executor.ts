@@ -251,6 +251,41 @@ export class DAGExecutor {
         } catch (err) {
           console.error('[DAGExecutor] Metrics collection failed (non-fatal):', err);
         }
+
+        // Promote run files to baseline (runId=null) so future diagnostics can see them
+        try {
+          const runWithProject = await prisma.pipelineRun.findUnique({
+            where: { id: runId },
+            select: { projectId: true, type: true },
+          });
+          if (runWithProject && runWithProject.type === 'build') {
+            const runFiles = await prisma.projectFile.findMany({
+              where: { runId },
+              select: { filePath: true, content: true, language: true },
+            });
+            for (const file of runFiles) {
+              await prisma.projectFile.upsert({
+                where: {
+                  projectId_filePath: { projectId: runWithProject.projectId, filePath: file.filePath },
+                },
+                create: {
+                  projectId: runWithProject.projectId,
+                  filePath: file.filePath,
+                  content: file.content,
+                  language: file.language,
+                  // runId: null = baseline file
+                },
+                update: {
+                  content: file.content,
+                  language: file.language,
+                },
+              });
+            }
+            console.log(`[DAGExecutor] Promoted ${runFiles.length} files to baseline for project ${runWithProject.projectId}`);
+          }
+        } catch (err) {
+          console.error('[DAGExecutor] File promotion to baseline failed (non-fatal):', err);
+        }
       }
       return result;
     }
@@ -297,11 +332,49 @@ export class DAGExecutor {
 
     // For enhance/diagnostic/refactor: include existing project files as context
     if (['diagnostic', 'enhance', 'refactor', 'test'].includes(run.type)) {
-      const existingFiles = await prisma.projectFile.findMany({
-        where: { projectId: run.projectId, runId: null }, // runId null = imported baseline files
+      // First try baseline files (uploaded via /upload endpoint)
+      let existingFiles = await prisma.projectFile.findMany({
+        where: { projectId: run.projectId, runId: null },
         select: { filePath: true, content: true },
-        take: 50, // limit to avoid token explosion
+        take: 50,
       });
+
+      // If no baseline files, grab the latest files from ANY completed run on this project
+      if (existingFiles.length === 0) {
+        const latestRun = await prisma.pipelineRun.findFirst({
+          where: {
+            projectId: run.projectId,
+            status: 'completed',
+            id: { not: run.id },
+          },
+          orderBy: { completedAt: 'desc' },
+          select: { id: true },
+        });
+
+        if (latestRun) {
+          existingFiles = await prisma.projectFile.findMany({
+            where: { projectId: run.projectId, runId: latestRun.id },
+            select: { filePath: true, content: true },
+            take: 50,
+          });
+          if (existingFiles.length > 0) {
+            console.log(`[DAGExecutor] No baseline files — using ${existingFiles.length} files from last completed run ${latestRun.id}`);
+          }
+        }
+      }
+
+      // Last resort: grab ANY files for this project regardless of runId
+      if (existingFiles.length === 0) {
+        existingFiles = await prisma.projectFile.findMany({
+          where: { projectId: run.projectId },
+          select: { filePath: true, content: true },
+          orderBy: { updatedAt: 'desc' },
+          take: 50,
+        });
+        if (existingFiles.length > 0) {
+          console.log(`[DAGExecutor] Using ${existingFiles.length} files from any source for project context`);
+        }
+      }
 
       if (existingFiles.length > 0) {
         let codeContext = '## Existing Project Code\n\nThe following files are the current codebase you are working with:\n\n';
@@ -613,6 +686,20 @@ export class DAGExecutor {
                 'sentinel', 'prompt-builder', issue, stage.runId, stageId
               ).catch(() => {});
             }
+          } else {
+            // Sentinel passed — resolve any active patterns for prompt-builder
+            const activePatterns = await prisma.learningEntry.findMany({
+              where: { status: 'active', targetAgent: 'prompt-builder', sourceAgent: 'sentinel' },
+            });
+            for (const p of activePatterns) {
+              await LearningStore.resolve(
+                p.id,
+                `Resolved: Sentinel passed for stage ${stage.displayName} in run ${stage.runId}`
+              ).catch(() => {});
+            }
+            if (activePatterns.length > 0) {
+              console.log(`[DAGExecutor] Resolved ${activePatterns.length} sentinel patterns after pass`);
+            }
 
             // Auto-reject: reset stage for re-generation with Sentinel feedback
             const feedback = `SENTINEL REJECTION (${(sentinelResult.score * 100).toFixed(0)}% < ${(SentinelAgent.getThreshold() * 100).toFixed(0)}% threshold):\n\n` +
@@ -752,6 +839,25 @@ export class DAGExecutor {
                 `Phase ${stage.phaseIndex}: ${failure.criterion} — ${failure.reason}`,
                 stage.runId, stageId
               ).catch(() => {});
+            }
+          } else {
+            // Inspector passed — resolve any active patterns for this phase
+            console.log(`[DAGExecutor] Inspector: Phase ${stage.phaseIndex} passed — resolving active patterns`);
+            const activePatterns = await prisma.learningEntry.findMany({
+              where: {
+                status: 'active',
+                targetAgent: 'phase-executor',
+                pattern: { startsWith: `Phase ${stage.phaseIndex}:` },
+              },
+            });
+            for (const p of activePatterns) {
+              await LearningStore.resolve(
+                p.id,
+                `Resolved: Inspector passed for phase ${stage.phaseIndex} in run ${stage.runId}`
+              ).catch(() => {});
+            }
+            if (activePatterns.length > 0) {
+              console.log(`[DAGExecutor] Resolved ${activePatterns.length} learning patterns for phase ${stage.phaseIndex}`);
             }
           }
         }

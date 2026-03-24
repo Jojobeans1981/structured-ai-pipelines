@@ -18,6 +18,7 @@ import { CostDisplay } from '@/src/components/pipeline/cost-display';
 import { TraceTimeline } from '@/src/components/pipeline/trace-timeline';
 import { BuildSummaryPanel } from '@/src/components/pipeline/build-summary';
 import { ProgressBar } from '@/src/components/pipeline/progress-bar';
+import { DwarfForgeScene } from '@/src/components/forge/dwarf-forge-scene';
 import { useKeyboardShortcuts } from '@/src/hooks/use-keyboard-shortcuts';
 
 interface PipelineViewProps {
@@ -157,7 +158,7 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
               eventSourcesRef.current.delete(node.id);
               // In auto-approve mode, reload to pick up next running stages
               if (store.autoApprove) {
-                setTimeout(() => reloadRunState(), 500);
+                reloadRunState();
               }
               break;
             case 'auto-fix':
@@ -202,13 +203,11 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
       // DAG mode: server tells us which nodes are now running
       const nextRunningIds = data.data?.nextNodes?.map((n: { id: string }) => n.id) || [];
 
-      // Pause to let the browser breathe before next stage
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
       store.approveStage(stageId, store.executionMode === 'dag' ? nextRunningIds : undefined);
 
-      // Force reload to catch any server-side transitions the local store missed
-      setTimeout(() => reloadRunState(), 500);
+      // Immediate reload to catch any server-side transitions the local store missed;
+      // the existing 3-second polling will handle any remaining drift.
+      reloadRunState();
     } catch (err) {
       store.setError(err instanceof Error ? err.message : 'Approval failed');
     }
@@ -240,9 +239,10 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
       if (!res.ok) throw new Error('Failed to approve plan');
       const { data } = await res.json();
       store.setPlanApproved(data.nextNodes?.map((n: { id: string }) => n.id) || []);
-      // Force reload from server to ensure stages are in sync — the server
+      // Immediate reload to ensure stages are in sync — the server
       // may have advanced nodes that setPlanApproved didn't capture.
-      setTimeout(() => reloadRunState(), 500);
+      // The existing 3-second polling will handle any remaining drift.
+      reloadRunState();
     } catch (err) {
       store.setError(err instanceof Error ? err.message : 'Plan approval failed');
     }
@@ -312,6 +312,11 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
       {/* Progress bar (shown during execution) */}
       {store.stages.length > 0 && store.planApproved && store.status !== 'completed' && store.status !== 'cancelled' && (
         <ProgressBar stages={store.stages} />
+      )}
+
+      {/* Dwarven forge scene — working while pipeline runs */}
+      {(store.status === 'running' || store.status === 'paused') && store.planApproved && (
+        <DwarfForgeScene variant="working" className="max-w-2xl mx-auto opacity-50" />
       )}
 
       {/* DAG Mode: Graph View (shown during execution) */}
@@ -392,9 +397,9 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
       {store.status === 'completed' && (
         <div className="space-y-4">
           <div className="flex flex-col items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-8 text-center">
-            <CheckCircle2 className="h-10 w-10 text-emerald-400" />
+            <DwarfForgeScene variant="complete" className="w-48 mb-2" />
             <h3 className="text-lg font-semibold text-zinc-100">Forge Complete</h3>
-            <p className="text-sm text-zinc-400">All stages completed successfully.</p>
+            <p className="text-sm text-zinc-400">The dwarves have finished their work.</p>
             {store.outputPath && (
               <p className="text-xs text-zinc-500 flex items-center gap-1.5">
                 <FolderOpen className="h-3.5 w-3.5" />

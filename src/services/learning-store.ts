@@ -101,6 +101,35 @@ export class LearningStore {
   }
 
   /**
+   * Resolve all active patterns for a given target agent (and optionally source agent).
+   * Called when a stage passes inspector/sentinel verification, indicating the
+   * issues described by those patterns have been addressed.
+   */
+  static async resolveForAgent(
+    targetAgent: string,
+    resolution: string,
+    sourceAgent?: string
+  ): Promise<number> {
+    const where: Record<string, unknown> = {
+      status: 'active',
+      targetAgent,
+    };
+    if (sourceAgent) {
+      where.sourceAgent = sourceAgent;
+    }
+
+    const result = await prisma.learningEntry.updateMany({
+      where,
+      data: { status: 'resolved', resolution },
+    });
+
+    if (result.count > 0) {
+      console.log(`[LearningStore] Resolved ${result.count} patterns for ${targetAgent} — ${resolution}`);
+    }
+    return result.count;
+  }
+
+  /**
    * Get all patterns (active + resolved) for display, ordered by status
    * then rejection count.
    */

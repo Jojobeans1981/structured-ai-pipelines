@@ -22,6 +22,7 @@ const INTAKE_SYSTEM_PROMPT = `You are the Gauntlet Forge Intake Agent. Your job 
 - prompt-builder: Generate implementation prompts for a phase
 - prompt-validator: Validate prompts
 - phase-executor: Execute prompts into code
+- setup-analyzer: Analyze completed build and generate setup guide (prerequisites, env vars, commands)
 - bug-intake: Collect bug information
 - code-archaeologist: Trace bug through code
 - root-cause-analyzer: Find root cause
@@ -39,6 +40,7 @@ const INTAKE_SYSTEM_PROMPT = `You are the Gauntlet Forge Intake Agent. Your job 
    - Phases that don't depend on each other can run in parallel (same parallelGroup)
    - Phase 0 (scaffolding) must complete before other phases
    - Add a verify node after ALL phase-executor nodes complete
+   - Add a setup-analyzer node AFTER verify — this generates the setup guide automatically
    - Do NOT add gate nodes — the pipeline handles approval automatically
 
 2. For DIAGNOSTIC requests:
@@ -252,6 +254,20 @@ export class IntakeAgent {
       parallelGroup: null,
       gateType: null,
       maxRetries: 2,
+      phaseIndex: null,
+    });
+
+    // Setup analyzer runs after verify — generates the "how to run this" guide
+    nodes.push({
+      id: 'setup-guide',
+      skillName: 'setup-analyzer',
+      displayName: 'Setup Guide',
+      description: 'Analyze the built project and generate a complete setup guide with prerequisites, env vars, and run commands',
+      nodeType: 'skill',
+      dependsOn: ['verify'],
+      parallelGroup: null,
+      gateType: null,
+      maxRetries: 1,
       phaseIndex: null,
     });
 

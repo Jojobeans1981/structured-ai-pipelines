@@ -26,6 +26,7 @@ interface RunSummary {
 interface ProjectDetailClientProps {
   project: { id: string; name: string; description: string; status: string };
   runs: RunSummary[];
+  needsFeedback?: boolean;
 }
 
 const statusColors: Record<string, string> = {
@@ -37,7 +38,7 @@ const statusColors: Record<string, string> = {
   cancelled: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
 };
 
-export function ProjectDetailClient({ project, runs: initialRuns }: ProjectDetailClientProps) {
+export function ProjectDetailClient({ project, runs: initialRuns, needsFeedback }: ProjectDetailClientProps) {
   const router = useRouter();
   const [runs, setRuns] = useState(initialRuns);
   const [buildDialogOpen, setBuildDialogOpen] = useState(false);
@@ -46,7 +47,7 @@ export function ProjectDetailClient({ project, runs: initialRuns }: ProjectDetai
   const [openFiles, setOpenFiles] = useState<{ id: string; path: string }[]>([]);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isCleaning, setIsCleaning] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(needsFeedback ?? false);
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [feedbackComment, setFeedbackComment] = useState('');
 

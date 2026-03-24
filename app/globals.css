@@ -207,6 +207,235 @@
 .forge-ember:nth-child(7) { left: 55%; animation-duration: 13s; animation-delay: 7s; width: 3px; height: 3px; }
 .forge-ember:nth-child(8) { left: 90%; animation-duration: 10s; animation-delay: 2s; }
 
+/* ── Dwarven Forge Animations ── */
+
+/* Hammer swing — arm pivots down to strike anvil */
+@keyframes dwarf-hammer-strike {
+  0%, 100% { transform: rotate(0deg); }
+  40% { transform: rotate(-35deg); }
+  50% { transform: rotate(5deg); }  /* impact bounce */
+  60% { transform: rotate(0deg); }
+}
+
+@keyframes dwarf-hammer-strike-fast {
+  0%, 100% { transform: rotate(0deg); }
+  35% { transform: rotate(-40deg); }
+  45% { transform: rotate(8deg); }
+  55% { transform: rotate(0deg); }
+}
+
+/* Sparks burst on impact */
+@keyframes dwarf-spark-burst {
+  0% { transform: translate(0, 0) scale(1); opacity: 0; }
+  40% { opacity: 0; }
+  50% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--spark-dx, 10px), var(--spark-dy, -15px)) scale(0); }
+}
+
+/* Bellows push — compress and release */
+@keyframes dwarf-bellows-pump {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-8px); }
+}
+
+@keyframes dwarf-bellows-pump-fast {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-12px); }
+}
+
+/* Bellows squeeze — the device compresses */
+@keyframes bellows-squeeze {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(0.7); }
+}
+
+@keyframes bellows-squeeze-fast {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(0.6); }
+}
+
+/* Walking waddle for carrier dwarf */
+@keyframes dwarf-waddle {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(2px) rotate(1deg); }
+  75% { transform: translateX(-2px) rotate(-1deg); }
+}
+
+/* Leg walking cycle */
+@keyframes dwarf-leg-walk-left {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(10deg); }
+}
+
+@keyframes dwarf-leg-walk-right {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-10deg); }
+}
+
+/* Forge flames — flicker and grow */
+@keyframes forge-flames-dance {
+  0%, 100% { transform: scaleY(1) scaleX(1); opacity: 0.7; }
+  25% { transform: scaleY(1.3) scaleX(0.9); opacity: 0.9; }
+  50% { transform: scaleY(0.8) scaleX(1.1); opacity: 0.6; }
+  75% { transform: scaleY(1.2) scaleX(0.95); opacity: 0.85; }
+}
+
+@keyframes forge-flames-roar {
+  0%, 100% { transform: scaleY(1) scaleX(1); opacity: 0.8; }
+  20% { transform: scaleY(1.6) scaleX(0.85); opacity: 1; }
+  40% { transform: scaleY(1.1) scaleX(1.1); opacity: 0.7; }
+  60% { transform: scaleY(1.8) scaleX(0.9); opacity: 1; }
+  80% { transform: scaleY(1.2) scaleX(1.05); opacity: 0.85; }
+}
+
+/* Smoke rising */
+@keyframes forge-smoke-rise {
+  0% { transform: translateY(0) scale(1); opacity: 0.15; }
+  100% { transform: translateY(-30px) scale(1.5); opacity: 0; }
+}
+
+/* Victory celebration — item pulses with light */
+@keyframes forged-item-shine {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 4px hsl(40 96% 60% / 0.3)); }
+  50% { filter: brightness(1.3) drop-shadow(0 0 12px hsl(40 96% 60% / 0.6)); }
+}
+
+/* Victory sparks — scatter outward */
+@keyframes victory-spark-scatter {
+  0% { transform: translate(0, 0) scale(0); opacity: 0; }
+  20% { opacity: 1; transform: scale(1); }
+  100% { transform: translate(var(--spark-dx, 20px), var(--spark-dy, -30px)) scale(0); opacity: 0; }
+}
+
+/* Triumph bounce */
+@keyframes dwarf-triumph-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* ── Dwarf scene: idle state (slow ambient) ── */
+.dwarf-forge-idle .dwarf-hammer-swing .dwarf-arm {
+  transform-origin: 78px 42px;
+  animation: dwarf-hammer-strike 3s ease-in-out infinite;
+}
+.dwarf-forge-idle .dwarf-smith .dwarf-hammer-swing .dwarf-arm {
+  transform-origin: 130px 135px;
+  animation: dwarf-hammer-strike 3s ease-in-out infinite;
+}
+.dwarf-forge-idle .dwarf-sparks circle {
+  animation: dwarf-spark-burst 3s ease-out infinite;
+}
+.dwarf-forge-idle .dwarf-sparks circle:nth-child(1) { --spark-dx: 12px; --spark-dy: -18px; }
+.dwarf-forge-idle .dwarf-sparks circle:nth-child(2) { --spark-dx: 18px; --spark-dy: -22px; animation-delay: 0.1s; }
+.dwarf-forge-idle .dwarf-sparks circle:nth-child(3) { --spark-dx: -8px; --spark-dy: -20px; animation-delay: 0.15s; }
+.dwarf-forge-idle .dwarf-sparks circle:nth-child(4) { --spark-dx: 22px; --spark-dy: -12px; animation-delay: 0.2s; }
+.dwarf-forge-idle .dwarf-sparks circle:nth-child(5) { --spark-dx: 15px; --spark-dy: -25px; animation-delay: 0.25s; }
+
+.dwarf-forge-idle .forge-flames-idle path {
+  animation: forge-flames-dance 4s ease-in-out infinite;
+}
+.dwarf-forge-idle .forge-flames-idle path:nth-child(2) { animation-delay: 0.5s; }
+.dwarf-forge-idle .forge-flames-idle path:nth-child(3) { animation-delay: 1s; }
+
+.dwarf-forge-idle .forge-smoke circle {
+  animation: forge-smoke-rise 6s ease-out infinite;
+}
+.dwarf-forge-idle .forge-smoke circle:nth-child(2) { animation-delay: 2s; }
+.dwarf-forge-idle .forge-smoke circle:nth-child(3) { animation-delay: 4s; }
+
+.dwarf-forge-idle .dwarf-bellows-push {
+  animation: dwarf-bellows-pump 4s ease-in-out infinite;
+}
+.dwarf-forge-idle .bellows-pump {
+  transform-origin: 400px 130px;
+  animation: bellows-squeeze 4s ease-in-out infinite;
+}
+.dwarf-forge-idle .dwarf-walk {
+  animation: dwarf-waddle 2s ease-in-out infinite;
+}
+.dwarf-forge-idle .dwarf-leg-left { transform-origin: top; animation: dwarf-leg-walk-left 1s ease-in-out infinite; }
+.dwarf-forge-idle .dwarf-leg-right { transform-origin: top; animation: dwarf-leg-walk-right 1s ease-in-out infinite; }
+
+/* ── Dwarf scene: working state (fast, intense) ── */
+.dwarf-forge-working .dwarf-hammer-swing .dwarf-arm {
+  transform-origin: 78px 42px;
+  animation: dwarf-hammer-strike-fast 1.2s ease-in-out infinite;
+}
+.dwarf-forge-working .dwarf-smith .dwarf-hammer-swing .dwarf-arm {
+  transform-origin: 130px 135px;
+  animation: dwarf-hammer-strike-fast 1.2s ease-in-out infinite;
+}
+.dwarf-forge-working .dwarf-sparks circle {
+  animation: dwarf-spark-burst 1.2s ease-out infinite;
+}
+.dwarf-forge-working .dwarf-sparks circle:nth-child(1) { --spark-dx: 15px; --spark-dy: -22px; }
+.dwarf-forge-working .dwarf-sparks circle:nth-child(2) { --spark-dx: 22px; --spark-dy: -28px; animation-delay: 0.05s; }
+.dwarf-forge-working .dwarf-sparks circle:nth-child(3) { --spark-dx: -10px; --spark-dy: -25px; animation-delay: 0.1s; }
+.dwarf-forge-working .dwarf-sparks circle:nth-child(4) { --spark-dx: 28px; --spark-dy: -15px; animation-delay: 0.15s; }
+.dwarf-forge-working .dwarf-sparks circle:nth-child(5) { --spark-dx: 18px; --spark-dy: -30px; animation-delay: 0.2s; }
+
+.dwarf-forge-working .forge-flames-active path {
+  animation: forge-flames-roar 1.5s ease-in-out infinite;
+}
+.dwarf-forge-working .forge-flames-active path:nth-child(2) { animation-delay: 0.2s; }
+.dwarf-forge-working .forge-flames-active path:nth-child(3) { animation-delay: 0.4s; }
+
+.dwarf-forge-working .forge-fire-bright {
+  animation: ember-glow 0.8s ease-in-out infinite;
+}
+
+.dwarf-forge-working .forge-smoke circle {
+  animation: forge-smoke-rise 3s ease-out infinite;
+}
+.dwarf-forge-working .forge-smoke circle:nth-child(2) { animation-delay: 1s; }
+.dwarf-forge-working .forge-smoke circle:nth-child(3) { animation-delay: 2s; }
+
+.dwarf-forge-working .dwarf-bellows-push {
+  animation: dwarf-bellows-pump-fast 1.5s ease-in-out infinite;
+}
+.dwarf-forge-working .bellows-pump {
+  transform-origin: 400px 130px;
+  animation: bellows-squeeze-fast 1.5s ease-in-out infinite;
+}
+.dwarf-forge-working .dwarf-walk {
+  animation: dwarf-waddle 0.8s ease-in-out infinite;
+}
+.dwarf-forge-working .dwarf-leg-left { transform-origin: top; animation: dwarf-leg-walk-left 0.4s ease-in-out infinite; }
+.dwarf-forge-working .dwarf-leg-right { transform-origin: top; animation: dwarf-leg-walk-right 0.4s ease-in-out infinite; }
+
+/* ── Sidebar dwarf (always slow ambient) ── */
+.dwarf-forge-sidebar .dwarf-hammer-swing .dwarf-arm {
+  transform-origin: 78px 42px;
+  animation: dwarf-hammer-strike 3s ease-in-out infinite;
+}
+.dwarf-forge-sidebar .dwarf-sparks circle {
+  animation: dwarf-spark-burst 3s ease-out infinite;
+}
+.dwarf-forge-sidebar .dwarf-sparks circle:nth-child(1) { --spark-dx: 8px; --spark-dy: -12px; }
+.dwarf-forge-sidebar .dwarf-sparks circle:nth-child(2) { --spark-dx: 12px; --spark-dy: -16px; animation-delay: 0.1s; }
+.dwarf-forge-sidebar .dwarf-sparks circle:nth-child(3) { --spark-dx: -5px; --spark-dy: -14px; animation-delay: 0.2s; }
+.dwarf-forge-sidebar .dwarf-sparks circle:nth-child(4) { --spark-dx: 16px; --spark-dy: -8px; animation-delay: 0.3s; }
+
+/* ── Completion dwarf ── */
+.dwarf-forge-complete .forged-item-glow {
+  animation: forged-item-shine 2s ease-in-out infinite;
+}
+.dwarf-forge-complete .dwarf-triumph {
+  animation: dwarf-triumph-bounce 1.5s ease-in-out infinite;
+}
+.dwarf-forge-complete .victory-sparks circle {
+  animation: victory-spark-scatter 2.5s ease-out infinite;
+}
+.dwarf-forge-complete .victory-sparks circle:nth-child(1) { --spark-dx: -50px; --spark-dy: -20px; }
+.dwarf-forge-complete .victory-sparks circle:nth-child(2) { --spark-dx: 50px; --spark-dy: -30px; animation-delay: 0.2s; }
+.dwarf-forge-complete .victory-sparks circle:nth-child(3) { --spark-dx: -60px; --spark-dy: 10px; animation-delay: 0.4s; }
+.dwarf-forge-complete .victory-sparks circle:nth-child(4) { --spark-dx: 60px; --spark-dy: 5px; animation-delay: 0.6s; }
+.dwarf-forge-complete .victory-sparks circle:nth-child(5) { --spark-dx: -30px; --spark-dy: -40px; animation-delay: 0.3s; }
+.dwarf-forge-complete .victory-sparks circle:nth-child(6) { --spark-dx: 30px; --spark-dy: -45px; animation-delay: 0.5s; }
+.dwarf-forge-complete .victory-sparks circle:nth-child(7) { --spark-dx: 0px; --spark-dy: -50px; animation-delay: 0.7s; }
+.dwarf-forge-complete .victory-sparks circle:nth-child(8) { --spark-dx: -45px; --spark-dy: -5px; animation-delay: 0.8s; }
+.dwarf-forge-complete .victory-sparks circle:nth-child(9) { --spark-dx: 45px; --spark-dy: 0px; animation-delay: 0.9s; }
+
 /* Scrollbar styling for forge theme */
 ::-webkit-scrollbar {
   width: 8px;

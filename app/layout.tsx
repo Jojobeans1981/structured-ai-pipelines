@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { Sidebar } from '@/src/components/layout/sidebar';
+import { LayoutShell } from '@/src/components/layout/layout-shell';
 import { SessionProvider } from '@/src/components/providers/session-provider';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -32,10 +32,9 @@ export default function RootLayout({
           <div className="forge-ember" />
 
           <div className="flex h-screen relative z-0">
-            <Sidebar />
-            <div className="flex flex-1 flex-col min-h-0 overflow-y-auto">
+            <LayoutShell>
               {children}
-            </div>
+            </LayoutShell>
           </div>
         </SessionProvider>
       </body>

@@ -8,6 +8,7 @@ import { ProjectCard } from '@/src/components/project/project-card';
 import { Button } from '@/src/components/ui/button';
 import { Plus, Flame, GitBranch, Zap, FolderOpen } from 'lucide-react';
 import { type ProjectSummary } from '@/src/types/project';
+import { DwarfForgeScene } from '@/src/components/forge/dwarf-forge-scene';
 
 export default async function DashboardPage() {
   const session = await getSessionOrDemo();
@@ -58,21 +59,18 @@ export default async function DashboardPage() {
       </Header>
       <PageContainer>
         {projectSummaries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="relative mb-6">
-              <Flame className="h-16 w-16 text-orange-500/30 flame-flicker" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Flame className="h-16 w-16 text-orange-500/10 blur-lg" />
-              </div>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-full max-w-lg mb-4">
+              <DwarfForgeScene variant="idle" className="opacity-60" />
             </div>
             <h2 className="text-xl font-semibold text-zinc-200">The forge awaits</h2>
             <p className="mt-2 text-sm text-zinc-500 max-w-sm">
-              Create your first project to begin forging code with structured AI pipelines.
+              The dwarves stand ready. Create your first project to set the forge ablaze.
             </p>
             <Link href="/projects/new" className="mt-6">
               <Button>
                 <Flame className="mr-2 h-4 w-4" />
-                Ignite a Project
+                Ignite the Forge
               </Button>
             </Link>
           </div>

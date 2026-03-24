@@ -37,6 +37,8 @@ export function ProjectForm() {
   const [error, setError] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [step, setStep] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const showFilePicker = () => {
@@ -123,12 +125,24 @@ export function ProjectForm() {
   const [pendingZip, setPendingZip] = useState<File | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
+  const hasFiles = !!(pendingZip || pendingFiles.length > 0);
+  const totalSteps = hasFiles ? 3 : 2;
+
+  const stepLabels: Record<number, string> = {
+    1: 'Creating project...',
+    2: hasFiles ? 'Uploading files...' : 'Starting pipeline...',
+    3: 'Starting pipeline...',
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Mark both fields as touched on submit attempt
+    setTouched({ name: true, input: true });
     if (!name.trim() || !input.trim()) return;
 
     setIsLoading(true);
     setError(null);
+    setStep(1);
 
     try {
       // 1. Create the project
@@ -146,13 +160,17 @@ export function ProjectForm() {
       const { data: project } = await createRes.json();
 
       // 2. Upload files if pending
-      if (pendingZip) {
-        await handleUpload(pendingZip, project.id);
-      } else if (pendingFiles.length > 0) {
-        await handleUploadFiles(pendingFiles, project.id);
+      if (hasFiles) {
+        setStep(2);
+        if (pendingZip) {
+          await handleUpload(pendingZip, project.id);
+        } else if (pendingFiles.length > 0) {
+          await handleUploadFiles(pendingFiles, project.id);
+        }
       }
 
       // 3. Start the pipeline
+      setStep(hasFiles ? 3 : 2);
       const startRes = await fetch(`/api/projects/${project.id}/pipeline/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -175,6 +193,7 @@ export function ProjectForm() {
       setError(err instanceof Error ? err.message : 'Failed to create project');
     } finally {
       setIsLoading(false);
+      setStep(0);
     }
   };
 
@@ -197,10 +216,15 @@ export function ProjectForm() {
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
               placeholder="My App"
               disabled={isLoading}
               required
+              aria-invalid={touched.name && !name.trim() ? true : undefined}
             />
+            {touched.name && !name.trim() && (
+              <p className="text-xs text-red-500">Project name is required</p>
+            )}
           </div>
 
           {/* Pipeline type selector */}
@@ -242,12 +266,17 @@ export function ProjectForm() {
               id="input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, input: true }))}
               placeholder={placeholders[selectedType]}
               rows={5}
               disabled={isLoading}
               required
+              aria-invalid={touched.input && !input.trim() ? true : undefined}
               className="bg-zinc-900/50 border-zinc-700 focus:border-orange-500/50"
             />
+            {touched.input && !input.trim() && (
+              <p className="text-xs text-red-500">Please describe what you need</p>
+            )}
           </div>
 
           {/* Upload zone */}

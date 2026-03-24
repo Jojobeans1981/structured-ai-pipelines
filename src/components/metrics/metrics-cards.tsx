@@ -56,7 +56,7 @@ function renderRow(label: string, item: MetricsSummaryItem) {
           icon={ThumbsUp}
           label="Worked Out of Box"
           value={item.feedbackCount > 0 ? `${item.workedOutOfBoxRate}%` : 'No feedback'}
-          subtext={item.feedbackCount > 0 ? `${item.feedbackCount} responses` : 'Download to rate'}
+          subtext={item.feedbackCount > 0 ? `${item.feedbackCount} responses` : 'No ratings yet'}
           color={item.feedbackCount > 0 ? rateColor(item.workedOutOfBoxRate) : undefined}
         />
         <StatCard

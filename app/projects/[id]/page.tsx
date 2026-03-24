@@ -25,6 +25,14 @@ export default async function ProjectDetailPage({ params }: Props) {
 
   if (!project || project.userId !== session.user.id) notFound();
 
+  // Check if feedback already exists for the latest completed run
+  const latestCompletedRun = project.runs.find((r) => r.status === 'completed');
+  const existingFeedback = latestCompletedRun
+    ? await prisma.projectFeedback.findFirst({
+        where: { projectId: project.id, runId: latestCompletedRun.id },
+      })
+    : null;
+
   return (
     <>
       <Header title={project.name} />
@@ -44,6 +52,7 @@ export default async function ProjectDetailPage({ params }: Props) {
             completedAt: r.completedAt?.toISOString() || null,
             totalDurationMs: r.totalDurationMs,
           }))}
+          needsFeedback={!!latestCompletedRun && !existingFeedback}
         />
       </PageContainer>
     </>

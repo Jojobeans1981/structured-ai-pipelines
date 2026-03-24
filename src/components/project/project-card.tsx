@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Badge } from '@/src/components/ui/badge';
+import { Button } from '@/src/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/src/components/ui/dialog';
 import { Flame, Clock, GitBranch, CheckCircle2, XCircle, Loader2, FolderOpen, Trash2 } from 'lucide-react';
 import { formatDate } from '@/src/lib/utils';
 import { type ProjectSummary } from '@/src/types/project';
@@ -44,31 +53,28 @@ const typeLabels: Record<string, { label: string; color: string }> = {
 
 export function ProjectCard({ project }: ProjectCardProps) {
   const [deleting, setDeleting] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const router = useRouter();
   const RunIcon = project.lastRunStatus ? runStatusIcons[project.lastRunStatus] || Clock : null;
   const runColor = project.lastRunStatus ? runStatusColors[project.lastRunStatus] || '' : '';
   const typeInfo = project.lastRunType ? typeLabels[project.lastRunType] : null;
 
-  const handleDelete = async (e: React.MouseEvent) => {
+  const openDeleteDialog = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setShowDeleteDialog(true);
+  };
 
-    if (!confirmDelete) {
-      setConfirmDelete(true);
-      setTimeout(() => setConfirmDelete(false), 3000);
-      return;
-    }
-
+  const handleDelete = async () => {
     setDeleting(true);
     try {
       const res = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
       if (res.ok) {
+        setShowDeleteDialog(false);
         router.refresh();
       }
     } catch {
       setDeleting(false);
-      setConfirmDelete(false);
     }
   };
 
@@ -85,29 +91,18 @@ export function ProjectCard({ project }: ProjectCardProps) {
               {project.status}
             </Badge>
             <button
-              onClick={handleDelete}
+              onClick={openDeleteDialog}
               disabled={deleting}
               className={cn(
                 'p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100',
-                confirmDelete
-                  ? 'bg-red-500/20 text-red-400 opacity-100'
-                  : 'text-zinc-500 hover:text-red-400 hover:bg-red-500/10'
+                'text-zinc-500 hover:text-red-400 hover:bg-red-500/10'
               )}
-              title={confirmDelete ? 'Click again to confirm delete' : 'Delete project'}
+              title="Delete project"
             >
-              {deleting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5" />
-              )}
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
         </CardHeader>
-        {confirmDelete && (
-          <div className="absolute top-0 right-14 bg-red-500/10 border border-red-500/20 rounded-md px-2 py-1 text-xs text-red-400">
-            Click again to delete
-          </div>
-        )}
         <CardContent>
           <p className="text-sm text-zinc-400 line-clamp-2">
             {project.description || 'No description'}
@@ -137,6 +132,25 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </div>
         </CardContent>
       </Card>
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {project.name}?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete the project and all its runs.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Link>
   );
 }

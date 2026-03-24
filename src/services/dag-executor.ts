@@ -686,20 +686,6 @@ export class DAGExecutor {
                 'sentinel', 'prompt-builder', issue, stage.runId, stageId
               ).catch(() => {});
             }
-          } else {
-            // Sentinel passed — resolve any active patterns for prompt-builder
-            const activePatterns = await prisma.learningEntry.findMany({
-              where: { status: 'active', targetAgent: 'prompt-builder', sourceAgent: 'sentinel' },
-            });
-            for (const p of activePatterns) {
-              await LearningStore.resolve(
-                p.id,
-                `Resolved: Sentinel passed for stage ${stage.displayName} in run ${stage.runId}`
-              ).catch(() => {});
-            }
-            if (activePatterns.length > 0) {
-              console.log(`[DAGExecutor] Resolved ${activePatterns.length} sentinel patterns after pass`);
-            }
 
             // Auto-reject: reset stage for re-generation with Sentinel feedback
             const feedback = `SENTINEL REJECTION (${(sentinelResult.score * 100).toFixed(0)}% < ${(SentinelAgent.getThreshold() * 100).toFixed(0)}% threshold):\n\n` +
@@ -714,6 +700,13 @@ export class DAGExecutor {
             }
             // Max retries exceeded — let human decide
             console.warn(`[DAGExecutor] Sentinel rejected but max retries reached — presenting to human`);
+          } else {
+            // Sentinel passed — resolve any active patterns for prompt-builder
+            await LearningStore.resolveForAgent(
+              'prompt-builder',
+              `Sentinel passed for stage ${stage.displayName} in run ${stage.runId}`,
+              'sentinel'
+            ).catch(() => {});
           }
         }
       } catch (err) {
@@ -843,22 +836,11 @@ export class DAGExecutor {
           } else {
             // Inspector passed — resolve any active patterns for this phase
             console.log(`[DAGExecutor] Inspector: Phase ${stage.phaseIndex} passed — resolving active patterns`);
-            const activePatterns = await prisma.learningEntry.findMany({
-              where: {
-                status: 'active',
-                targetAgent: 'phase-executor',
-                pattern: { startsWith: `Phase ${stage.phaseIndex}:` },
-              },
-            });
-            for (const p of activePatterns) {
-              await LearningStore.resolve(
-                p.id,
-                `Resolved: Inspector passed for phase ${stage.phaseIndex} in run ${stage.runId}`
-              ).catch(() => {});
-            }
-            if (activePatterns.length > 0) {
-              console.log(`[DAGExecutor] Resolved ${activePatterns.length} learning patterns for phase ${stage.phaseIndex}`);
-            }
+            await LearningStore.resolveForAgent(
+              'phase-executor',
+              `Inspector passed for phase ${stage.phaseIndex} in run ${stage.runId}`,
+              'inspector'
+            ).catch(() => {});
           }
         }
       } catch (err) {

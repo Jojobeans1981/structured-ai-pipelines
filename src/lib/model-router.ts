@@ -44,6 +44,7 @@ const SKILL_WEIGHTS: Record<string, TaskWeight> = {
   'validator': 'light',
   'build-verifier': 'light',
   'test-generator': 'light',
+  'setup-analyzer': 'light',
 };
 
 /**

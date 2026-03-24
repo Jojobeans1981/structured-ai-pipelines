@@ -6,7 +6,7 @@ export const apiKeySchema = z.object({
 
 export const createProjectSchema = z.object({
   name: z.string().min(1, 'Project name is required').max(100, 'Project name too long'),
-  description: z.string().max(500, 'Description too long').default(''),
+  description: z.string().max(10000, 'Description too long').default(''),
 });
 
 export const updateProjectSchema = z.object({

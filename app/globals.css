@@ -314,12 +314,7 @@
 }
 
 /* ── Dwarf scene: idle state (slow ambient) ── */
-.dwarf-forge-idle .dwarf-hammer-swing .dwarf-arm {
-  transform-origin: 78px 42px;
-  animation: dwarf-hammer-strike 3s ease-in-out infinite;
-}
-.dwarf-forge-idle .dwarf-smith .dwarf-hammer-swing .dwarf-arm {
-  transform-origin: 130px 135px;
+.dwarf-forge-idle .dwarf-arm {
   animation: dwarf-hammer-strike 3s ease-in-out infinite;
 }
 .dwarf-forge-idle .dwarf-sparks circle {
@@ -347,7 +342,7 @@
   animation: dwarf-bellows-pump 4s ease-in-out infinite;
 }
 .dwarf-forge-idle .bellows-pump {
-  transform-origin: 400px 130px;
+  transform-origin: 465px 175px;
   animation: bellows-squeeze 4s ease-in-out infinite;
 }
 .dwarf-forge-idle .dwarf-walk {
@@ -357,12 +352,7 @@
 .dwarf-forge-idle .dwarf-leg-right { transform-origin: top; animation: dwarf-leg-walk-right 1s ease-in-out infinite; }
 
 /* ── Dwarf scene: working state (fast, intense) ── */
-.dwarf-forge-working .dwarf-hammer-swing .dwarf-arm {
-  transform-origin: 78px 42px;
-  animation: dwarf-hammer-strike-fast 1.2s ease-in-out infinite;
-}
-.dwarf-forge-working .dwarf-smith .dwarf-hammer-swing .dwarf-arm {
-  transform-origin: 130px 135px;
+.dwarf-forge-working .dwarf-arm {
   animation: dwarf-hammer-strike-fast 1.2s ease-in-out infinite;
 }
 .dwarf-forge-working .dwarf-sparks circle {
@@ -394,7 +384,7 @@
   animation: dwarf-bellows-pump-fast 1.5s ease-in-out infinite;
 }
 .dwarf-forge-working .bellows-pump {
-  transform-origin: 400px 130px;
+  transform-origin: 465px 175px;
   animation: bellows-squeeze-fast 1.5s ease-in-out infinite;
 }
 .dwarf-forge-working .dwarf-walk {
@@ -404,8 +394,7 @@
 .dwarf-forge-working .dwarf-leg-right { transform-origin: top; animation: dwarf-leg-walk-right 0.4s ease-in-out infinite; }
 
 /* ── Sidebar dwarf (always slow ambient) ── */
-.dwarf-forge-sidebar .dwarf-hammer-swing .dwarf-arm {
-  transform-origin: 78px 42px;
+.dwarf-forge-sidebar .dwarf-arm {
   animation: dwarf-hammer-strike 3s ease-in-out infinite;
 }
 .dwarf-forge-sidebar .dwarf-sparks circle {

@@ -120,20 +120,27 @@ function SmithDwarf({ x, y, scale = 1, skinColor = '#D4A574' }: { x: number; y: 
           Resting position: arm reaches DOWN and RIGHT toward the anvil.
           Animation rotates negative (up/back) then returns to 0 (strike). */}
       <g className="dwarf-arm" style={{ transformOrigin: '20px 18px' }}>
-        {/* Upper arm — goes right and down from shoulder */}
-        <path d="M20 18 L42 38" stroke={skinColor} strokeWidth="8" fill="none" strokeLinecap="round" />
-        {/* Forearm — continues down-right */}
-        <path d="M42 38 L58 50" stroke={skinColor} strokeWidth="7" fill="none" strokeLinecap="round" />
+        {/* Arm reaches from shoulder (20,18) toward anvil at ~30° down-right.
+            Shoulder at abs (170,148), anvil surface at abs (230,185).
+            dx=60 dy=37, angle ≈ 32°.
+            Upper arm: shoulder to elbow, ~halfway there */}
+        <path d="M20 18 L48 35" stroke={skinColor} strokeWidth="8" fill="none" strokeLinecap="round" />
+        {/* Forearm: elbow to hand near anvil */}
+        <path d="M48 35 L72 50" stroke={skinColor} strokeWidth="7" fill="none" strokeLinecap="round" />
         {/* Hand gripping handle */}
-        <circle cx="58" cy="50" r="5" fill={skinColor} />
-        {/* Hammer handle — extends from hand DOWNWARD past the hand */}
-        <line x1="58" y1="42" x2="58" y2="80" stroke="#6B4226" strokeWidth="5" strokeLinecap="round" />
-        <line x1="58" y1="44" x2="58" y2="78" stroke="#7B5236" strokeWidth="3" strokeLinecap="round" />
-        {/* Hammer head — at BOTTOM of handle, the striking end */}
-        <rect x="45" y="76" width="26" height="14" rx="3" fill="#5A5A5A" />
-        <rect x="47" y="78" width="22" height="10" rx="2" fill="#6A6A6A" />
-        {/* Rune on hammer */}
-        <text x="53" y="87" fontSize="7" fill="#C4A35A" fontFamily="serif" opacity="0.7">&#x16A0;</text>
+        <circle cx="72" cy="50" r="5" fill={skinColor} />
+        {/* Hammer handle — angled to match the arm direction, extends past hand.
+            Handle goes from above hand to below, tilted ~30° matching arm angle.
+            The head end extends further toward the anvil. */}
+        <line x1="64" y1="38" x2="88" y2="62" stroke="#6B4226" strokeWidth="5" strokeLinecap="round" />
+        <line x1="65" y1="39" x2="87" y2="61" stroke="#7B5236" strokeWidth="3" strokeLinecap="round" />
+        {/* Hammer head — at the far end, past the hand, angled to hit flat on anvil.
+            Rotated ~30° to match handle angle. Head is a thick rectangle. */}
+        <g transform="translate(85, 59) rotate(32)">
+          <rect x="-13" y="-8" width="26" height="16" rx="3" fill="#5A5A5A" />
+          <rect x="-11" y="-6" width="22" height="12" rx="2" fill="#6A6A6A" />
+          <text x="-4" y="4" fontSize="7" fill="#C4A35A" fontFamily="serif" opacity="0.7">&#x16A0;</text>
+        </g>
       </g>
     </g>
   );

@@ -123,17 +123,17 @@ function SmithDwarf({ x, y, scale = 1, skinColor = '#D4A574' }: { x: number; y: 
         {/* Upper arm — goes right and down from shoulder */}
         <path d="M20 18 L42 38" stroke={skinColor} strokeWidth="8" fill="none" strokeLinecap="round" />
         {/* Forearm — continues down-right */}
-        <path d="M42 38 L62 55" stroke={skinColor} strokeWidth="7" fill="none" strokeLinecap="round" />
+        <path d="M42 38 L58 50" stroke={skinColor} strokeWidth="7" fill="none" strokeLinecap="round" />
         {/* Hand gripping handle */}
-        <circle cx="62" cy="55" r="5" fill={skinColor} />
-        {/* Hammer handle — extends from hand upward (dwarf grips middle of handle) */}
-        <line x1="62" y1="55" x2="62" y2="20" stroke="#6B4226" strokeWidth="5" strokeLinecap="round" />
-        <line x1="62" y1="53" x2="62" y2="22" stroke="#7B5236" strokeWidth="3" strokeLinecap="round" />
-        {/* Hammer head — at top of handle, big and chunky */}
-        <rect x="49" y="10" width="26" height="14" rx="3" fill="#5A5A5A" />
-        <rect x="51" y="12" width="22" height="10" rx="2" fill="#6A6A6A" />
+        <circle cx="58" cy="50" r="5" fill={skinColor} />
+        {/* Hammer handle — extends from hand DOWNWARD past the hand */}
+        <line x1="58" y1="42" x2="58" y2="80" stroke="#6B4226" strokeWidth="5" strokeLinecap="round" />
+        <line x1="58" y1="44" x2="58" y2="78" stroke="#7B5236" strokeWidth="3" strokeLinecap="round" />
+        {/* Hammer head — at BOTTOM of handle, the striking end */}
+        <rect x="45" y="76" width="26" height="14" rx="3" fill="#5A5A5A" />
+        <rect x="47" y="78" width="22" height="10" rx="2" fill="#6A6A6A" />
         {/* Rune on hammer */}
-        <text x="57" y="21" fontSize="7" fill="#C4A35A" fontFamily="serif" opacity="0.7">&#x16A0;</text>
+        <text x="53" y="87" fontSize="7" fill="#C4A35A" fontFamily="serif" opacity="0.7">&#x16A0;</text>
       </g>
     </g>
   );

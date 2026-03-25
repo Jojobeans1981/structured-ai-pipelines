@@ -105,28 +105,35 @@ function ChibiDwarf({ x, y, scale = 1, beardColor = '#8B6914', helmetColor = '#6
   );
 }
 
-/** Blacksmith dwarf — right arm holds hammer, pivots from shoulder to strike anvil to the right */
+/**
+ * Blacksmith dwarf — right arm holds hammer, swings down to strike anvil.
+ * Arm rests at ~45° downward toward anvil. Animation lifts it back then slams down.
+ * Pivot point is the right shoulder.
+ */
 function SmithDwarf({ x, y, scale = 1, skinColor = '#D4A574' }: { x: number; y: number; scale?: number; skinColor?: string }) {
   return (
     <g transform={`translate(${x}, ${y}) scale(${scale})`}>
       {/* Dwarf body (hide right arm — we draw our own with hammer) */}
       <ChibiDwarf x={0} y={0} beardColor="#B8860B" helmetColor="#6B5B3A" tunicColor="#5C4033" skinColor={skinColor} showRightArm={false} />
 
-      {/* Right arm + hammer — pivots from right shoulder (20, 18) */}
+      {/* Right arm + hammer — pivots from right shoulder (20, 18)
+          Resting position: arm reaches DOWN and RIGHT toward the anvil.
+          Animation rotates negative (up/back) then returns to 0 (strike). */}
       <g className="dwarf-arm" style={{ transformOrigin: '20px 18px' }}>
-        {/* Upper arm */}
-        <path d="M20 18 L38 0" stroke={skinColor} strokeWidth="8" fill="none" strokeLinecap="round" />
-        {/* Forearm + hand gripping handle */}
-        <path d="M38 0 L52 -18" stroke={skinColor} strokeWidth="7" fill="none" strokeLinecap="round" />
-        <circle cx="52" cy="-18" r="4" fill={skinColor} />
-        {/* Hammer handle */}
-        <rect x="48" y="-50" width="5" height="36" rx="2" fill="#6B4226" />
-        <rect x="49" y="-48" width="3" height="32" rx="1.5" fill="#7B5236" />
-        {/* Hammer head — big, chunky */}
-        <rect x="38" y="-60" width="26" height="14" rx="3" fill="#5A5A5A" />
-        <rect x="40" y="-58" width="22" height="10" rx="2" fill="#6A6A6A" />
+        {/* Upper arm — goes right and down from shoulder */}
+        <path d="M20 18 L42 38" stroke={skinColor} strokeWidth="8" fill="none" strokeLinecap="round" />
+        {/* Forearm — continues down-right */}
+        <path d="M42 38 L62 55" stroke={skinColor} strokeWidth="7" fill="none" strokeLinecap="round" />
+        {/* Hand gripping handle */}
+        <circle cx="62" cy="55" r="5" fill={skinColor} />
+        {/* Hammer handle — extends from hand upward (dwarf grips middle of handle) */}
+        <line x1="62" y1="55" x2="62" y2="20" stroke="#6B4226" strokeWidth="5" strokeLinecap="round" />
+        <line x1="62" y1="53" x2="62" y2="22" stroke="#7B5236" strokeWidth="3" strokeLinecap="round" />
+        {/* Hammer head — at top of handle, big and chunky */}
+        <rect x="49" y="10" width="26" height="14" rx="3" fill="#5A5A5A" />
+        <rect x="51" y="12" width="22" height="10" rx="2" fill="#6A6A6A" />
         {/* Rune on hammer */}
-        <text x="47" y="-50" fontSize="7" fill="#C4A35A" fontFamily="serif" opacity="0.7">&#x16A0;</text>
+        <text x="57" y="21" fontSize="7" fill="#C4A35A" fontFamily="serif" opacity="0.7">&#x16A0;</text>
       </g>
     </g>
   );

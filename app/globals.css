@@ -209,19 +209,21 @@
 
 /* ── Dwarven Forge Animations ── */
 
-/* Hammer swing — arm pivots down to strike anvil */
+/* Hammer swing — arm starts DOWN (at anvil), lifts BACK, then slams DOWN to strike */
 @keyframes dwarf-hammer-strike {
-  0%, 100% { transform: rotate(0deg); }
-  40% { transform: rotate(-35deg); }
-  50% { transform: rotate(5deg); }  /* impact bounce */
-  60% { transform: rotate(0deg); }
+  0% { transform: rotate(0deg); }        /* resting at anvil */
+  30% { transform: rotate(-60deg); }     /* lifted back behind head */
+  50% { transform: rotate(5deg); }       /* STRIKE! slight overshoot */
+  60% { transform: rotate(0deg); }       /* settle at anvil */
+  100% { transform: rotate(0deg); }      /* pause before next swing */
 }
 
 @keyframes dwarf-hammer-strike-fast {
-  0%, 100% { transform: rotate(0deg); }
-  35% { transform: rotate(-40deg); }
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-65deg); }
   45% { transform: rotate(8deg); }
   55% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
 }
 
 /* Sparks burst on impact */

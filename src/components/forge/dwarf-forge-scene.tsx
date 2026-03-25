@@ -1,14 +1,8 @@
 'use client';
 
 /**
- * Dwarven Forge Scene — animated SVG dwarves working the mountain forge.
- * Inspired by Khazad-dum / Erebor from Lord of the Rings.
- *
- * Variants:
- *  - "sidebar"    — compact scene for sidebar bottom (anvil dwarf only)
- *  - "idle"       — full scene, slow ambient hammering
- *  - "working"    — full scene, fast hammering + sparks + bellows dwarf
- *  - "complete"   — dwarf holds up finished item triumphantly
+ * Dwarven Forge Scene — chibi/cartoon SVG dwarves working the mountain forge.
+ * Chunky, recognizable LOTR-style dwarves: big heads, big beards, horned helmets, stocky bodies.
  */
 
 interface DwarfForgeSceneProps {
@@ -22,61 +16,155 @@ export function DwarfForgeScene({ variant, className = '' }: DwarfForgeSceneProp
   return <ForgeScene className={className} working={variant === 'working'} />;
 }
 
+/* ── Reusable Dwarf — chibi style, big head + beard ── */
+function ChibiDwarf({ x, y, scale = 1, beardColor = '#8B6914', helmetColor = '#6B5B3A', skinColor = '#D4A574', tunicColor = '#5C4033' }: {
+  x: number; y: number; scale?: number; beardColor?: string; helmetColor?: string; skinColor?: string; tunicColor?: string;
+}) {
+  return (
+    <g transform={`translate(${x}, ${y}) scale(${scale})`}>
+      {/* === HELMET with horns === */}
+      {/* Helmet dome */}
+      <ellipse cx="0" cy="-28" rx="18" ry="12" fill={helmetColor} />
+      {/* Helmet rim */}
+      <rect x="-20" y="-22" width="40" height="5" rx="2" fill={helmetColor} />
+      {/* Helmet band detail */}
+      <rect x="-18" y="-20" width="36" height="2" rx="1" fill="#967B4E" />
+      {/* Left horn — curved upward */}
+      <path d="M-18 -24 Q-28 -40 -22 -50" stroke="#C4A35A" strokeWidth="4" fill="none" strokeLinecap="round" />
+      <path d="M-18 -24 Q-28 -40 -22 -50" stroke="#D4B36A" strokeWidth="2" fill="none" strokeLinecap="round" />
+      {/* Right horn — curved upward */}
+      <path d="M18 -24 Q28 -40 22 -50" stroke="#C4A35A" strokeWidth="4" fill="none" strokeLinecap="round" />
+      <path d="M18 -24 Q28 -40 22 -50" stroke="#D4B36A" strokeWidth="2" fill="none" strokeLinecap="round" />
+
+      {/* === FACE === */}
+      {/* Skin visible between helmet and beard */}
+      <rect x="-14" y="-20" width="28" height="14" rx="4" fill={skinColor} />
+      {/* Eyes — determined, glowing */}
+      <ellipse cx="-7" cy="-14" rx="3" ry="2.5" fill="white" />
+      <ellipse cx="7" cy="-14" rx="3" ry="2.5" fill="white" />
+      <circle cx="-6" cy="-14" r="2" fill="#2A1A0A" />
+      <circle cx="8" cy="-14" r="2" fill="#2A1A0A" />
+      {/* Pupil highlight */}
+      <circle cx="-5" cy="-15" r="0.7" fill="white" />
+      <circle cx="9" cy="-15" r="0.7" fill="white" />
+      {/* Bushy eyebrows */}
+      <path d="M-12 -18 Q-7 -22 -2 -18" stroke="#4A3728" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+      <path d="M2 -18 Q7 -22 12 -18" stroke="#4A3728" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+      {/* Nose — big round dwarf nose */}
+      <ellipse cx="0" cy="-9" rx="4" ry="3" fill={skinColor} />
+      <ellipse cx="0" cy="-8" rx="3.5" ry="2.5" fill="#C4956A" />
+
+      {/* === MAGNIFICENT BEARD === */}
+      {/* Main beard mass — huge, flowing */}
+      <path
+        d={`M-16 -7
+            Q-20 5 -18 20
+            Q-14 35 0 38
+            Q14 35 18 20
+            Q20 5 16 -7 Z`}
+        fill={beardColor}
+      />
+      {/* Beard texture — braids/waves */}
+      <path d="M-10 0 Q-8 15 -6 30" stroke="#A07A1A" strokeWidth="1.5" fill="none" opacity="0.5" />
+      <path d="M0 -2 Q0 15 0 32" stroke="#A07A1A" strokeWidth="1.5" fill="none" opacity="0.5" />
+      <path d="M10 0 Q8 15 6 30" stroke="#A07A1A" strokeWidth="1.5" fill="none" opacity="0.5" />
+      {/* Beard braid tips */}
+      <circle cx="-6" cy="32" r="2" fill="#A07A1A" />
+      <circle cx="6" cy="32" r="2" fill="#A07A1A" />
+      {/* Mustache curls */}
+      <path d="M-4 -6 Q-12 -2 -16 -7" stroke={beardColor} strokeWidth="3" fill="none" strokeLinecap="round" />
+      <path d="M4 -6 Q12 -2 16 -7" stroke={beardColor} strokeWidth="3" fill="none" strokeLinecap="round" />
+
+      {/* === STOCKY BODY === */}
+      {/* Tunic/armor */}
+      <path
+        d="M-18 15 L-22 55 L22 55 L18 15 Z"
+        fill={tunicColor}
+      />
+      {/* Belt */}
+      <rect x="-20" y="40" width="40" height="6" rx="2" fill="#3A2A1A" />
+      {/* Belt buckle — ornate circle */}
+      <circle cx="0" cy="43" r="4" fill="#C4A35A" stroke="#967B4E" strokeWidth="1" />
+      <circle cx="0" cy="43" r="2" fill="#967B4E" />
+
+      {/* === SHORT THICK LEGS === */}
+      <rect x="-18" y="55" width="14" height="18" rx="4" fill="#4A3A2A" />
+      <rect x="4" y="55" width="14" height="18" rx="4" fill="#4A3A2A" />
+      {/* Boots */}
+      <path d="M-20 70 L-20 76 Q-18 80 -2 78 L-2 70 Z" fill="#3A2618" />
+      <path d="M2 70 L2 76 Q4 80 20 78 L20 70 Z" fill="#3A2618" />
+      {/* Boot buckles */}
+      <rect x="-14" y="72" width="6" height="3" rx="1" fill="#967B4E" />
+      <rect x="8" y="72" width="6" height="3" rx="1" fill="#967B4E" />
+    </g>
+  );
+}
+
+/* ── Anvil ── */
+function Anvil({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
+  return (
+    <g transform={`translate(${x}, ${y}) scale(${scale})`}>
+      {/* Anvil body — classic horn shape */}
+      <path d="M-25 0 L-30 -15 L30 -15 L35 -5 L45 -5 L45 0 Z" fill="#4A4A4A" />
+      {/* Anvil face (top) */}
+      <rect x="-28" y="-20" width="56" height="6" rx="1" fill="#5A5A5A" />
+      {/* Anvil horn (pointed end) */}
+      <path d="M28 -17 L50 -12 L50 -8 L28 -14 Z" fill="#555" />
+      {/* Anvil base */}
+      <path d="M-20 0 L-25 15 L25 15 L20 0 Z" fill="#3A3A3A" />
+      {/* Highlight on face */}
+      <rect x="-24" y="-19" width="48" height="2" rx="1" fill="#6A6A6A" opacity="0.5" />
+    </g>
+  );
+}
+
+/* ── War Hammer ── */
+function WarHammer({ x, y, rotation = 0 }: { x: number; y: number; rotation?: number }) {
+  return (
+    <g transform={`translate(${x}, ${y}) rotate(${rotation})`}>
+      {/* Handle */}
+      <rect x="-2" y="0" width="4" height="40" rx="2" fill="#6B4226" />
+      <rect x="-1.5" y="2" width="3" height="36" rx="1.5" fill="#7B5236" />
+      {/* Hammer head */}
+      <rect x="-14" y="-8" width="28" height="12" rx="3" fill="#5A5A5A" />
+      <rect x="-12" y="-6" width="24" height="8" rx="2" fill="#6A6A6A" />
+      {/* Rune on hammer */}
+      <text x="-3" y="1" fontSize="6" fill="#C4A35A" fontFamily="serif" opacity="0.7">&#x16A0;</text>
+    </g>
+  );
+}
+
 /* ── Sidebar: Single dwarf hammering at an anvil ── */
 function SidebarDwarf({ className }: { className: string }) {
   return (
     <div className={`dwarf-forge-sidebar ${className}`}>
-      <svg viewBox="0 0 200 80" className="w-full h-auto opacity-40 hover:opacity-70 transition-opacity duration-500">
+      <svg viewBox="0 0 200 100" className="w-full h-auto opacity-50 hover:opacity-80 transition-opacity duration-500">
         {/* Anvil */}
-        <path
-          d="M85 65 L90 50 L130 50 L135 65 Z"
-          fill="hsl(20 14% 18%)"
-          stroke="hsl(25 40% 25%)"
-          strokeWidth="0.5"
-        />
-        <rect x="95" y="45" width="30" height="6" rx="1" fill="hsl(20 14% 22%)" />
+        <Anvil x={130} y={75} scale={0.7} />
 
-        {/* Dwarf body */}
-        <g className="dwarf-hammer-swing">
-          {/* Torso */}
-          <rect x="60" y="38" width="20" height="18" rx="3" fill="hsl(20 14% 15%)" />
-          {/* Head with hood/helmet */}
-          <circle cx="70" cy="32" r="8" fill="hsl(20 14% 18%)" />
-          {/* Helmet crest */}
-          <path d="M63 30 Q70 22 77 30" fill="none" stroke="hsl(25 60% 35%)" strokeWidth="1.5" />
-          {/* Beard */}
-          <path
-            d="M64 36 Q70 48 76 36"
-            fill="hsl(25 30% 20%)"
-            stroke="none"
-          />
-          {/* Eye (glowing) */}
-          <circle cx="73" cy="31" r="1" fill="hsl(25 95% 53%)" className="ember-glow" />
-          {/* Arm holding hammer */}
-          <g className="dwarf-arm">
-            <line x1="78" y1="42" x2="105" y2="30" stroke="hsl(20 14% 15%)" strokeWidth="3" strokeLinecap="round" />
-            {/* Hammer head */}
-            <rect x="100" y="24" width="12" height="8" rx="1" fill="hsl(20 12% 25%)" className="dwarf-hammer-head" />
-            <rect x="104" y="22" width="4" height="12" rx="1" fill="hsl(25 40% 20%)" />
+        {/* Dwarf */}
+        <g transform="translate(80, 10)">
+          <g className="dwarf-hammer-swing">
+            <g transform="scale(0.6)">
+              <ChibiDwarf x={0} y={20} beardColor="#B8860B" helmetColor="#6B5B3A" />
+            </g>
+            {/* Arm + hammer (separate for animation) */}
+            <g className="dwarf-arm">
+              <WarHammer x={38} y={10} rotation={-30} />
+            </g>
           </g>
-          {/* Legs */}
-          <line x1="65" y1="56" x2="62" y2="65" stroke="hsl(20 14% 15%)" strokeWidth="4" strokeLinecap="round" />
-          <line x1="75" y1="56" x2="78" y2="65" stroke="hsl(20 14% 15%)" strokeWidth="4" strokeLinecap="round" />
-          {/* Boots */}
-          <ellipse cx="60" cy="66" rx="5" ry="3" fill="hsl(20 14% 12%)" />
-          <ellipse cx="80" cy="66" rx="5" ry="3" fill="hsl(20 14% 12%)" />
         </g>
 
-        {/* Sparks from anvil */}
+        {/* Sparks */}
         <g className="dwarf-sparks">
-          <circle cx="110" cy="42" r="1" fill="hsl(35 95% 55%)" />
-          <circle cx="115" cy="38" r="0.8" fill="hsl(25 95% 53%)" />
-          <circle cx="108" cy="36" r="0.6" fill="hsl(40 96% 60%)" />
-          <circle cx="118" cy="40" r="0.7" fill="hsl(15 90% 50%)" />
+          <circle cx="135" cy="55" r="2" fill="#FFB347" />
+          <circle cx="142" cy="48" r="1.5" fill="#FF8C00" />
+          <circle cx="128" cy="50" r="1" fill="#FFD700" />
+          <circle cx="148" cy="52" r="1.8" fill="#FF6B00" />
         </g>
 
         {/* Forge glow on ground */}
-        <ellipse cx="100" cy="68" rx="40" ry="6" fill="hsl(25 95% 53%)" opacity="0.06" />
+        <ellipse cx="110" cy="90" rx="50" ry="8" fill="#F97316" opacity="0.06" />
       </svg>
     </div>
   );
@@ -86,285 +174,205 @@ function SidebarDwarf({ className }: { className: string }) {
 function ForgeScene({ className, working }: { className: string; working: boolean }) {
   return (
     <div className={`dwarf-forge-scene ${working ? 'dwarf-forge-working' : 'dwarf-forge-idle'} ${className}`}>
-      <svg viewBox="0 0 600 200" className="w-full h-auto">
-        {/* Mountain/cave backdrop */}
+      <svg viewBox="0 0 700 250" className="w-full h-auto">
         <defs>
           <radialGradient id="forge-fire-glow" cx="50%" cy="80%" r="50%">
-            <stop offset="0%" stopColor="hsl(25 95% 53%)" stopOpacity="0.15" />
+            <stop offset="0%" stopColor="#F97316" stopOpacity="0.2" />
             <stop offset="100%" stopColor="transparent" stopOpacity="0" />
           </radialGradient>
           <radialGradient id="forge-hearth" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="hsl(15 90% 50%)" stopOpacity="0.8" />
-            <stop offset="40%" stopColor="hsl(25 95% 53%)" stopOpacity="0.5" />
-            <stop offset="100%" stopColor="hsl(20 14% 8%)" stopOpacity="0" />
+            <stop offset="0%" stopColor="#FF4500" stopOpacity="0.9" />
+            <stop offset="30%" stopColor="#FF6B00" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#1A1008" stopOpacity="0" />
           </radialGradient>
         </defs>
 
-        {/* Cave ceiling arch */}
-        <path
-          d="M0 40 Q150 0 300 15 Q450 0 600 40 L600 0 L0 0 Z"
-          fill="hsl(20 14% 6%)"
-        />
+        {/* Cave ceiling arch — stone texture */}
+        <path d="M0 50 Q175 5 350 20 Q525 5 700 50 L700 0 L0 0 Z" fill="#0F0D0A" />
+        {/* Cave arch edge detail */}
+        <path d="M0 50 Q175 5 350 20 Q525 5 700 50" fill="none" stroke="#2A2018" strokeWidth="2" />
         {/* Stalactites */}
-        <path d="M80 40 L85 60 L90 40" fill="hsl(20 14% 10%)" />
-        <path d="M200 30 L203 48 L206 30" fill="hsl(20 14% 10%)" />
-        <path d="M400 35 L404 55 L408 35" fill="hsl(20 14% 10%)" />
-        <path d="M520 38 L523 52 L526 38" fill="hsl(20 14% 10%)" />
+        <path d="M100 50 L105 72 L110 50" fill="#1A1510" />
+        <path d="M250 35 L254 58 L258 35" fill="#1A1510" />
+        <path d="M480 42 L484 65 L488 42" fill="#1A1510" />
+        <path d="M600 48 L603 62 L606 48" fill="#1A1510" />
 
-        {/* Floor glow */}
-        <rect x="0" y="170" width="600" height="30" fill="url(#forge-fire-glow)" />
+        {/* Floor */}
+        <rect x="0" y="215" width="700" height="35" fill="#0C0A08" />
+        <line x1="0" y1="215" x2="700" y2="215" stroke="#2A2018" strokeWidth="1" />
+        {/* Floor glow from forge */}
+        <ellipse cx="350" cy="218" rx="200" ry="15" fill="#F97316" opacity="0.08" />
 
-        {/* ── Central Forge / Hearth ── */}
+        {/* ── CENTRAL FORGE / FURNACE ── */}
         <g>
-          {/* Stone forge base */}
-          <path
-            d="M260 130 L270 100 L330 100 L340 130 Z"
-            fill="hsl(20 14% 14%)"
-            stroke="hsl(20 14% 20%)"
-            strokeWidth="1"
-          />
-          {/* Fire in forge */}
-          <ellipse cx="300" cy="105" rx="20" ry="10" fill="url(#forge-hearth)" className={working ? 'forge-fire-bright' : 'ember-glow'} />
+          {/* Stone furnace structure */}
+          <path d="M300 100 L310 70 L390 70 L400 100 L400 200 L300 200 Z" fill="#2A2018" stroke="#3A3028" strokeWidth="1" />
+          {/* Furnace opening — arch */}
+          <path d="M315 200 L315 140 Q350 110 385 140 L385 200 Z" fill="#0A0806" />
+          {/* Fire inside furnace */}
+          <ellipse cx="350" cy="170" rx="28" ry="20" fill="url(#forge-hearth)" className={working ? 'forge-fire-bright' : 'ember-glow'} />
           {/* Flames */}
           <g className={working ? 'forge-flames-active' : 'forge-flames-idle'}>
-            <path d="M290 105 Q292 85 295 105" fill="hsl(25 95% 53%)" opacity="0.7" />
-            <path d="M298 105 Q300 80 302 105" fill="hsl(35 95% 55%)" opacity="0.8" />
-            <path d="M306 105 Q308 88 310 105" fill="hsl(15 90% 50%)" opacity="0.6" />
+            <path d="M335 170 Q337 140 340 170" fill="#FF6B00" opacity="0.8" />
+            <path d="M345 170 Q348 125 352 170" fill="#FFB347" opacity="0.9" />
+            <path d="M355 170 Q358 135 362 170" fill="#FF4500" opacity="0.7" />
+            <path d="M365 170 Q367 145 370 170" fill="#FF8C00" opacity="0.6" />
           </g>
           {/* Chimney */}
-          <rect x="290" y="60" width="20" height="40" fill="hsl(20 14% 10%)" />
+          <rect x="330" y="30" width="40" height="42" fill="#1A1510" stroke="#2A2018" strokeWidth="1" />
           {/* Smoke */}
           <g className="forge-smoke">
-            <circle cx="298" cy="55" r="4" fill="hsl(20 5% 35%)" opacity="0.15" />
-            <circle cx="302" cy="45" r="5" fill="hsl(20 5% 35%)" opacity="0.1" />
-            <circle cx="297" cy="35" r="6" fill="hsl(20 5% 35%)" opacity="0.05" />
+            <circle cx="348" cy="25" r="6" fill="#4A4040" opacity="0.12" />
+            <circle cx="354" cy="14" r="8" fill="#4A4040" opacity="0.08" />
+            <circle cx="346" cy="3" r="10" fill="#4A4040" opacity="0.04" />
           </g>
         </g>
 
-        {/* ── Dwarf 1: Blacksmith at anvil (left) ── */}
+        {/* ── DWARF 1: BLACKSMITH (left of forge) ── */}
         <g className="dwarf-smith">
           {/* Anvil */}
-          <path d="M140 170 L148 148 L192 148 L200 170 Z" fill="hsl(20 14% 18%)" stroke="hsl(25 40% 25%)" strokeWidth="0.5" />
-          <rect x="153" y="142" width="34" height="7" rx="2" fill="hsl(20 14% 22%)" />
+          <Anvil x={180} y={195} scale={0.9} />
 
-          {/* Dwarf body */}
           <g className="dwarf-hammer-swing">
-            {/* Torso — stocky */}
-            <path d="M105 128 L100 155 L135 155 L130 128 Z" fill="hsl(20 14% 15%)" />
-            {/* Belt */}
-            <rect x="102" y="145" width="31" height="4" rx="1" fill="hsl(25 30% 18%)" />
-            <rect x="115" y="143" width="6" height="8" rx="1" fill="hsl(25 60% 30%)" /> {/* buckle */}
-            {/* Head with helmet */}
-            <circle cx="118" cy="118" r="12" fill="hsl(20 14% 18%)" />
-            <path d="M107 115 Q118 102 129 115" fill="none" stroke="hsl(25 60% 35%)" strokeWidth="2" />
-            {/* Horns on helmet */}
-            <path d="M108 114 L102 104" stroke="hsl(25 40% 30%)" strokeWidth="2" strokeLinecap="round" />
-            <path d="M128 114 L134 104" stroke="hsl(25 40% 30%)" strokeWidth="2" strokeLinecap="round" />
-            {/* Beard — magnificent */}
-            <path
-              d="M108 122 Q110 145 118 148 Q126 145 128 122"
-              fill="hsl(25 20% 22%)"
-            />
-            {/* Braids in beard */}
-            <line x1="113" y1="130" x2="112" y2="142" stroke="hsl(25 30% 28%)" strokeWidth="1" />
-            <line x1="123" y1="130" x2="124" y2="142" stroke="hsl(25 30% 28%)" strokeWidth="1" />
-            {/* Eyes (glowing orange) */}
-            <circle cx="114" cy="116" r="1.5" fill="hsl(25 95% 53%)" className="ember-glow" />
-            <circle cx="122" cy="116" r="1.5" fill="hsl(25 95% 53%)" className="ember-glow" />
-            {/* Hammer arm */}
+            {/* Dwarf body */}
+            <ChibiDwarf x={120} y={130} scale={0.85} beardColor="#B8860B" helmetColor="#6B5B3A" tunicColor="#5C4033" />
+            {/* Hammer arm — animated */}
             <g className="dwarf-arm">
-              <line x1="130" y1="135" x2="165" y2="115" stroke="hsl(20 14% 15%)" strokeWidth="5" strokeLinecap="round" />
-              {/* Hammer */}
-              <rect x="158" y="108" width="16" height="10" rx="2" fill="hsl(20 12% 25%)" />
-              <rect x="163" y="105" width="6" height="16" rx="1" fill="hsl(25 40% 20%)" />
+              <WarHammer x={158} y={120} rotation={-40} />
             </g>
-            {/* Legs — short and sturdy */}
-            <line x1="110" y1="155" x2="106" y2="170" stroke="hsl(20 14% 15%)" strokeWidth="6" strokeLinecap="round" />
-            <line x1="125" y1="155" x2="130" y2="170" stroke="hsl(20 14% 15%)" strokeWidth="6" strokeLinecap="round" />
-            {/* Boots */}
-            <ellipse cx="103" cy="172" rx="7" ry="4" fill="hsl(20 14% 12%)" />
-            <ellipse cx="133" cy="172" rx="7" ry="4" fill="hsl(20 14% 12%)" />
           </g>
 
-          {/* Sparks from anvil hit */}
+          {/* Sparks from anvil */}
           <g className="dwarf-sparks">
-            <circle cx="170" cy="138" r="1.5" fill="hsl(35 95% 55%)" />
-            <circle cx="178" cy="132" r="1" fill="hsl(25 95% 53%)" />
-            <circle cx="165" cy="130" r="0.8" fill="hsl(40 96% 60%)" />
-            <circle cx="182" cy="136" r="1.2" fill="hsl(15 90% 50%)" />
-            <circle cx="175" cy="126" r="0.6" fill="hsl(35 95% 65%)" />
+            <circle cx="190" cy="170" r="2.5" fill="#FFD700" />
+            <circle cx="200" cy="162" r="1.8" fill="#FF8C00" />
+            <circle cx="182" cy="165" r="1.5" fill="#FFB347" />
+            <circle cx="205" cy="168" r="2" fill="#FF4500" />
+            <circle cx="195" cy="158" r="1.2" fill="#FFEE58" />
           </g>
+
+          {/* Hot metal piece on anvil — glowing */}
+          <rect x="165" y="174" width="20" height="5" rx="1" fill="#FF6B00" className="ember-glow" />
         </g>
 
-        {/* ── Dwarf 2: Bellows operator (right of forge) ── */}
+        {/* ── DWARF 2: BELLOWS OPERATOR (right of forge) ── */}
         <g className="dwarf-bellows">
-          {/* Bellows device */}
+          {/* Large bellows */}
           <g className="bellows-pump">
-            <path
-              d="M370 130 L400 115 L400 145 Z"
-              fill="hsl(20 14% 16%)"
-              stroke="hsl(25 30% 22%)"
-              strokeWidth="1"
-            />
-            <path
-              d="M400 115 L420 120 L420 140 L400 145 Z"
-              fill="hsl(20 14% 13%)"
-              stroke="hsl(25 30% 22%)"
-              strokeWidth="1"
-            />
-            {/* Nozzle toward forge */}
-            <line x1="370" y1="130" x2="345" y2="120" stroke="hsl(20 14% 20%)" strokeWidth="3" />
+            <path d="M430 160 L470 140 L470 190 Z" fill="#4A3A2A" stroke="#5A4A3A" strokeWidth="1" />
+            <path d="M470 140 L500 148 L500 182 L470 190 Z" fill="#3A2A1A" stroke="#5A4A3A" strokeWidth="1" />
+            {/* Bellows nozzle */}
+            <rect x="415" y="166" width="18" height="6" rx="2" fill="#5A5A5A" />
           </g>
 
-          {/* Dwarf */}
+          {/* Dwarf pushing bellows */}
           <g className="dwarf-bellows-push">
-            {/* Torso */}
-            <path d="M430 125 L425 155 L460 155 L455 125 Z" fill="hsl(20 14% 15%)" />
-            {/* Head */}
-            <circle cx="442" cy="115" r="10" fill="hsl(20 14% 18%)" />
-            {/* Helmet — rounded cap style */}
-            <path d="M433 112 Q442 103 451 112" fill="hsl(20 14% 22%)" stroke="hsl(25 50% 30%)" strokeWidth="1.5" />
-            {/* Beard */}
-            <path d="M434 118 Q442 135 450 118" fill="hsl(15 20% 18%)" />
-            {/* Eyes */}
-            <circle cx="438" cy="114" r="1.2" fill="hsl(25 95% 53%)" className="ember-glow" />
-            <circle cx="446" cy="114" r="1.2" fill="hsl(25 95% 53%)" className="ember-glow" />
-            {/* Arms pushing bellows */}
-            <line x1="430" y1="132" x2="420" y2="130" stroke="hsl(20 14% 15%)" strokeWidth="4" strokeLinecap="round" />
-            <line x1="430" y1="138" x2="420" y2="140" stroke="hsl(20 14% 15%)" strokeWidth="4" strokeLinecap="round" />
-            {/* Legs */}
-            <line x1="435" y1="155" x2="432" y2="170" stroke="hsl(20 14% 15%)" strokeWidth="5" strokeLinecap="round" />
-            <line x1="450" y1="155" x2="453" y2="170" stroke="hsl(20 14% 15%)" strokeWidth="5" strokeLinecap="round" />
-            {/* Boots */}
-            <ellipse cx="430" cy="172" rx="6" ry="3.5" fill="hsl(20 14% 12%)" />
-            <ellipse cx="456" cy="172" rx="6" ry="3.5" fill="hsl(20 14% 12%)" />
+            <ChibiDwarf x={540} y={130} scale={0.8} beardColor="#A0522D" helmetColor="#5A4A3A" tunicColor="#4A3828" skinColor="#C8936A" />
           </g>
         </g>
 
-        {/* ── Dwarf 3: Carrying materials (far right) ── */}
+        {/* ── DWARF 3: CARRYING ORE (far left) ── */}
         <g className="dwarf-carrier">
           <g className="dwarf-walk">
-            {/* Torso */}
-            <path d="M510 128 L505 155 L540 155 L535 128 Z" fill="hsl(20 14% 15%)" />
-            {/* Head */}
-            <circle cx="522" cy="118" r="10" fill="hsl(20 14% 18%)" />
-            {/* Simple cap */}
-            <path d="M513 115 Q522 108 531 115" fill="hsl(20 14% 20%)" stroke="hsl(25 40% 25%)" strokeWidth="1" />
-            {/* Beard — red */}
-            <path d="M515 122 Q522 138 529 122" fill="hsl(10 40% 22%)" />
-            {/* Eyes */}
-            <circle cx="518" cy="116" r="1.2" fill="hsl(25 95% 53%)" className="ember-glow" />
-            <circle cx="526" cy="116" r="1.2" fill="hsl(25 95% 53%)" className="ember-glow" />
-            {/* Arms carrying ingot/bundle */}
-            <line x1="510" y1="135" x2="500" y2="128" stroke="hsl(20 14% 15%)" strokeWidth="4" strokeLinecap="round" />
-            <line x1="535" y1="135" x2="545" y2="128" stroke="hsl(20 14% 15%)" strokeWidth="4" strokeLinecap="round" />
-            {/* Glowing ingot being carried overhead */}
-            <rect x="498" y="120" width="50" height="10" rx="2" fill="hsl(20 14% 20%)" className="dwarf-ingot" />
-            <rect x="502" y="122" width="42" height="6" rx="1" fill="hsl(25 80% 40%)" opacity="0.5" className="ember-glow" />
-            {/* Legs walking */}
-            <line x1="515" y1="155" x2="510" y2="170" stroke="hsl(20 14% 15%)" strokeWidth="5" strokeLinecap="round" className="dwarf-leg-left" />
-            <line x1="530" y1="155" x2="535" y2="170" stroke="hsl(20 14% 15%)" strokeWidth="5" strokeLinecap="round" className="dwarf-leg-right" />
-            {/* Boots */}
-            <ellipse cx="508" cy="172" rx="6" ry="3.5" fill="hsl(20 14% 12%)" className="dwarf-leg-left" />
-            <ellipse cx="538" cy="172" rx="6" ry="3.5" fill="hsl(20 14% 12%)" className="dwarf-leg-right" />
+            <ChibiDwarf x={45} y={135} scale={0.75} beardColor="#CD853F" helmetColor="#5C4830" tunicColor="#4E3B2A" skinColor="#D4A574" />
+            {/* Sack of ore on shoulder */}
+            <g transform="translate(30, 115)">
+              <ellipse cx="0" cy="0" rx="15" ry="10" fill="#6B5840" />
+              <ellipse cx="0" cy="-2" rx="13" ry="8" fill="#7B6850" />
+              {/* Ore chunks poking out */}
+              <circle cx="-5" cy="-6" r="3" fill="#8B7355" />
+              <circle cx="4" cy="-7" r="2.5" fill="#C4A35A" />
+              <circle cx="-1" cy="-8" r="2" fill="#967B4E" />
+            </g>
           </g>
         </g>
 
-        {/* ── Scattered tools and details ── */}
+        {/* ── Rune carvings on cave wall ── */}
+        <text x="40" y="70" fontSize="12" fill="#C4A35A" opacity="0.1" fontFamily="serif">&#x16A0; &#x16A2; &#x16A6; &#x16B1;</text>
+        <text x="600" y="65" fontSize="10" fill="#C4A35A" opacity="0.1" fontFamily="serif">&#x16B2; &#x16B7; &#x16C1;</text>
+
+        {/* ── Props: barrel, weapons rack ── */}
         {/* Barrel */}
-        <ellipse cx="50" cy="165" rx="15" ry="10" fill="hsl(20 14% 12%)" />
-        <rect x="35" y="150" width="30" height="15" rx="3" fill="hsl(25 20% 14%)" stroke="hsl(25 30% 20%)" strokeWidth="0.5" />
-        {/* Tool rack on wall */}
-        <line x1="470" y1="70" x2="470" y2="100" stroke="hsl(20 14% 15%)" strokeWidth="2" />
-        <line x1="462" y1="75" x2="478" y2="75" stroke="hsl(20 14% 18%)" strokeWidth="1.5" />
-        <line x1="465" y1="85" x2="475" y2="85" stroke="hsl(20 14% 18%)" strokeWidth="1.5" />
-
-        {/* Rune carvings on cave wall (subtle) */}
-        <text x="30" y="60" fontSize="8" fill="hsl(25 60% 35%)" opacity="0.15" fontFamily="serif">&#x16A0;&#x16A2;&#x16A6;</text>
-        <text x="550" y="55" fontSize="8" fill="hsl(25 60% 35%)" opacity="0.15" fontFamily="serif">&#x16B1;&#x16B2;&#x16B7;</text>
-
-        {/* Ground line */}
-        <line x1="0" y1="175" x2="600" y2="175" stroke="hsl(20 14% 14%)" strokeWidth="1" />
+        <g transform="translate(630, 175)">
+          <rect x="-12" y="0" width="24" height="30" rx="4" fill="#5A4A3A" stroke="#6B5B4B" strokeWidth="1" />
+          <rect x="-14" y="5" width="28" height="3" rx="1" fill="#6B5B4B" />
+          <rect x="-14" y="22" width="28" height="3" rx="1" fill="#6B5B4B" />
+          <ellipse cx="0" cy="0" rx="12" ry="4" fill="#6B5B4B" />
+        </g>
+        {/* Shield leaning on wall */}
+        <g transform="translate(660, 140)">
+          <ellipse cx="0" cy="0" rx="12" ry="15" fill="#5A4A3A" stroke="#C4A35A" strokeWidth="1.5" />
+          <line x1="0" y1="-12" x2="0" y2="12" stroke="#C4A35A" strokeWidth="1" />
+          <line x1="-10" y1="0" x2="10" y2="0" stroke="#C4A35A" strokeWidth="1" />
+        </g>
       </svg>
     </div>
   );
 }
 
-/* ── Completion: Triumphant dwarf holding up finished work ── */
+/* ── Completion: Triumphant dwarf holding up finished sword ── */
 function CompletionDwarf({ className }: { className: string }) {
   return (
     <div className={`dwarf-forge-complete ${className}`}>
-      <svg viewBox="0 0 200 160" className="w-full h-auto">
+      <svg viewBox="0 0 200 180" className="w-full h-auto">
         <defs>
-          <radialGradient id="item-glow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="hsl(40 96% 60%)" stopOpacity="0.6" />
+          <radialGradient id="item-glow" cx="50%" cy="40%" r="50%">
+            <stop offset="0%" stopColor="#FFD700" stopOpacity="0.5" />
             <stop offset="100%" stopColor="transparent" stopOpacity="0" />
           </radialGradient>
+          <linearGradient id="sword-blade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E0E0E0" />
+            <stop offset="50%" stopColor="#C0C0C0" />
+            <stop offset="100%" stopColor="#A0A0A0" />
+          </linearGradient>
         </defs>
 
-        {/* Radial glow behind */}
-        <circle cx="100" cy="60" r="50" fill="url(#item-glow)" className="forge-pulse" />
+        {/* Radial glow behind sword */}
+        <circle cx="100" cy="50" r="60" fill="url(#item-glow)" className="forge-pulse" />
 
-        {/* Triumphant dwarf */}
         <g className="dwarf-triumph">
-          {/* Torso */}
-          <path d="M80 85 L75 115 L125 115 L120 85 Z" fill="hsl(20 14% 15%)" />
-          {/* Belt + buckle */}
-          <rect x="77" y="106" width="46" height="5" rx="1" fill="hsl(25 30% 18%)" />
-          <rect x="97" y="104" width="8" height="9" rx="1" fill="hsl(25 60% 30%)" />
-          {/* Head */}
-          <circle cx="100" cy="72" r="14" fill="hsl(20 14% 18%)" />
-          {/* Crown/helmet — victory style */}
-          <path d="M87 68 Q100 52 113 68" fill="none" stroke="hsl(40 96% 50%)" strokeWidth="2.5" />
-          <circle cx="93" cy="62" r="2" fill="hsl(40 96% 60%)" className="ember-glow" /> {/* gem */}
-          <circle cx="100" cy="58" r="2.5" fill="hsl(15 90% 50%)" className="ember-glow" /> {/* gem */}
-          <circle cx="107" cy="62" r="2" fill="hsl(40 96% 60%)" className="ember-glow" /> {/* gem */}
-          {/* Magnificent beard */}
-          <path d="M88 78 Q92 100 100 105 Q108 100 112 78" fill="hsl(25 20% 22%)" />
-          <line x1="95" y1="85" x2="94" y2="100" stroke="hsl(25 30% 28%)" strokeWidth="1" />
-          <line x1="100" y1="85" x2="100" y2="102" stroke="hsl(25 30% 28%)" strokeWidth="1" />
-          <line x1="105" y1="85" x2="106" y2="100" stroke="hsl(25 30% 28%)" strokeWidth="1" />
-          {/* Eyes — wide with pride */}
-          <circle cx="95" cy="70" r="2" fill="hsl(25 95% 53%)" className="ember-glow" />
-          <circle cx="105" cy="70" r="2" fill="hsl(25 95% 53%)" className="ember-glow" />
-          {/* Mouth — grin under beard */}
-          <path d="M95 76 Q100 80 105 76" fill="none" stroke="hsl(25 30% 35%)" strokeWidth="1" />
+          {/* Dwarf — centered, bigger */}
+          <ChibiDwarf x={100} y={85} scale={1.1} beardColor="#DAA520" helmetColor="#8B7355" tunicColor="#6B4226" />
 
-          {/* Arms raised triumphantly */}
-          <line x1="82" y1="90" x2="65" y2="55" stroke="hsl(20 14% 15%)" strokeWidth="5" strokeLinecap="round" />
-          <line x1="118" y1="90" x2="135" y2="55" stroke="hsl(20 14% 15%)" strokeWidth="5" strokeLinecap="round" />
+          {/* Arms raised — override the body arms */}
+          {/* Left arm up */}
+          <line x1="78" y1="100" x2="68" y2="60" stroke="#6B4226" strokeWidth="6" strokeLinecap="round" />
+          {/* Right arm up */}
+          <line x1="122" y1="100" x2="132" y2="60" stroke="#6B4226" strokeWidth="6" strokeLinecap="round" />
+          {/* Hands */}
+          <circle cx="68" cy="58" r="4" fill="#D4A574" />
+          <circle cx="132" cy="58" r="4" fill="#D4A574" />
 
-          {/* Forged item held overhead — glowing sword/artifact */}
+          {/* === GLOWING SWORD held overhead === */}
           <g className="forged-item-glow">
-            <rect x="60" y="35" width="80" height="6" rx="3" fill="hsl(25 80% 45%)" />
-            <rect x="65" y="37" width="70" height="2" rx="1" fill="hsl(40 96% 65%)" opacity="0.8" />
-            {/* Runes on item */}
-            <text x="80" y="40" fontSize="4" fill="hsl(40 96% 70%)" opacity="0.8" fontFamily="serif">&#x16A0; &#x16B1; &#x16A6;</text>
+            {/* Sword blade */}
+            <path d="M70 55 L100 10 L130 55 Z" fill="url(#sword-blade)" />
+            <path d="M85 55 L100 20 L115 55 Z" fill="#D0D0D0" opacity="0.5" />
+            {/* Sword crossguard */}
+            <rect x="65" y="52" width="70" height="6" rx="3" fill="#C4A35A" />
+            <rect x="70" y="53" width="60" height="4" rx="2" fill="#DAA520" />
+            {/* Rune glow on blade */}
+            <text x="90" y="42" fontSize="8" fill="#FFD700" opacity="0.8" fontFamily="serif">&#x16A0;</text>
+            {/* Blade edge glow */}
+            <path d="M100 15 L100 50" stroke="#FFD700" strokeWidth="1" opacity="0.4" />
           </g>
-
-          {/* Legs — planted wide */}
-          <line x1="88" y1="115" x2="80" y2="140" stroke="hsl(20 14% 15%)" strokeWidth="6" strokeLinecap="round" />
-          <line x1="112" y1="115" x2="120" y2="140" stroke="hsl(20 14% 15%)" strokeWidth="6" strokeLinecap="round" />
-          {/* Boots */}
-          <ellipse cx="77" cy="142" rx="8" ry="4" fill="hsl(20 14% 12%)" />
-          <ellipse cx="123" cy="142" rx="8" ry="4" fill="hsl(20 14% 12%)" />
         </g>
 
-        {/* Victory sparks */}
+        {/* Victory sparks radiating outward */}
         <g className="victory-sparks">
-          <circle cx="50" cy="30" r="2" fill="hsl(35 95% 55%)" />
-          <circle cx="150" cy="25" r="1.5" fill="hsl(25 95% 53%)" />
-          <circle cx="40" cy="50" r="1" fill="hsl(40 96% 60%)" />
-          <circle cx="160" cy="45" r="1.8" fill="hsl(15 90% 50%)" />
-          <circle cx="70" cy="20" r="1.2" fill="hsl(35 95% 65%)" />
-          <circle cx="130" cy="18" r="1.5" fill="hsl(40 96% 55%)" />
-          <circle cx="100" cy="15" r="1" fill="hsl(25 95% 60%)" />
-          <circle cx="55" cy="45" r="0.8" fill="hsl(35 95% 55%)" />
-          <circle cx="145" cy="40" r="1.3" fill="hsl(25 95% 53%)" />
+          <circle cx="40" cy="30" r="3" fill="#FFD700" />
+          <circle cx="160" cy="25" r="2.5" fill="#FF8C00" />
+          <circle cx="30" cy="60" r="2" fill="#FFB347" />
+          <circle cx="170" cy="55" r="2.8" fill="#FF4500" />
+          <circle cx="55" cy="15" r="1.8" fill="#FFEE58" />
+          <circle cx="145" cy="12" r="2.2" fill="#FFD700" />
+          <circle cx="100" cy="5" r="1.5" fill="#FF8C00" />
+          <circle cx="45" cy="50" r="1.5" fill="#FFB347" />
+          <circle cx="155" cy="45" r="2" fill="#FF6B00" />
         </g>
 
         {/* Ground */}
-        <line x1="30" y1="148" x2="170" y2="148" stroke="hsl(20 14% 14%)" strokeWidth="1" />
+        <line x1="30" y1="170" x2="170" y2="170" stroke="#2A2018" strokeWidth="1" />
       </svg>
     </div>
   );

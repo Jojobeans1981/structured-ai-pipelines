@@ -41,7 +41,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       }
 
       const buffer = Buffer.from(await specFile.arrayBuffer())
-      const specContent = extractTextFromFile(buffer, specFile.name)
+      const specContent = await extractTextFromFile(buffer, specFile.name)
 
       const run = await createForgeRun(session.user.id, {
         mode: 'build',

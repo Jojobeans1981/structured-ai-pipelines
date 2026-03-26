@@ -316,7 +316,7 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
 
       {/* Dwarven forge scene — working while pipeline runs */}
       {(store.status === 'running' || store.status === 'paused') && store.planApproved && (
-        <DwarfForgeScene variant="working" className="max-w-2xl mx-auto opacity-50" />
+        <DwarfForgeScene variant="working" className="max-w-2xl mx-auto opacity-80" />
       )}
 
       {/* DAG Mode: Graph View (shown during execution) */}

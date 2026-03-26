@@ -645,7 +645,7 @@ export class DAGExecutor {
     }
 
     // Run Guardian on key agent outputs (context integrity check)
-    if (['prd-architect', 'phase-builder', 'prompt-builder'].includes(stage.skillName)) {
+    if (['prd-architect', 'phase-builder', 'prompt-builder', 'fix-planner', 'fix-prompt-builder'].includes(stage.skillName)) {
       try {
         const { getAnthropicClient } = await import('@/src/lib/anthropic');
         const guardianRun = await prisma.pipelineRun.findUnique({
@@ -919,8 +919,8 @@ export class DAGExecutor {
       }
     }
 
-    // Scribe: document phase after approval
-    if (stage.skillName === 'phase-executor' && stage.phaseIndex !== null) {
+    // Scribe: document phase/fix after approval
+    if ((stage.skillName === 'phase-executor' || stage.skillName === 'fix-executor') && stage.phaseIndex !== null) {
       try {
         await ScribeAgent.documentPhase(
           stage.runId, stage.phaseIndex, stageId,

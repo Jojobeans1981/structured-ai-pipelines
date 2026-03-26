@@ -12,6 +12,7 @@ import { CIGenerator } from '@/src/services/ci-generator';
 import { SBOMScanner } from '@/src/services/sbom-scanner';
 import { CostGuard } from '@/src/services/cost-guard';
 import { LearningStore } from '@/src/services/learning-store';
+import { ValidationAgent } from '@/src/services/validation-agent';
 
 // Vercel serverless: max execution time (hobby=60s, pro=300s)
 export const maxDuration = 60;
@@ -515,6 +516,17 @@ async function handleVerifyNode(
           // Scaffold tests + Docker after static analysis
           const staticScaffoldOutput = await scaffoldTestsAndDocker(runId, staticProjectId, stageId, send);
           artifact += staticScaffoldOutput;
+
+          // Run validation agent (lightweight on Vercel, full Docker locally)
+          try {
+            send({ type: 'token', data: { text: '\n## Validation Agent\n\n' } });
+            const validationReport = await ValidationAgent.validate(runId, staticProjectId);
+            const validationOutput = ValidationAgent.formatReport(validationReport);
+            send({ type: 'token', data: { text: validationOutput } });
+            artifact += '\n' + validationOutput;
+          } catch (err) {
+            console.error('[Verify] Validation agent failed (non-fatal):', err);
+          }
 
           await DAGExecutor.completeNode(stageId, artifact, artifact);
           send({ type: 'checkpoint', data: { stageId, artifact } });

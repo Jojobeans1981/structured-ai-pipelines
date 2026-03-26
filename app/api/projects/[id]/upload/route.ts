@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getAuthenticatedUser, unauthorizedResponse } from '@/src/lib/auth-helpers';
 import { prisma } from '@/src/lib/prisma';
 import JSZip from 'jszip';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require('pdf-parse');
 
 interface Props {
   params: { id: string };
@@ -117,8 +119,25 @@ export async function POST(request: Request, { params }: Props) {
 
     if (file.name.endsWith('.zip')) {
       files = await extractZip(buffer);
+    } else if (file.name.endsWith('.pdf')) {
+      // PDF spec file — extract text content
+      try {
+        const pdfData = await pdfParse(buffer);
+        const content = pdfData.text || '';
+        if (content.trim().length === 0) {
+          return NextResponse.json({ error: 'PDF contains no extractable text (may be image-only)' }, { status: 400 });
+        }
+        files = [{
+          filePath: file.name.replace(/\.pdf$/, '.md'),
+          content: `# ${file.name.replace(/\.pdf$/, '')}\n\n*Extracted from PDF (${pdfData.numpages} pages)*\n\n---\n\n${content}`,
+          language: 'markdown',
+        }];
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'PDF parsing failed';
+        return NextResponse.json({ error: `Failed to parse PDF: ${message}` }, { status: 400 });
+      }
     } else {
-      // Single file upload
+      // Single file upload (text)
       const content = buffer.toString('utf-8');
       files = [{
         filePath: file.name,

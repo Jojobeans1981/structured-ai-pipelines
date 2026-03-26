@@ -44,7 +44,7 @@ export function ProjectForm() {
   const showFilePicker = () => {
     const el = document.createElement('input');
     el.type = 'file';
-    el.accept = '.zip';
+    el.accept = '.zip,.pdf,.md,.txt';
     el.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) handleUpload(file);

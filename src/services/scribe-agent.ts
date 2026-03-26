@@ -2,6 +2,7 @@ import { prisma } from '@/src/lib/prisma';
 import { CostTracker } from '@/src/services/cost-tracker';
 import { LearningStore } from '@/src/services/learning-store';
 import { TraceLogger } from '@/src/services/trace-logger';
+import { Gitlab } from '@gitbeaker/rest';
 
 /**
  * SCRIBE Agent — auto-documentation after each phase and at pipeline completion.
@@ -122,8 +123,91 @@ export class ScribeAgent {
       });
 
       console.log(`[Scribe] Documented Phase ${phaseIndex}: ${stageName} ($${costUsd.toFixed(4)}, ${retries} retries)`);
+
+      // Auto-commit phase files to GitLab if project has a repo URL
+      try {
+        await ScribeAgent.commitPhaseToGitLab(runId, run.projectId, phaseIndex, stageName, {
+          costUsd, inputTokens, outputTokens, model, retries,
+        });
+      } catch (gitErr) {
+        console.error('[Scribe] GitLab commit failed (non-fatal):', gitErr);
+      }
     } catch (err) {
       console.error('[Scribe] Documentation failed (non-fatal):', err);
+    }
+  }
+
+  /**
+   * Commit phase files to GitLab via API (no git clone needed).
+   */
+  private static async commitPhaseToGitLab(
+    runId: string,
+    projectId: string,
+    phaseIndex: number,
+    stageName: string,
+    metadata: { costUsd: number; inputTokens: number; outputTokens: number; model: string; retries: number }
+  ): Promise<void> {
+    // Check if project has a repo URL stored in the latest forge run
+    const forgeRun = await prisma.pipelineRun.findFirst({
+      where: { projectId, type: 'build' },
+      orderBy: { startedAt: 'desc' },
+      select: { userInput: true },
+    });
+    // Extract repo URL from user input if it looks like a GitLab URL
+    const repoMatch = forgeRun?.userInput?.match(/(https?:\/\/[^\s]+\.git)/);
+    if (!repoMatch) return;
+    const repoUrl = repoMatch[1];
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { userId: true, name: true },
+    });
+    if (!project) return;
+
+    const account = await prisma.account.findFirst({
+      where: { userId: project.userId, provider: 'gitlab' },
+      select: { access_token: true },
+    });
+    if (!account?.access_token) return;
+
+    const phaseFiles = await prisma.projectFile.findMany({
+      where: { runId },
+      select: { filePath: true, content: true },
+    });
+    if (phaseFiles.length === 0) return;
+
+    const cleanUrl = repoUrl.replace(/\.git$/, '');
+    const url = new URL(cleanUrl);
+    const host = url.origin;
+    const projectPath = url.pathname.slice(1);
+
+    const gl = new Gitlab({ host, token: account.access_token });
+
+    const actions = phaseFiles.map((f) => ({
+      action: 'create' as const,
+      filePath: f.filePath,
+      content: f.content,
+    }));
+
+    const commitMessage = [
+      `forge: Phase ${phaseIndex} — ${stageName}`,
+      '',
+      `Model: ${metadata.model}`,
+      `Tokens: ${metadata.inputTokens.toLocaleString()} in / ${metadata.outputTokens.toLocaleString()} out`,
+      `Cost: $${metadata.costUsd.toFixed(4)}`,
+      `Retries: ${metadata.retries}`,
+      `Run: ${runId}`,
+    ].join('\n');
+
+    try {
+      const proj = await gl.Projects.show(projectPath);
+      const branch = `forge/${project.name.toLowerCase().replace(/\s+/g, '-')}/${Date.now().toString(36)}`;
+      await gl.Branches.create(projectPath, branch, proj.default_branch || 'main');
+      await gl.Commits.create(projectPath, branch, commitMessage, actions);
+      console.log(`[Scribe] Committed Phase ${phaseIndex} to GitLab branch ${branch} (${phaseFiles.length} files)`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[Scribe] GitLab commit failed: ${message}`);
     }
   }
 

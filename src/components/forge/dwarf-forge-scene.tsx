@@ -181,7 +181,7 @@ function Anvil({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
 function SidebarDwarf({ className }: { className: string }) {
   return (
     <div className={`dwarf-forge-sidebar ${className}`}>
-      <svg viewBox="0 0 220 120" className="w-full h-auto opacity-50 hover:opacity-80 transition-opacity duration-500">
+      <svg viewBox="0 0 220 120" className="w-full h-auto opacity-70 hover:opacity-100 transition-opacity duration-500">
         {/* Anvil to the right of dwarf */}
         <Anvil x={155} y={92} scale={0.65} />
         {/* Hot metal on anvil */}

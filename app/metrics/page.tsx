@@ -9,7 +9,7 @@ import { useMetricsSummary, useMetricsHistory } from '@/src/hooks/use-metrics';
 import { MetricsCards } from '@/src/components/metrics/metrics-cards';
 import { StageTimeChart } from '@/src/components/metrics/stage-time-chart';
 import { HistoryTable } from '@/src/components/metrics/history-table';
-import { BarChart3, BookOpen, AlertTriangle } from 'lucide-react';
+import { BarChart3, BookOpen, AlertTriangle, Shield, Brain, Users } from 'lucide-react';
 
 function avgStageDurations(history: { stageDurations: Record<string, number> }[]): Record<string, number> {
   const totals: Record<string, { sum: number; count: number }> = {};
@@ -71,6 +71,9 @@ export default function MetricsPage() {
             <PromptHealthPanel />
             <LearningStorePanel />
           </div>
+
+          {/* Agent Performance Breakdown */}
+          <AgentBreakdownPanel />
 
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
@@ -219,6 +222,200 @@ interface LearningStats {
   resolvedPatterns: number;
   totalRejections: number;
   topOffenders: Array<{ agent: string; count: number }>;
+}
+
+interface AgentBreakdown {
+  agentRejections: Array<{ agent: string; rejections: number; source: string }>;
+  agentCosts: Array<{ agent: string; totalCost: number; avgCost: number; runs: number }>;
+  confidenceTrend: Array<{ date: string; avgScore: number; count: number }>;
+  guardianStats: { totalChecks: number; driftDetected: number; passRate: number };
+  socraticStats: { interventions: number; autoResolved: number };
+}
+
+function AgentBreakdownPanel() {
+  const [data, setData] = useState<AgentBreakdown | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/metrics/agents')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setData(j))
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Users className="h-4 w-4 text-orange-400" />
+            Agent Performance
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data) return null;
+
+  const hasData = data.agentRejections.length > 0 || data.agentCosts.length > 0;
+  if (!hasData && data.guardianStats.totalChecks === 0 && data.socraticStats.interventions === 0) {
+    return null; // No data yet — don't show empty panel
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Guardian + Socratic stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Shield className="h-4 w-4 text-cyan-400" />
+              Guardian — Context Integrity
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+                <div className="text-zinc-500 text-xs">Total Checks</div>
+                <div className="text-xl font-bold text-zinc-200">{data.guardianStats.totalChecks}</div>
+              </div>
+              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+                <div className="text-zinc-500 text-xs">Drift Detected</div>
+                <div className="text-xl font-bold text-red-400">{data.guardianStats.driftDetected}</div>
+              </div>
+              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+                <div className="text-zinc-500 text-xs">Pass Rate</div>
+                <div className={`text-xl font-bold ${data.guardianStats.passRate >= 80 ? 'text-emerald-400' : 'text-yellow-400'}`}>
+                  {data.guardianStats.passRate}%
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Brain className="h-4 w-4 text-purple-400" />
+              Socrates — Clarification Agent
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+                <div className="text-zinc-500 text-xs">Interventions</div>
+                <div className="text-xl font-bold text-purple-400">{data.socraticStats.interventions}</div>
+              </div>
+              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+                <div className="text-zinc-500 text-xs">Auto-Resolved</div>
+                <div className="text-xl font-bold text-emerald-400">{data.socraticStats.autoResolved}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Agent Rejections + Costs */}
+      {hasData && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {data.agentRejections.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-400" />
+                  Rejections by Agent
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {data.agentRejections.slice(0, 10).map((r, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm py-1.5 px-3 rounded border border-zinc-700/30 bg-zinc-800/20">
+                      <div>
+                        <span className="text-zinc-300 font-medium">{r.agent}</span>
+                        <span className="text-zinc-600 text-xs ml-2">from {r.source}</span>
+                      </div>
+                      <span className="text-red-400 font-mono text-sm">{r.rejections}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {data.agentCosts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-emerald-400" />
+                  Cost by Agent
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {data.agentCosts.slice(0, 10).map((c, i) => {
+                    const maxCost = data.agentCosts[0]?.totalCost || 1;
+                    const width = Math.max(5, Math.round((c.totalCost / maxCost) * 100));
+                    return (
+                      <div key={i} className="text-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-zinc-300">{c.agent}</span>
+                          <span className="text-emerald-400 font-mono">${c.totalCost.toFixed(3)}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-zinc-800">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400"
+                            style={{ width: `${width}%` }}
+                          />
+                        </div>
+                        <div className="text-zinc-600 text-xs mt-0.5">{c.runs} runs · avg ${c.avgCost.toFixed(4)}/run</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Confidence Trend */}
+      {data.confidenceTrend.length > 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-cyan-400" />
+              Confidence Trend (Daily Average)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-1 h-32">
+              {data.confidenceTrend.map((d, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                  <span className="text-xs text-zinc-500">{d.avgScore}%</span>
+                  <div
+                    className={`w-full rounded-t ${d.avgScore >= 80 ? 'bg-emerald-500' : d.avgScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                    style={{ height: `${Math.max(4, d.avgScore)}%` }}
+                  />
+                  <span className="text-xs text-zinc-600 truncate w-full text-center">
+                    {d.date.split('-').slice(1).join('/')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }
 
 function LearningStorePanel() {

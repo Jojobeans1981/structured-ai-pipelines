@@ -210,6 +210,100 @@ export class MetricsService {
     };
   }
 
+  /**
+   * Get per-agent breakdown: which agents cause the most rejections,
+   * confidence score trends, and cost per agent.
+   */
+  static async getAgentBreakdown(userId: string): Promise<{
+    agentRejections: Array<{ agent: string; rejections: number; source: string }>;
+    agentCosts: Array<{ agent: string; totalCost: number; avgCost: number; runs: number }>;
+    confidenceTrend: Array<{ date: string; avgScore: number; count: number }>;
+    guardianStats: { totalChecks: number; driftDetected: number; passRate: number };
+    socraticStats: { interventions: number; autoResolved: number };
+  }> {
+    // Agent rejections from learning store
+    const rejectionAgg = await prisma.learningEntry.groupBy({
+      by: ['targetAgent', 'sourceAgent'],
+      _sum: { rejectionCount: true },
+      orderBy: { _sum: { rejectionCount: 'desc' } },
+      take: 20,
+    });
+
+    const agentRejections = rejectionAgg.map((r) => ({
+      agent: r.targetAgent,
+      rejections: r._sum.rejectionCount || 0,
+      source: r.sourceAgent,
+    }));
+
+    // Agent costs from pipeline stages
+    const costAgg = await prisma.pipelineStage.groupBy({
+      by: ['skillName'],
+      where: { run: { project: { userId } }, costUsd: { gt: 0 } },
+      _sum: { costUsd: true },
+      _avg: { costUsd: true },
+      _count: { _all: true },
+      orderBy: { _sum: { costUsd: 'desc' } },
+      take: 15,
+    });
+
+    const agentCosts = costAgg.map((c) => ({
+      agent: c.skillName,
+      totalCost: Math.round((c._sum?.costUsd || 0) * 10000) / 10000,
+      avgCost: Math.round((c._avg?.costUsd || 0) * 10000) / 10000,
+      runs: c._count?._all || 0,
+    }));
+
+    // Confidence score trends (grouped by day)
+    const scores = await prisma.confidenceScore.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      select: { score: true, createdAt: true },
+    });
+
+    const byDay = new Map<string, { total: number; count: number }>();
+    for (const s of scores) {
+      const day = s.createdAt.toISOString().split('T')[0];
+      const existing = byDay.get(day) || { total: 0, count: 0 };
+      existing.total += s.score;
+      existing.count += 1;
+      byDay.set(day, existing);
+    }
+
+    const confidenceTrend = Array.from(byDay.entries())
+      .map(([date, { total, count }]) => ({
+        date,
+        avgScore: Math.round((total / count) * 100),
+        count,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Guardian stats from trace events
+    const guardianEvents = await prisma.traceEvent.count({
+      where: { source: 'guardian' },
+    });
+    const guardianDrift = await prisma.traceEvent.count({
+      where: { source: 'guardian', eventType: 'gate_rejected' },
+    });
+
+    const guardianStats = {
+      totalChecks: guardianEvents,
+      driftDetected: guardianDrift,
+      passRate: guardianEvents > 0 ? Math.round(((guardianEvents - guardianDrift) / guardianEvents) * 100) : 100,
+    };
+
+    // Socratic stats
+    const socraticEvents = await prisma.traceEvent.count({
+      where: { source: 'socratic' },
+    });
+
+    const socraticStats = {
+      interventions: socraticEvents,
+      autoResolved: socraticEvents, // All auto-resolved for now (no human answer flow yet)
+    };
+
+    return { agentRejections, agentCosts, confidenceTrend, guardianStats, socraticStats };
+  }
+
   static async getMetricsHistory(
     userId: string,
     type?: string,

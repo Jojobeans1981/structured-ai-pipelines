@@ -13,6 +13,9 @@ import { OutputValidator } from '@/src/services/output-validator';
 import { SecretScanner } from '@/src/services/secret-scanner';
 import { SentinelAgent } from '@/src/services/sentinel-agent';
 import { InspectorAgent } from '@/src/services/inspector-agent';
+import { GuardianAgent } from '@/src/services/guardian-agent';
+import { ScribeAgent } from '@/src/services/scribe-agent';
+import { SocraticAgent } from '@/src/services/socratic-agent';
 import { LearningStore } from '@/src/services/learning-store';
 
 interface AdvanceResult {
@@ -250,6 +253,13 @@ export class DAGExecutor {
           await MetricsService.collectMetrics(runId);
         } catch (err) {
           console.error('[DAGExecutor] Metrics collection failed (non-fatal):', err);
+        }
+
+        // Scribe: document run completion (dev log summary, cost totals)
+        try {
+          await ScribeAgent.documentRunCompletion(runId);
+        } catch (err) {
+          console.error('[DAGExecutor] Scribe run documentation failed (non-fatal):', err);
         }
 
         // Promote run files to baseline (runId=null) so future diagnostics can see them
@@ -634,6 +644,66 @@ export class DAGExecutor {
       }
     }
 
+    // Run Guardian on key agent outputs (context integrity check)
+    if (['prd-architect', 'phase-builder', 'prompt-builder'].includes(stage.skillName)) {
+      try {
+        const { getAnthropicClient } = await import('@/src/lib/anthropic');
+        const guardianRun = await prisma.pipelineRun.findUnique({
+          where: { id: stage.runId },
+          include: { project: { select: { userId: true } } },
+        });
+        if (guardianRun) {
+          const guardianClient = await getAnthropicClient(guardianRun.project.userId);
+          const prdForGuardian = await prisma.pipelineStage.findFirst({
+            where: { runId: stage.runId, skillName: 'prd-architect', status: 'approved' },
+            select: { artifactContent: true },
+          });
+          const priorForGuardian = await prisma.pipelineStage.findMany({
+            where: { runId: stage.runId, status: 'approved', stageIndex: { lt: stage.stageIndex } },
+            select: { artifactContent: true },
+            orderBy: { stageIndex: 'asc' },
+          });
+
+          const guardianResult = await GuardianAgent.verify(
+            stage.runId, stageId, artifactContent,
+            guardianRun.userInput,
+            prdForGuardian?.artifactContent || '',
+            priorForGuardian.map((a) => a.artifactContent || '').filter(Boolean),
+            guardianClient
+          );
+
+          // Append Guardian verdict
+          const guardianVerdict = guardianResult.passed
+            ? `\n\n---\n\n🛡️ **Guardian: ${(guardianResult.score * 100).toFixed(0)}% integrity — PASSED**\n${guardianResult.reasoning}`
+            : `\n\n---\n\n🛡️ **Guardian: ${(guardianResult.score * 100).toFixed(0)}% integrity — DRIFT DETECTED**\n${guardianResult.reasoning}\n\n**Issues:**\n${guardianResult.issues.map((i: string) => `- ${i}`).join('\n')}`;
+
+          await prisma.pipelineStage.update({
+            where: { id: stageId },
+            data: { artifactContent: artifactContent + guardianVerdict },
+          });
+
+          if (!guardianResult.passed) {
+            for (const issue of guardianResult.issues) {
+              await LearningStore.recordRejection(
+                'guardian', stage.skillName, issue, stage.runId, stageId
+              ).catch(() => {});
+            }
+
+            if (stage.retryCount < stage.maxRetries) {
+              const guardianFeedback = `GUARDIAN REJECTION (${(guardianResult.score * 100).toFixed(0)}% integrity):\n\n` +
+                `Issues:\n${guardianResult.issues.map((i: string) => `- ${i}`).join('\n')}\n\n` +
+                'Fix these context drift/hallucination issues and regenerate.';
+              console.log(`[DAGExecutor] Guardian auto-rejecting "${stage.displayName}"`);
+              await DAGExecutor.rejectNode(stageId, guardianFeedback);
+              return { readyNodes: [{ id: stageId, nodeId: stage.nodeId || stageId, skillName: stage.skillName, displayName: stage.displayName, nodeType: stage.nodeType }], runComplete: false, allApproved: false };
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[DAGExecutor] Guardian verification failed (non-fatal):', err);
+      }
+    }
+
     // Run Sentinel on prompt-builder output (confidence check before execution)
     if (stage.skillName === 'prompt-builder') {
       try {
@@ -687,13 +757,51 @@ export class DAGExecutor {
               ).catch(() => {});
             }
 
-            // Auto-reject: reset stage for re-generation with Sentinel feedback
-            const feedback = `SENTINEL REJECTION (${(sentinelResult.score * 100).toFixed(0)}% < ${(SentinelAgent.getThreshold() * 100).toFixed(0)}% threshold):\n\n` +
+            // Build rejection feedback
+            let feedback = `SENTINEL REJECTION (${(sentinelResult.score * 100).toFixed(0)}% < ${(SentinelAgent.getThreshold() * 100).toFixed(0)}% threshold):\n\n` +
               `Issues:\n${sentinelResult.issues.map((i) => `- ${i}`).join('\n')}\n\n` +
               `Suggestions:\n${sentinelResult.suggestions.map((s) => `- ${s}`).join('\n')}\n\n` +
               `Fix these issues and regenerate the prompts.`;
 
             if (stage.retryCount < stage.maxRetries) {
+              // Socratic intervention: if stuck (2+ retries), diagnose before retrying
+              if (SocraticAgent.shouldIntervene(stage.retryCount)) {
+                try {
+                  console.log(`[DAGExecutor] Socratic intervention for "${stage.displayName}" (retry ${stage.retryCount})`);
+                  const socraticResult = await SocraticAgent.analyze(
+                    stage.runId, stageId, artifactContent, feedback,
+                    phaseStage?.artifactContent || prdStage?.artifactContent || '',
+                    [], evalClient
+                  );
+                  // Inject Socratic answers into retry context
+                  const socraticContext = SocraticAgent.buildAnswerContext(socraticResult);
+                  if (socraticContext) feedback += socraticContext;
+                } catch (err) {
+                  console.error('[DAGExecutor] Socratic analysis failed (non-fatal):', err);
+                }
+              }
+
+              // Self-correction: also feed issues back to the upstream phase-builder
+              // so it can regenerate a better phase spec for the next prompt-builder attempt
+              try {
+                const upstreamPhaseBuilder = await prisma.pipelineStage.findFirst({
+                  where: {
+                    runId: stage.runId,
+                    skillName: 'phase-builder',
+                    status: 'approved',
+                    phaseIndex: stage.phaseIndex,
+                  },
+                  select: { id: true },
+                });
+                if (upstreamPhaseBuilder) {
+                  await LearningStore.recordRejection(
+                    'sentinel', 'phase-builder',
+                    `Downstream prompt-builder rejected: ${sentinelResult.issues.join('; ')}`,
+                    stage.runId, upstreamPhaseBuilder.id
+                  ).catch(() => {});
+                }
+              } catch { /* non-fatal */ }
+
               console.log(`[DAGExecutor] Sentinel auto-rejecting "${stage.displayName}" (attempt ${stage.retryCount + 1}/${stage.maxRetries})`);
               await DAGExecutor.rejectNode(stageId, feedback);
               return { readyNodes: [{ id: stageId, nodeId: stage.nodeId || stageId, skillName: stage.skillName, displayName: stage.displayName, nodeType: stage.nodeType }], runComplete: false, allApproved: false };
@@ -808,6 +916,18 @@ export class DAGExecutor {
         } catch (err) {
           console.error('[DAGExecutor] Graph expansion failed:', err);
         }
+      }
+    }
+
+    // Scribe: document phase after approval
+    if (stage.skillName === 'phase-executor' && stage.phaseIndex !== null) {
+      try {
+        await ScribeAgent.documentPhase(
+          stage.runId, stage.phaseIndex, stageId,
+          stage.displayName, stage.durationMs
+        );
+      } catch (err) {
+        console.error('[DAGExecutor] Scribe phase documentation failed (non-fatal):', err);
       }
     }
 

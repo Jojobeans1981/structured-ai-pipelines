@@ -1,0 +1,234 @@
+openapi: "3.1.0"
+info:
+  title: Gauntlet Forge API
+  version: "1.0.0"
+  description: |
+    Public API for Gauntlet Forge — an AI-powered software factory.
+    All endpoints require authentication via Bearer JWT token or forge_token cookie.
+    Obtain a token by completing the Google OAuth flow at /auth/google.
+
+servers:
+  - url: http://localhost:8000
+    description: Local development (gateway)
+  - url: https://forge-api.example.com
+    description: Production
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [System]
+      security: []
+      responses:
+        "200":
+          description: Gateway and engine status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  gateway: { type: boolean }
+                  engine: { type: object }
+
+  /auth/google:
+    get:
+      summary: Start Google OAuth2 login
+      tags: [Auth]
+      security: []
+      responses:
+        "302":
+          description: Redirect to Google consent screen
+
+  /auth/me:
+    get:
+      summary: Get current user info
+      tags: [Auth]
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  email: { type: string }
+                  name: { type: string }
+
+  /api/v1/projects:
+    get:
+      summary: List projects
+      tags: [Projects]
+      responses:
+        "200":
+          description: Array of projects
+    post:
+      summary: Create project and start pipeline
+      tags: [Projects]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreate"
+      responses:
+        "201":
+          description: Created project with run ID
+
+  /api/v1/projects/{projectId}:
+    get:
+      summary: Get project details
+      tags: [Projects]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Project with runs and files
+
+  /api/v1/pipeline/{runId}:
+    get:
+      summary: Get pipeline run status
+      tags: [Pipeline]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Run with stages
+
+  /api/v1/pipeline/{runId}/nodes/{nodeId}/stream:
+    get:
+      summary: Stream node execution (SSE)
+      tags: [Pipeline]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: nodeId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Server-sent events stream
+          content:
+            text/event-stream: {}
+
+  /api/v1/pipeline/{runId}/stages/{stageId}/approve:
+    post:
+      summary: Approve a pipeline stage
+      tags: [Pipeline]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: stageId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Stage approved, DAG advanced
+
+  /api/v1/pipeline/{runId}/stages/{stageId}/reject:
+    post:
+      summary: Reject a pipeline stage with feedback
+      tags: [Pipeline]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: stageId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StageAction"
+      responses:
+        "200":
+          description: Stage rejected and re-queued
+
+  /api/v1/metrics:
+    get:
+      summary: Get metrics summary
+      tags: [Metrics]
+      responses:
+        "200":
+          description: Build and diagnostic metrics
+
+  /api/v1/metrics/agents:
+    get:
+      summary: Get per-agent performance breakdown
+      tags: [Metrics]
+      responses:
+        "200":
+          description: Agent rejections, costs, confidence trends
+
+  /api/v1/learning:
+    get:
+      summary: Get learning store patterns
+      tags: [Metrics]
+      responses:
+        "200":
+          description: Active and resolved rejection patterns
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: forge_token
+
+  schemas:
+    ProjectCreate:
+      type: object
+      required: [name, userInput]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 10000
+          default: ""
+        type:
+          type: string
+          enum: [build, diagnostic, refactor, enhance, test, deploy]
+          default: build
+        userInput:
+          type: string
+          minLength: 1
+          maxLength: 50000
+        autoApprove:
+          type: boolean
+          default: true
+
+    StageAction:
+      type: object
+      properties:
+        feedback:
+          type: string
+          maxLength: 10000
+        editedContent:
+          type: string
+
+security:
+  - BearerAuth: []
+  - CookieAuth: []

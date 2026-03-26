@@ -1,0 +1,101 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL ──
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: forge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forge_dev}
+      POSTGRES_DB: forge
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - forge-net
+
+  # ── Next.js Backend (internal — not exposed publicly) ──
+  nextjs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://forge:${POSTGRES_PASSWORD:-forge_dev}@postgres:5432/forge
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-me}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - forge-net
+
+  # ── Engine (FastAPI — wraps Next.js API) ──
+  engine:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NEXTJS_INTERNAL_URL: http://nextjs:3000
+      DATABASE_URL: postgresql://forge:${POSTGRES_PASSWORD:-forge_dev}@postgres:5432/forge
+      CORS_ALLOWED_ORIGINS: "*"
+    ports:
+      - "3001:3001"
+    depends_on:
+      - nextjs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3001/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - forge-net
+
+  # ── Gateway (FastAPI — public API, auth, rate limiting) ──
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ENGINE_URL: http://engine:3001
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-me}
+      JWT_EXPIRY_HOURS: "24"
+      RATE_LIMIT_REQUESTS: "100"
+      RATE_LIMIT_PERIOD: "60"
+      GATEWAY_PUBLIC_URL: ${GATEWAY_PUBLIC_URL:-http://localhost:8000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+    ports:
+      - "8000:8000"
+    depends_on:
+      engine:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - forge-net
+
+volumes:
+  pgdata:
+
+networks:
+  forge-net:
+    driver: bridge

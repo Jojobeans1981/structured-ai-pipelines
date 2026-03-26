@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  # ── Fast: lint + type-check + unit tests ──
+  lint-test:
+    name: Lint & Test (Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build
+
+  # ── Gateway: build + test ──
+  gateway-build:
+    name: Gateway Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install gateway dependencies
+        run: |
+          cd gateway
+          pip install -r requirements.txt
+          pip install pytest httpx
+      - name: Lint gateway
+        run: |
+          pip install ruff
+          ruff check gateway/
+      - name: Test gateway imports
+        run: python -c "from gateway.main import app; print('Gateway OK')"
+      - name: Build gateway Docker image
+        run: docker build -t forge-gateway ./gateway
+
+  # ── Engine: build + test ──
+  engine-build:
+    name: Engine Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install engine dependencies
+        run: |
+          cd engine
+          pip install -r requirements.txt
+          pip install pytest httpx
+      - name: Lint engine
+        run: |
+          pip install ruff
+          ruff check engine/
+      - name: Test engine imports
+        run: python -c "from engine.main import app; print('Engine OK')"
+      - name: Build engine Docker image
+        run: docker build -t forge-engine ./engine
+
+  # ── Integration: full stack ──
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [lint-test, gateway-build, engine-build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: pip install pytest httpx pytest-asyncio
+      - name: Start stack
+        run: |
+          docker compose up -d --build
+          # Wait for services to be healthy
+          sleep 15
+      - name: Health check gateway
+        run: curl -f http://localhost:8000/health || (docker compose logs && exit 1)
+      - name: Health check engine
+        run: curl -f http://localhost:3001/health || true
+      - name: Run integration tests
+        run: pytest tests/integration/ -v --timeout=60
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  # ── Docker push (only on master) ──
+  docker-push:
+    name: Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [integration]
+    if: github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Build & push gateway
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/gateway:latest ./gateway
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/gateway:latest
+      - name: Build & push engine
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/engine:latest ./engine
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/engine:latest

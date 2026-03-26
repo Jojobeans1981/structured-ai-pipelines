@@ -37,6 +37,7 @@ export function ProjectForm() {
   const [error, setError] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; phase: string }>({ current: 0, total: 0, phase: '' });
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [step, setStep] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,7 +93,9 @@ export function ProjectForm() {
     try {
       const SKIP = ['node_modules/', '.git/', '.next/', 'dist/', 'build/', '__pycache__/', '.DS_Store', 'package-lock.json', 'yarn.lock'];
       const TEXT_EXT = /\.(tsx?|jsx?|mjs|cjs|py|go|rs|java|rb|php|css|scss|html|svg|json|yaml|yml|toml|xml|md|txt|sql|prisma|graphql|sh|bash)$/i;
-      const fileData: Array<{ filePath: string; content: string }> = [];
+
+      // Filter eligible files first
+      const eligible: File[] = [];
       for (const file of files) {
         const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
         const parts = path.split('/');
@@ -100,24 +103,52 @@ export function ProjectForm() {
         if (SKIP.some(s => relativePath.includes(s))) continue;
         if (!TEXT_EXT.test(file.name)) continue;
         if (file.size > 500_000) continue;
+        eligible.push(file);
+      }
+
+      if (eligible.length === 0) throw new Error('No supported files found');
+
+      // Read files with progress
+      setUploadProgress({ current: 0, total: eligible.length, phase: 'Reading files' });
+      const fileData: Array<{ filePath: string; content: string }> = [];
+      for (let i = 0; i < eligible.length; i++) {
+        const file = eligible[i];
+        setUploadProgress({ current: i + 1, total: eligible.length, phase: 'Reading files' });
+        const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+        const parts = path.split('/');
+        const relativePath = parts.length > 1 ? parts.slice(1).join('/') : path;
         try {
           const content = await file.text();
           fileData.push({ filePath: relativePath, content });
         } catch { /* skip */ }
       }
-      if (fileData.length === 0) throw new Error('No supported files found');
-      const res = await fetch(`/api/projects/${projectId}/upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ files: fileData }),
-      });
-      if (!res.ok) throw new Error('Upload failed');
-      const data = await res.json();
-      setUploadedFiles(data.imported);
+
+      // Upload with progress
+      setUploadProgress({ current: 0, total: fileData.length, phase: 'Uploading' });
+
+      // Batch upload in chunks of 50 to show progress on large repos
+      const BATCH_SIZE = 50;
+      let totalImported = 0;
+      for (let i = 0; i < fileData.length; i += BATCH_SIZE) {
+        const batch = fileData.slice(i, i + BATCH_SIZE);
+        setUploadProgress({ current: Math.min(i + BATCH_SIZE, fileData.length), total: fileData.length, phase: 'Uploading' });
+        const res = await fetch(`/api/projects/${projectId}/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files: batch }),
+        });
+        if (!res.ok) throw new Error('Upload failed');
+        const data = await res.json();
+        totalImported += data.imported;
+      }
+
+      setUploadedFiles(totalImported);
+      setUploadProgress({ current: 0, total: 0, phase: '' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setIsUploading(false);
+      setUploadProgress({ current: 0, total: 0, phase: '' });
     }
   };
 
@@ -128,9 +159,13 @@ export function ProjectForm() {
   const hasFiles = !!(pendingZip || pendingFiles.length > 0);
   const totalSteps = hasFiles ? 3 : 2;
 
+  const uploadLabel = uploadProgress.total > 0
+    ? `${uploadProgress.phase} ${uploadProgress.current}/${uploadProgress.total} files...`
+    : 'Uploading files...';
+
   const stepLabels: Record<number, string> = {
     1: 'Creating project...',
-    2: hasFiles ? 'Uploading files...' : 'Starting pipeline...',
+    2: hasFiles ? uploadLabel : 'Starting pipeline...',
     3: 'Starting pipeline...',
   };
 
@@ -370,6 +405,30 @@ export function ProjectForm() {
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
+          {/* Upload progress indicator */}
+          {isLoading && step > 0 && (
+            <div className="space-y-2 rounded-lg border border-orange-500/20 bg-orange-900/10 p-3">
+              <div className="flex items-center gap-2 text-sm text-orange-300">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Step {step} of {totalSteps}: {stepLabels[step]}</span>
+              </div>
+              {uploadProgress.total > 0 && (
+                <div className="space-y-1">
+                  <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all duration-300"
+                      style={{ width: `${Math.round((uploadProgress.current / uploadProgress.total) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-zinc-500">
+                    {uploadProgress.phase}: {uploadProgress.current} / {uploadProgress.total} files
+                    ({Math.round((uploadProgress.current / uploadProgress.total) * 100)}%)
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-3">
             <Button type="submit" disabled={isLoading || !name.trim() || !input.trim()}>
               {isLoading ? (
@@ -377,7 +436,7 @@ export function ProjectForm() {
               ) : (
                 <Flame className="mr-2 h-4 w-4" />
               )}
-              {isLoading ? 'Creating & Starting...' : 'Create & Start Pipeline'}
+              {isLoading ? (stepLabels[step] || 'Creating & Starting...') : 'Create & Start Pipeline'}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.back()}>
               Cancel

@@ -106,6 +106,51 @@ npx vitest
 | `FORGE_CACHE_TTL_DAYS` | `30` | Spec cache duration |
 | `FORGE_BUILD_TIMEOUT` | `120000` | Build verification timeout (ms) |
 
+## Running the Orchestrator Locally
+
+The orchestrator architecture separates concerns into three services:
+
+| Service | Port | Role |
+|---------|------|------|
+| **Gateway** (FastAPI) | 8000 | Public API — OAuth2, rate limiting, JWT auth, request validation |
+| **Engine** (FastAPI) | 3001 | Pipeline execution — proxies to Next.js backend |
+| **Next.js** | 3000 | UI frontend + existing API routes |
+| **PostgreSQL** | 5433 | Database |
+
+### Quick start
+
+```bash
+# 1. Copy env file and fill in secrets
+cp .env.example .env
+
+# 2. Build and start all services
+docker compose up --build -d
+
+# 3. Verify everything is running
+curl http://localhost:8000/health   # Gateway
+curl http://localhost:3001/health   # Engine
+curl http://localhost:3000           # Frontend
+
+# 4. Run integration tests
+pip install pytest httpx
+pytest tests/integration/ -v
+```
+
+### Replacing the engine
+
+To swap the engine implementation (e.g., Rust, Go):
+
+1. Replace files in `engine/` with your new service
+2. Ensure it exposes the same `/api/v1/*` routes and `/health` endpoint
+3. Update `engine/Dockerfile` for the new runtime
+4. Run `docker compose up --build` — the gateway doesn't change
+
+### API Documentation
+
+- Gateway OpenAPI: http://localhost:8000/docs
+- Engine OpenAPI: http://localhost:3001/docs
+- Static spec: `gateway/openapi.yaml`
+
 ## Architecture
 
 ### Pipeline Flow
@@ -160,6 +205,10 @@ Download ZIP / Docker Preview
 | `trace-logger` | Span-based execution tracing |
 | `metrics-service` | Dashboard analytics |
 | `zip-generator` | Project ZIP download |
+| `guardian-agent` | Context integrity / hallucination detection |
+| `scribe-agent` | Auto-documentation (dev log, cost log, issues) |
+| `socratic-agent` | Clarifying questions when agents get stuck |
+| `validation-agent` | Multi-language lint/test/coverage/security |
 
 ### Key Metrics (Dashboard at /metrics)
 

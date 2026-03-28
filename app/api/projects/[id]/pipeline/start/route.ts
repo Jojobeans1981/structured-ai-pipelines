@@ -107,10 +107,10 @@ export async function POST(
         // Cache miss or expired — generate fresh plan
         try {
           const client = await getAnthropicClient(user.id);
-          plan = await IntakeAgent.generatePlan(parsed.data.input, client);
+          plan = await IntakeAgent.generatePlan(parsed.data.input, client, parsed.data.type);
         } catch (err) {
-          console.warn('[POST /pipeline/start] Intake agent failed, using default plan:', err);
-          plan = IntakeAgent.defaultBuildPlan(3);
+          console.warn(`[POST /pipeline/start] Intake agent failed, using default ${parsed.data.type} plan:`, err);
+          plan = IntakeAgent.defaultPlanForType(parsed.data.type, 3);
         }
 
         // Save to cache
@@ -141,10 +141,10 @@ export async function POST(
       // Cache lookup failed — generate normally
       try {
         const client = await getAnthropicClient(user.id);
-        plan = await IntakeAgent.generatePlan(parsed.data.input, client);
+        plan = await IntakeAgent.generatePlan(parsed.data.input, client, parsed.data.type);
       } catch (err) {
-        console.warn('[POST /pipeline/start] Intake agent failed, using default plan:', err);
-        plan = IntakeAgent.defaultBuildPlan(3);
+        console.warn(`[POST /pipeline/start] Intake agent failed, using default ${parsed.data.type} plan:`, err);
+        plan = IntakeAgent.defaultPlanForType(parsed.data.type, 3);
       }
     }
 

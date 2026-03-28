@@ -99,9 +99,14 @@ export class IntakeAgent {
    */
   static async generatePlan(
     userInput: string,
-    client: Anthropic
+    client: Anthropic,
+    pipelineType: string = 'build'
   ): Promise<ExecutionPlan> {
-    console.log(`[IntakeAgent] Generating plan for input (${userInput.length} chars)`);
+    console.log(`[IntakeAgent] Generating ${pipelineType} plan for input (${userInput.length} chars)`);
+
+    const typeHint = pipelineType !== 'build'
+      ? `\n\nIMPORTANT: The user has explicitly selected "${pipelineType}" mode. Generate a ${pipelineType.toUpperCase()} pipeline, NOT a build pipeline.`
+      : '';
 
     const response = await createWithFallback(client, {
       model: 'claude-sonnet-4-20250514',
@@ -110,7 +115,7 @@ export class IntakeAgent {
       messages: [
         {
           role: 'user',
-          content: `Generate an execution plan for this request:\n\n${userInput}`,
+          content: `Generate an execution plan for this ${pipelineType} request:\n\n${userInput}${typeHint}`,
         },
       ],
     });
@@ -285,5 +290,103 @@ export class IntakeAgent {
       estimatedPhases,
       parallelGroups,
     };
+  }
+
+  /**
+   * Default diagnostic plan — bug intake → trace → root cause → fix → verify.
+   */
+  static defaultDiagnosticPlan(): ExecutionPlan {
+    const nodes: DAGNode[] = [
+      { id: 'intake', skillName: 'bug-intake', displayName: 'Bug Intake', description: 'Collect bug information', nodeType: 'skill', dependsOn: [], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: 0 },
+      { id: 'archaeologist', skillName: 'code-archaeologist', displayName: 'Code Archaeology', description: 'Trace bug through code', nodeType: 'skill', dependsOn: ['intake'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: 1 },
+      { id: 'root-cause', skillName: 'root-cause-analyzer', displayName: 'Root Cause Analysis', description: 'Find root cause', nodeType: 'skill', dependsOn: ['archaeologist'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: 2 },
+      { id: 'fix-plan', skillName: 'fix-planner', displayName: 'Fix Planning', description: 'Plan the fix', nodeType: 'skill', dependsOn: ['root-cause'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: 3 },
+      { id: 'fix-prompts', skillName: 'fix-prompt-builder', displayName: 'Fix Prompts', description: 'Generate fix prompts', nodeType: 'skill', dependsOn: ['fix-plan'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: 4 },
+      { id: 'fix-exec', skillName: 'fix-executor', displayName: 'Apply Fix', description: 'Execute the fix', nodeType: 'skill', dependsOn: ['fix-prompts'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: 5 },
+      { id: 'verify', skillName: '__verify__', displayName: 'Verify Fix', description: 'Verify the fix compiles', nodeType: 'verify', dependsOn: ['fix-exec'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: null },
+      { id: 'lessons', skillName: 'lessons-learned', displayName: 'Lessons Learned', description: 'Extract lessons from the fix', nodeType: 'skill', dependsOn: ['verify'], parallelGroup: null, gateType: null, maxRetries: 1, phaseIndex: null },
+    ];
+    const edges = nodes.flatMap((n) => n.dependsOn.map((dep) => ({ from: dep, to: n.id, condition: null })));
+    return { type: 'diagnostic', nodes, edges, estimatedPhases: 6, parallelGroups: [] };
+  }
+
+  /**
+   * Default enhance plan — PRD scoped to new feature → phases → build → verify.
+   */
+  static defaultEnhancePlan(estimatedPhases: number = 2): ExecutionPlan {
+    const nodes: DAGNode[] = [
+      { id: 'prd', skillName: 'prd-architect', displayName: 'Feature PRD', description: 'Generate PRD scoped to the new feature', nodeType: 'skill', dependsOn: [], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: null },
+      { id: 'phases', skillName: 'phase-builder', displayName: 'Phase Extraction', description: 'Split feature into phases', nodeType: 'skill', dependsOn: ['prd'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: null },
+    ];
+
+    for (let i = 0; i < estimatedPhases; i++) {
+      nodes.push(
+        { id: `phase-${i}-prompts`, skillName: 'prompt-builder', displayName: `Phase ${i} Prompts`, description: `Generate prompts for phase ${i}`, nodeType: 'skill', dependsOn: i === 0 ? ['phases'] : ['phases', `phase-${i - 1}-build`], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: i },
+        { id: `phase-${i}-build`, skillName: 'phase-executor', displayName: `Phase ${i} Build`, description: `Execute phase ${i}`, nodeType: 'skill', dependsOn: [`phase-${i}-prompts`], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: i },
+      );
+    }
+
+    const allBuildIds = nodes.filter((n) => n.skillName === 'phase-executor').map((n) => n.id);
+    nodes.push(
+      { id: 'verify', skillName: '__verify__', displayName: 'Build Verification', description: 'Verify enhanced project compiles', nodeType: 'verify', dependsOn: allBuildIds, parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: null },
+      { id: 'setup-guide', skillName: 'setup-analyzer', displayName: 'Setup Guide', description: 'Generate setup guide', nodeType: 'skill', dependsOn: ['verify'], parallelGroup: null, gateType: null, maxRetries: 1, phaseIndex: null },
+    );
+
+    const edges = nodes.flatMap((n) => n.dependsOn.map((dep) => ({ from: dep, to: n.id, condition: null })));
+    return { type: 'enhance', nodes, edges, estimatedPhases, parallelGroups: [] };
+  }
+
+  /**
+   * Default refactor plan — same as enhance but type is refactor.
+   */
+  static defaultRefactorPlan(estimatedPhases: number = 2): ExecutionPlan {
+    const plan = IntakeAgent.defaultEnhancePlan(estimatedPhases);
+    plan.type = 'refactor';
+    // Refactor skips PRD — goes straight to phase-builder
+    plan.nodes = plan.nodes.filter((n) => n.id !== 'prd');
+    const phasesNode = plan.nodes.find((n) => n.id === 'phases');
+    if (phasesNode) phasesNode.dependsOn = [];
+    plan.edges = plan.nodes.flatMap((n) => n.dependsOn.map((dep) => ({ from: dep, to: n.id, condition: null })));
+    return plan;
+  }
+
+  /**
+   * Default test plan — analyze code → generate tests → verify.
+   */
+  static defaultTestPlan(): ExecutionPlan {
+    const nodes: DAGNode[] = [
+      { id: 'test-plan', skillName: 'prd-architect', displayName: 'Test Plan', description: 'Analyze code and plan test suite', nodeType: 'skill', dependsOn: [], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: 0 },
+      { id: 'test-gen', skillName: 'phase-executor', displayName: 'Generate Tests', description: 'Generate test files', nodeType: 'skill', dependsOn: ['test-plan'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: 1 },
+      { id: 'verify', skillName: '__verify__', displayName: 'Run Tests', description: 'Verify tests pass', nodeType: 'verify', dependsOn: ['test-gen'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: null },
+    ];
+    const edges = nodes.flatMap((n) => n.dependsOn.map((dep) => ({ from: dep, to: n.id, condition: null })));
+    return { type: 'test', nodes, edges, estimatedPhases: 2, parallelGroups: [] };
+  }
+
+  /**
+   * Default deploy plan — analyze project → generate deployment config → verify.
+   */
+  static defaultDeployPlan(): ExecutionPlan {
+    const nodes: DAGNode[] = [
+      { id: 'deploy-plan', skillName: 'prd-architect', displayName: 'Deploy Planning', description: 'Analyze project and plan deployment', nodeType: 'skill', dependsOn: [], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: 0 },
+      { id: 'deploy-gen', skillName: 'phase-executor', displayName: 'Generate Config', description: 'Generate Dockerfile, CI, deployment config', nodeType: 'skill', dependsOn: ['deploy-plan'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: 1 },
+      { id: 'verify', skillName: '__verify__', displayName: 'Verify Config', description: 'Verify deployment config', nodeType: 'verify', dependsOn: ['deploy-gen'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: null },
+    ];
+    const edges = nodes.flatMap((n) => n.dependsOn.map((dep) => ({ from: dep, to: n.id, condition: null })));
+    return { type: 'deploy', nodes, edges, estimatedPhases: 2, parallelGroups: [] };
+  }
+
+  /**
+   * Get the right default plan for a given pipeline type.
+   */
+  static defaultPlanForType(type: string, estimatedPhases: number = 3): ExecutionPlan {
+    switch (type) {
+      case 'diagnostic': return IntakeAgent.defaultDiagnosticPlan();
+      case 'enhance': return IntakeAgent.defaultEnhancePlan(estimatedPhases);
+      case 'refactor': return IntakeAgent.defaultRefactorPlan(estimatedPhases);
+      case 'test': return IntakeAgent.defaultTestPlan();
+      case 'deploy': return IntakeAgent.defaultDeployPlan();
+      default: return IntakeAgent.defaultBuildPlan(estimatedPhases);
+    }
   }
 }

@@ -9,6 +9,7 @@ import { PipelineEngine } from '@/src/services/pipeline-engine';
 import { getAnthropicClient } from '@/src/lib/anthropic';
 import { IntakeAgent } from '@/src/services/intake-agent';
 import { DAGExecutor } from '@/src/services/dag-executor';
+import { LearningStore } from '@/src/services/learning-store';
 import { type ExecutionPlan } from '@/src/types/dag';
 
 const CACHE_TTL_DAYS = parseInt(process.env.FORGE_CACHE_TTL_DAYS || '30', 10);
@@ -56,6 +57,9 @@ export async function POST(
   const executionMode = parsed.data.mode || 'dag';
 
   try {
+    // Clean up stale learning patterns before starting a new run
+    try { await LearningStore.expireStalePatterns(); } catch { /* non-fatal */ }
+
     if (executionMode === 'linear') {
       // Legacy linear mode
       const run = await PipelineEngine.startRun(

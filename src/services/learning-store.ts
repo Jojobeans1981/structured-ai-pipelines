@@ -59,17 +59,21 @@ export class LearningStore {
 
   /**
    * Get active warnings for a target agent.
-   * Foreman calls this before dispatching to inject warnings.
+   * Returns top patterns by rejection count, limited to recent (last 7 days).
    */
   static async getWarningsFor(targetAgent: string): Promise<string[]> {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
     const entries = await prisma.learningEntry.findMany({
       where: {
         targetAgent,
         status: 'active',
         rejectionCount: { gte: 1 },
+        lastSeen: { gte: sevenDaysAgo },
       },
       orderBy: { rejectionCount: 'desc' },
-      take: 5,
+      take: 10,
     });
 
     return entries.map((e) =>
@@ -78,16 +82,81 @@ export class LearningStore {
   }
 
   /**
-   * Build a warning block to inject into an agent's context.
+   * Build an actionable warning block to inject into an agent's context.
+   * Groups patterns by category and provides specific instructions.
    */
   static async getWarningBlock(targetAgent: string): Promise<string> {
     const warnings = await LearningStore.getWarningsFor(targetAgent);
     if (warnings.length === 0) return '';
 
-    return '\n\n## ⚠️ FOREMAN WARNINGS (from prior failures)\n\n' +
-      'The following issues have been detected in previous runs. Avoid repeating them:\n\n' +
-      warnings.map((w, i) => `${i + 1}. ${w}`).join('\n') +
-      '\n\nAddress these proactively in your output.\n';
+    // Categorize patterns for actionable grouping
+    const categories: Record<string, string[]> = {
+      imports: [],
+      files: [],
+      stubs: [],
+      config: [],
+      deps: [],
+      other: [],
+    };
+
+    for (const w of warnings) {
+      const lower = w.toLowerCase();
+      if (lower.includes('import') || lower.includes('require') || lower.includes('reference')) {
+        categories.imports.push(w);
+      } else if (lower.includes('file') || lower.includes('directory') || lower.includes('missing')) {
+        categories.files.push(w);
+      } else if (lower.includes('todo') || lower.includes('fixme') || lower.includes('stub') || lower.includes('empty')) {
+        categories.stubs.push(w);
+      } else if (lower.includes('config') || lower.includes('tsconfig') || lower.includes('package.json') || lower.includes('env')) {
+        categories.config.push(w);
+      } else if (lower.includes('depend') || lower.includes('install') || lower.includes('build')) {
+        categories.deps.push(w);
+      } else {
+        categories.other.push(w);
+      }
+    }
+
+    let block = '\n\n## ⚠️ FORGE QUALITY WARNINGS — YOU MUST ADDRESS THESE\n\n' +
+      'Previous runs had the following issues. The forge will REJECT your output if you repeat them.\n\n';
+
+    if (categories.imports.length > 0) {
+      block += '### ❌ BROKEN IMPORTS (seen ' + categories.imports.length + 'x)\n' +
+        'Every `import` and `require` MUST reference a file you actually create. Before outputting, verify every import path exists.\n' +
+        categories.imports.map((w) => `- ${w}`).join('\n') + '\n\n';
+    }
+
+    if (categories.files.length > 0) {
+      block += '### ❌ MISSING FILES/DIRECTORIES (seen ' + categories.files.length + 'x)\n' +
+        'Create ALL files listed in the spec. Do not skip any directory. Check the PRD file structure.\n' +
+        categories.files.map((w) => `- ${w}`).join('\n') + '\n\n';
+    }
+
+    if (categories.stubs.length > 0) {
+      block += '### ❌ STUBS/EMPTY CODE (seen ' + categories.stubs.length + 'x)\n' +
+        'Every function must have a REAL implementation. No TODO, FIXME, "implement later", or empty bodies.\n' +
+        categories.stubs.map((w) => `- ${w}`).join('\n') + '\n\n';
+    }
+
+    if (categories.config.length > 0) {
+      block += '### ❌ CONFIG ISSUES (seen ' + categories.config.length + 'x)\n' +
+        'package.json must have all deps + build/dev scripts. Include tsconfig.json, .env.example, .gitignore.\n' +
+        categories.config.map((w) => `- ${w}`).join('\n') + '\n\n';
+    }
+
+    if (categories.deps.length > 0) {
+      block += '### ❌ DEPENDENCY/BUILD ISSUES (seen ' + categories.deps.length + 'x)\n' +
+        'All imported packages must be in package.json dependencies. Build scripts must work.\n' +
+        categories.deps.map((w) => `- ${w}`).join('\n') + '\n\n';
+    }
+
+    if (categories.other.length > 0) {
+      block += '### ⚠️ OTHER ISSUES\n' +
+        categories.other.map((w) => `- ${w}`).join('\n') + '\n\n';
+    }
+
+    block += '**If your output has ANY of these issues, it will be automatically rejected. Fix them before outputting.**\n';
+
+    return block;
   }
 
   /**
@@ -125,6 +194,31 @@ export class LearningStore {
 
     if (result.count > 0) {
       console.log(`[LearningStore] Resolved ${result.count} patterns for ${targetAgent} — ${resolution}`);
+    }
+    return result.count;
+  }
+
+  /**
+   * Auto-expire stale patterns. Resolves active patterns that haven't
+   * been seen in 7+ days — they're no longer relevant.
+   */
+  static async expireStalePatterns(): Promise<number> {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const result = await prisma.learningEntry.updateMany({
+      where: {
+        status: 'active',
+        lastSeen: { lt: sevenDaysAgo },
+      },
+      data: {
+        status: 'resolved',
+        resolution: 'Auto-expired — not seen in 7+ days',
+      },
+    });
+
+    if (result.count > 0) {
+      console.log(`[LearningStore] Auto-expired ${result.count} stale patterns`);
     }
     return result.count;
   }

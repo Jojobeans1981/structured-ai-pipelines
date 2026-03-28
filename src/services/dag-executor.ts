@@ -484,12 +484,20 @@ export class DAGExecutor {
     // Skill and agent nodes use StageExecutor
     const { context, previousArtifacts } = await DAGExecutor.getNodeContext(runId, stageId);
 
-    // Inject Foreman warnings from learning store
+    // Inject Foreman warnings from learning store (categorized + actionable)
     let finalContext = context;
     try {
       const warnings = await LearningStore.getWarningBlock(stage.skillName);
       if (warnings) finalContext += warnings;
     } catch { /* non-fatal */ }
+
+    // Inject run-specific rejection history — if this stage was rejected before in THIS run
+    if (stage.retryCount > 0 && stage.userFeedback) {
+      finalContext += '\n\n## 🔴 THIS STAGE WAS REJECTED — PREVIOUS ATTEMPT FAILED\n\n' +
+        `This is attempt #${stage.retryCount + 1}. Your previous output was rejected for:\n\n` +
+        `${stage.userFeedback}\n\n` +
+        '**You MUST fix every issue listed above. Do not repeat the same mistakes.**\n';
+    }
 
     // Inject comprehensiveness instruction for phase-builder (Groq/Llama needs this)
     if (stage.skillName === 'phase-builder') {

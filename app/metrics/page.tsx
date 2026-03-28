@@ -66,10 +66,14 @@ export default function MetricsPage() {
             </div>
           )}
 
-          {/* Prompt Health + Learning Store side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <PromptHealthPanel />
-            <LearningStorePanel />
+          {/* Prompt Health + Learning Store side by side — stretch to equal height */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <div className="flex flex-col">
+              <PromptHealthPanel />
+            </div>
+            <div className="flex flex-col">
+              <LearningStorePanel />
+            </div>
           </div>
 
           {/* Agent Performance Breakdown */}
@@ -177,14 +181,14 @@ function PromptHealthPanel() {
   const lowScores = recentScores.filter((s) => s.score < 0.8).length;
 
   return (
-    <Card>
+    <Card className="flex-1 flex flex-col">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-cyan-400" />
           Prompt Health — Sentinel Verification
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 flex-1 flex flex-col">
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-2 text-sm">
           <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-2.5 text-center">
@@ -225,11 +229,11 @@ function PromptHealthPanel() {
           </div>
         </div>
 
-        {/* Recent scores — taller bar chart */}
+        {/* Recent scores — bar chart grows to fill space */}
         {recentScores.length > 0 && (
-          <div>
+          <div className="flex-1 flex flex-col min-h-0">
             <div className="text-zinc-500 text-[10px] mb-1.5">Last {recentScores.length} Evaluations</div>
-            <div className="flex items-end gap-1.5 h-28">
+            <div className="flex items-end gap-1.5 flex-1 min-h-[7rem]">
               {recentScores.slice().reverse().map((s, i) => {
                 const barHeight = Math.max(15, (s.score * 100) - 50) * 2;
                 const color = s.score >= 0.9 ? 'bg-emerald-500' : s.score >= 0.8 ? 'bg-amber-500' : 'bg-red-500';
@@ -546,7 +550,7 @@ function LearningStorePanel() {
     : data.patterns.filter((p) => p.status === 'active');
 
   return (
-    <Card>
+    <Card className="flex-1 flex flex-col">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-orange-400" />

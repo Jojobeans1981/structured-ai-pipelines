@@ -46,13 +46,16 @@ export function ProjectForm() {
     const el = document.createElement('input');
     el.type = 'file';
     el.accept = '.zip,.pdf,.md,.txt';
-    el.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
+    el.style.display = 'none';
+    document.body.appendChild(el);
+    el.onchange = () => {
+      const file = el.files?.[0];
       if (file) {
         setPendingZip(file);
         setPendingFiles([]);
         setUploadedFiles(0);
       }
+      document.body.removeChild(el);
     };
     el.click();
   };
@@ -60,14 +63,20 @@ export function ProjectForm() {
   const showFolderPicker = () => {
     const el = document.createElement('input');
     el.type = 'file';
-    (el as HTMLInputElement & { webkitdirectory: boolean }).webkitdirectory = true;
-    el.onchange = (e) => {
-      const files = Array.from((e.target as HTMLInputElement).files || []);
+    el.setAttribute('webkitdirectory', '');
+    el.setAttribute('directory', '');
+    el.setAttribute('mozdirectory', '');
+    el.multiple = true;
+    el.style.display = 'none';
+    document.body.appendChild(el);
+    el.onchange = () => {
+      const files = Array.from(el.files || []);
       if (files.length > 0) {
         setPendingFiles(files);
         setPendingZip(null);
         setUploadedFiles(0);
       }
+      document.body.removeChild(el);
     };
     el.click();
   };

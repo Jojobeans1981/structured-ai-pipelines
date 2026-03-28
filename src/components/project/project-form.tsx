@@ -93,8 +93,16 @@ export function ProjectForm() {
     setIsUploading(true);
     setError(null);
     try {
-      const SKIP = ['node_modules/', '.git/', '.next/', 'dist/', 'build/', '__pycache__/', '.DS_Store', 'package-lock.json', 'yarn.lock'];
-      const TEXT_EXT = /\.(tsx?|jsx?|mjs|cjs|py|go|rs|java|rb|php|css|scss|html|svg|json|yaml|yml|toml|xml|md|txt|sql|prisma|graphql|sh|bash)$/i;
+      const SKIP = [
+        'node_modules/', '.git/', '.next/', 'dist/', 'build/', 'out/',
+        '__pycache__/', '.venv/', 'venv/', '.tox/', '.mypy_cache/',
+        'vendor/', 'target/', 'bin/', 'obj/', '.gradle/', '.idea/',
+        '.vs/', '.vscode/', 'coverage/', '.nyc_output/', '.cache/',
+        '.DS_Store', 'Thumbs.db', 'package-lock.json', 'yarn.lock',
+        'pnpm-lock.yaml', '.env', '.env.local', '.env.production',
+      ];
+      const TEXT_EXT = /\.(tsx?|jsx?|mjs|cjs|py|go|rs|java|rb|php|css|scss|html|svg|json|yaml|yml|toml|xml|md|txt|sql|prisma|graphql|sh|bash|dockerfile|editorconfig|gitignore|eslintrc|prettierrc)$/i;
+      const MAX_FILES = 200; // Vercel body limit — cap to avoid 500s
 
       // Filter eligible files first
       const eligible: File[] = [];
@@ -103,33 +111,40 @@ export function ProjectForm() {
         const parts = path.split('/');
         const relativePath = parts.length > 1 ? parts.slice(1).join('/') : path;
         if (SKIP.some(s => relativePath.includes(s))) continue;
-        if (!TEXT_EXT.test(file.name)) continue;
-        if (file.size > 2_000_000) continue;
+        if (!TEXT_EXT.test(file.name) && file.name.includes('.')) continue;
+        if (file.size > 500_000) continue; // 500KB per file max for upload
+        if (file.size === 0) continue;
         eligible.push(file);
       }
 
-      if (eligible.length === 0) throw new Error('No supported files found');
+      if (eligible.length === 0) throw new Error('No supported files found in folder. Make sure the folder contains source code files (.ts, .js, .py, etc.)');
+
+      // Cap file count — take the most important files first
+      const capped = eligible.slice(0, MAX_FILES);
+      const skippedCount = eligible.length - capped.length;
 
       // Read files with progress
-      setUploadProgress({ current: 0, total: eligible.length, phase: 'Reading files' });
+      setUploadProgress({ current: 0, total: capped.length, phase: 'Reading files' });
       const fileData: Array<{ filePath: string; content: string }> = [];
-      for (let i = 0; i < eligible.length; i++) {
-        const file = eligible[i];
-        setUploadProgress({ current: i + 1, total: eligible.length, phase: 'Reading files' });
+      for (let i = 0; i < capped.length; i++) {
+        const file = capped[i];
+        setUploadProgress({ current: i + 1, total: capped.length, phase: 'Reading files' });
         const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
         const parts = path.split('/');
         const relativePath = parts.length > 1 ? parts.slice(1).join('/') : path;
         try {
           const content = await file.text();
+          // Skip files with null bytes (binary)
+          if (content.includes('\0')) continue;
           fileData.push({ filePath: relativePath, content });
         } catch { /* skip */ }
       }
 
-      // Upload with progress
-      setUploadProgress({ current: 0, total: fileData.length, phase: 'Uploading' });
+      if (fileData.length === 0) throw new Error('No readable text files found');
 
-      // Batch upload in chunks of 50 to show progress on large repos
-      const BATCH_SIZE = 50;
+      // Upload with progress — small batches to stay under Vercel body limit
+      setUploadProgress({ current: 0, total: fileData.length, phase: 'Uploading' });
+      const BATCH_SIZE = 20;
       let totalImported = 0;
       for (let i = 0; i < fileData.length; i += BATCH_SIZE) {
         const batch = fileData.slice(i, i + BATCH_SIZE);
@@ -139,9 +154,18 @@ export function ProjectForm() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ files: batch }),
         });
-        if (!res.ok) throw new Error('Upload failed');
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          console.error('[Upload] Batch failed:', errData);
+          // Continue with remaining batches instead of failing entirely
+          continue;
+        }
         const data = await res.json();
         totalImported += data.imported;
+      }
+
+      if (skippedCount > 0) {
+        console.log(`[Upload] Capped at ${MAX_FILES} files, skipped ${skippedCount}`);
       }
 
       setUploadedFiles(totalImported);

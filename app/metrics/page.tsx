@@ -229,11 +229,11 @@ function PromptHealthPanel() {
           </div>
         </div>
 
-        {/* Recent scores — bar chart grows to fill space */}
+        {/* Recent scores — fixed height bar chart */}
         {recentScores.length > 0 && (
-          <div className="flex-1 flex flex-col min-h-0">
+          <div>
             <div className="text-zinc-500 text-[10px] mb-1.5">Last {recentScores.length} Evaluations</div>
-            <div className="flex items-end gap-1.5 flex-1 min-h-[7rem]">
+            <div className="flex items-end gap-1.5 h-24">
               {recentScores.slice().reverse().map((s, i) => {
                 const barHeight = Math.max(15, (s.score * 100) - 50) * 2;
                 const color = s.score >= 0.9 ? 'bg-emerald-500' : s.score >= 0.8 ? 'bg-amber-500' : 'bg-red-500';
@@ -360,22 +360,33 @@ function AgentBreakdownPanel() {
               Guardian — Context Integrity
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-zinc-600">Checks every agent output for hallucination, drift, contradiction, and scope creep before it moves to the next stage.</p>
             <div className="grid grid-cols-3 gap-3 text-sm">
               <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
                 <div className="text-zinc-500 text-xs">Total Checks</div>
                 <div className="text-xl font-bold text-zinc-200">{data.guardianStats.totalChecks}</div>
+                <div className="text-zinc-600 text-[10px] mt-0.5">Outputs verified</div>
               </div>
               <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
                 <div className="text-zinc-500 text-xs">Drift Detected</div>
                 <div className="text-xl font-bold text-red-400">{data.guardianStats.driftDetected}</div>
+                <div className="text-zinc-600 text-[10px] mt-0.5">Caught &amp; rejected</div>
               </div>
               <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
                 <div className="text-zinc-500 text-xs">Pass Rate</div>
                 <div className={`text-xl font-bold ${data.guardianStats.passRate >= 80 ? 'text-emerald-400' : 'text-yellow-400'}`}>
                   {data.guardianStats.passRate}%
                 </div>
+                <div className="text-zinc-600 text-[10px] mt-0.5">Integrity score</div>
               </div>
+            </div>
+            {/* Pass rate bar */}
+            <div className="relative h-3 rounded-full bg-zinc-800 overflow-hidden">
+              <div
+                className={`absolute left-0 top-0 h-full rounded-full transition-all ${data.guardianStats.passRate >= 80 ? 'bg-gradient-to-r from-cyan-600 to-cyan-400' : 'bg-gradient-to-r from-yellow-600 to-yellow-400'}`}
+                style={{ width: `${data.guardianStats.passRate}%` }}
+              />
             </div>
           </CardContent>
         </Card>
@@ -387,15 +398,18 @@ function AgentBreakdownPanel() {
               Socrates — Clarification Agent
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-zinc-600">Steps in when an agent fails 2+ times on the same issue. Diagnoses the root cause and generates clarifying questions to break the deadlock.</p>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
                 <div className="text-zinc-500 text-xs">Interventions</div>
                 <div className="text-xl font-bold text-purple-400">{data.socraticStats.interventions}</div>
+                <div className="text-zinc-600 text-[10px] mt-0.5">Deadlocks diagnosed</div>
               </div>
               <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
                 <div className="text-zinc-500 text-xs">Auto-Resolved</div>
                 <div className="text-xl font-bold text-emerald-400">{data.socraticStats.autoResolved}</div>
+                <div className="text-zinc-600 text-[10px] mt-0.5">Fixed with defaults</div>
               </div>
             </div>
           </CardContent>
@@ -413,17 +427,30 @@ function AgentBreakdownPanel() {
                   Rejections by Agent
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                <p className="text-xs text-zinc-600">Which agents produce bad output most often, and which quality gate catches them.</p>
                 <div className="space-y-2">
-                  {data.agentRejections.slice(0, 10).map((r, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm py-1.5 px-3 rounded border border-zinc-700/30 bg-zinc-800/20">
-                      <div>
-                        <span className="text-zinc-300 font-medium">{r.agent}</span>
-                        <span className="text-zinc-600 text-xs ml-2">from {r.source}</span>
+                  {data.agentRejections.slice(0, 10).map((r, i) => {
+                    const maxRej = data.agentRejections[0]?.rejections || 1;
+                    const barWidth = Math.max(8, Math.round((r.rejections / maxRej) * 100));
+                    return (
+                      <div key={i} className="text-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <div>
+                            <span className="text-zinc-300 font-medium">{r.agent}</span>
+                            <span className="text-zinc-600 text-xs ml-2">caught by {r.source}</span>
+                          </div>
+                          <span className="text-red-400 font-mono text-sm font-bold">{r.rejections}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-zinc-800">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-red-600 to-red-400"
+                            style={{ width: `${barWidth}%` }}
+                          />
+                        </div>
                       </div>
-                      <span className="text-red-400 font-mono text-sm">{r.rejections}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

@@ -254,7 +254,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  opacity: 0.13;
+  opacity: 0.06;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='350' height='220' viewBox='0 0 350 220'%3E%3Cg fill='%23f97316'%3E%3Ctext x='175' y='60' font-family='Georgia,serif' font-size='26' font-weight='bold' letter-spacing='10' text-anchor='middle' transform='rotate(-12 175 60)'%3ETHE ONE FORGE%3C/text%3E%3Ctext x='175' y='88' font-family='Georgia,serif' font-size='10' font-style='italic' text-anchor='middle' letter-spacing='3' opacity='0.4' transform='rotate(-12 175 88)'%3EOne Forge to build them all%3C/text%3E%3C/g%3E%3C/svg%3E");
   background-size: 350px 220px;
   background-repeat: repeat;

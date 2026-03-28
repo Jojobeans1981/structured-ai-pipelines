@@ -249,16 +249,28 @@
   filter: blur(40px);
 }
 
-/* The One Forge watermark — branded text + runes + ring motif */
+/* The One Forge watermark — two layers: text at 13%, rings+runes at 20% */
 .forge-lava-bg::after {
   content: '';
   position: absolute;
   inset: 0;
-  opacity: 0.09;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='350' height='220' viewBox='0 0 350 220'%3E%3Cg fill='%23f97316' opacity='0.6'%3E%3Ctext x='175' y='60' font-family='Georgia,serif' font-size='26' font-weight='bold' letter-spacing='10' text-anchor='middle' transform='rotate(-12 175 60)'%3ETHE ONE FORGE%3C/text%3E%3Ctext x='175' y='88' font-family='Georgia,serif' font-size='10' font-style='italic' text-anchor='middle' letter-spacing='3' opacity='0.4' transform='rotate(-12 175 88)'%3EOne Forge to build them all%3C/text%3E%3C/g%3E%3Cg fill='none' stroke='%23f97316' opacity='0.35'%3E%3Ccircle cx='175' cy='145' r='22' stroke-width='1.5'/%3E%3Ccircle cx='175' cy='145' r='18' stroke-width='0.8'/%3E%3Ctext x='175' y='150' font-family='serif' font-size='9' fill='%23f97316' text-anchor='middle' opacity='0.5'%3E%E1%9A%A0 %E1%9A%B1 %E1%9A%A6%3C/text%3E%3Cpath d='M30 170 L30 200' stroke-width='1.2'/%3E%3Cpath d='M30 173 L40 179'/%3E%3Cpath d='M30 183 L40 189'/%3E%3Cpath d='M60 165 L60 205' stroke-width='1.2'/%3E%3Cpath d='M60 165 L70 177 L60 185'/%3E%3Cpath d='M290 170 L290 200' stroke-width='1.2'/%3E%3Cpath d='M290 170 L282 178 L290 183'/%3E%3Cpath d='M290 185 L282 193'/%3E%3Cpath d='M320 170 L320 200' stroke-width='1.2'/%3E%3Cpath d='M320 170 L330 178'/%3E%3Cpath d='M320 183 L310 190'/%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.13;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='350' height='220' viewBox='0 0 350 220'%3E%3Cg fill='%23f97316'%3E%3Ctext x='175' y='60' font-family='Georgia,serif' font-size='26' font-weight='bold' letter-spacing='10' text-anchor='middle' transform='rotate(-12 175 60)'%3ETHE ONE FORGE%3C/text%3E%3Ctext x='175' y='88' font-family='Georgia,serif' font-size='10' font-style='italic' text-anchor='middle' letter-spacing='3' opacity='0.4' transform='rotate(-12 175 88)'%3EOne Forge to build them all%3C/text%3E%3C/g%3E%3C/svg%3E");
   background-size: 350px 220px;
   background-repeat: repeat;
   pointer-events: none;
+}
+
+/* Rings + runes layer — stronger at 20% */
+.forge-watermark-runes {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.20;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='350' height='220' viewBox='0 0 350 220'%3E%3Cg fill='none' stroke='%23f97316'%3E%3Ccircle cx='175' cy='100' r='28' stroke-width='1.5'/%3E%3Ccircle cx='175' cy='100' r='23' stroke-width='0.8'/%3E%3Ctext x='175' y='105' font-family='serif' font-size='10' fill='%23f97316' text-anchor='middle'%3E%E1%9A%A0 %E1%9A%B1 %E1%9A%A6%3C/text%3E%3Cpath d='M30 160 L30 195' stroke-width='1.2'/%3E%3Cpath d='M30 163 L42 170'/%3E%3Cpath d='M30 175 L42 182'/%3E%3Cpath d='M65 155 L65 200' stroke-width='1.2'/%3E%3Cpath d='M65 155 L77 168 L65 177'/%3E%3Cpath d='M285 160 L285 195' stroke-width='1.2'/%3E%3Cpath d='M285 160 L275 170 L285 177'/%3E%3Cpath d='M285 180 L275 190'/%3E%3Cpath d='M320 160 L320 195' stroke-width='1.2'/%3E%3Cpath d='M320 160 L332 170'/%3E%3Cpath d='M320 178 L308 187'/%3E%3Ccircle cx='100' cy='30' r='2'/%3E%3Ccircle cx='250' cy='35' r='1.5'/%3E%3Ccircle cx='175' cy='145' r='1.5'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 350px 220px;
+  background-repeat: repeat;
 }
 
 .forge-ember {

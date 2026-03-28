@@ -20,8 +20,9 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={inter.className}>
         <SessionProvider>
-          {/* Forge lava background */}
+          {/* Forge lava background + watermarks */}
           <div className="forge-lava-bg" />
+          <div className="forge-watermark-runes" />
           <div className="forge-ember" />
           <div className="forge-ember" />
           <div className="forge-ember" />

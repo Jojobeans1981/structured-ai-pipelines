@@ -123,6 +123,7 @@ function PromptHealthPanel() {
     passRate: number;
     avgConfidence: number;
     totalRetries: number;
+    recentScores?: Array<{ score: number; passed: boolean; createdAt: string }>;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -199,6 +200,53 @@ function PromptHealthPanel() {
           <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
             <div className="text-zinc-500 text-xs">Retries Needed</div>
             <div className="text-xl font-bold text-orange-400">{health.totalRetries}</div>
+          </div>
+        </div>
+
+        {/* Recent scores timeline */}
+        {health.recentScores && health.recentScores.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-zinc-800/50">
+            <div className="text-zinc-500 text-xs mb-2">Last {health.recentScores.length} Evaluations</div>
+            <div className="flex items-end gap-1 h-16">
+              {health.recentScores.slice().reverse().map((s, i) => {
+                const pct = Math.max(20, s.score * 100);
+                const color = s.score >= 0.9 ? 'bg-emerald-500' : s.score >= 0.8 ? 'bg-amber-500' : 'bg-red-500';
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${(s.score * 100).toFixed(0)}% — ${new Date(s.createdAt).toLocaleString()}`}>
+                    <div
+                      className={`w-full rounded-t ${color} transition-all hover:opacity-80`}
+                      style={{ height: `${pct}%` }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-between text-[10px] text-zinc-600 mt-1">
+              <span>Oldest</span>
+              <span className="flex items-center gap-3">
+                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-emerald-500" /> 90%+</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-amber-500" /> 80-89%</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-red-500" /> &lt;80%</span>
+              </span>
+              <span>Latest</span>
+            </div>
+          </div>
+        )}
+
+        {/* Confidence breakdown */}
+        <div className="mt-3 pt-3 border-t border-zinc-800/50">
+          <div className="text-zinc-500 text-xs mb-2">Confidence Threshold</div>
+          <div className="relative h-3 rounded-full bg-zinc-800 overflow-hidden">
+            <div
+              className={`absolute left-0 top-0 h-full rounded-full transition-all ${health.avgConfidence >= 80 ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-amber-600 to-amber-400'}`}
+              style={{ width: `${health.avgConfidence}%` }}
+            />
+            <div className="absolute left-[80%] top-0 h-full w-px bg-zinc-500" title="80% threshold" />
+          </div>
+          <div className="flex justify-between text-[10px] text-zinc-600 mt-1">
+            <span>0%</span>
+            <span className="text-zinc-500">80% min</span>
+            <span>100%</span>
           </div>
         </div>
       </CardContent>

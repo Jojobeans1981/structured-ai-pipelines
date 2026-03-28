@@ -5,13 +5,13 @@ export const apiKeySchema = z.object({
 });
 
 export const createProjectSchema = z.object({
-  name: z.string().min(1, 'Project name is required').max(100, 'Project name too long'),
-  description: z.string().max(10000, 'Description too long').default(''),
+  name: z.string().min(1, 'Project name is required'),
+  description: z.string().default(''),
 });
 
 export const updateProjectSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
   status: z.enum(['active', 'completed', 'archived']).optional(),
 });
 

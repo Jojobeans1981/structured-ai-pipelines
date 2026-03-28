@@ -116,7 +116,7 @@ export function ProjectForm() {
         const relativePath = parts.length > 1 ? parts.slice(1).join('/') : path;
         if (SKIP.some(s => relativePath.includes(s))) continue;
         if (!TEXT_EXT.test(file.name)) continue;
-        if (file.size > 500_000) continue;
+        if (file.size > 2_000_000) continue;
         eligible.push(file);
       }
 

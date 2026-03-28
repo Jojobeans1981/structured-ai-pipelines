@@ -96,22 +96,22 @@ async def health():
 # Pydantic models
 # ---------------------------------------------------------------------------
 class ProjectCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=200)
-    description: str = Field("", max_length=10000)
+    name: str = Field(..., min_length=1)
+    description: str = Field("")
     type: str = Field("build", pattern="^(build|diagnostic|refactor|enhance|test|deploy)$")
-    userInput: str = Field(..., min_length=1, max_length=50000)
+    userInput: str = Field(..., min_length=1)
     autoApprove: bool = True
 
 
 class StageAction(BaseModel):
-    feedback: str = Field("", max_length=10000)
+    feedback: str = Field("")
     editedContent: Optional[str] = None
 
 
 class FeedbackSubmit(BaseModel):
     rating: int = Field(..., ge=1, le=5)
     workedOutOfBox: bool = False
-    comment: str = Field("", max_length=5000)
+    comment: str = Field("")
 
 
 # ---------------------------------------------------------------------------

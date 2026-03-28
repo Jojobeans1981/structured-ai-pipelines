@@ -221,8 +221,8 @@ async function extractZip(buffer: Buffer): Promise<Array<{ filePath: string; con
       const content = await entry.async('string');
       // Skip files that look binary (contain null bytes)
       if (content.includes('\0')) continue;
-      // Skip very large files (>500KB)
-      if (content.length > 500 * 1024) continue;
+      // Skip very large files (>2MB)
+      if (content.length > 2 * 1024 * 1024) continue;
 
       files.push({
         filePath,

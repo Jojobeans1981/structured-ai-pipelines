@@ -80,19 +80,12 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Doom Forge banner + poem */}
-            <div className="flex items-center gap-6 rounded-lg border border-orange-500/10 bg-zinc-900/40 p-5">
-              <div className="hidden sm:block shrink-0 w-36">
-                <DwarfForgeScene variant="sidebar" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold forge-gradient-text tracking-tight mb-2">Doom Forge</h2>
-                <div className="text-xs text-zinc-500 italic leading-relaxed">
-                  <p>One Forge to build them all, One Pipe to find them,</p>
-                  <p>One DAG to bring them all, And in the pipeline bind them.</p>
-                  <p className="mt-1 text-zinc-600">In the Land of Vercel where the Dwarves deploy.</p>
-                </div>
-              </div>
+            {/* Doom Forge poem banner */}
+            <div className="text-center py-3">
+              <h2 className="text-xl font-bold forge-gradient-text tracking-widest uppercase mb-2">Doom Forge</h2>
+              <p className="text-xs text-zinc-600 italic tracking-wide">
+                One Forge to build them all, One Pipe to find them, One DAG to bring them all, And in the pipeline bind them.
+              </p>
             </div>
 
             {/* Stats bar */}

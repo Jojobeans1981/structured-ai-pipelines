@@ -171,6 +171,11 @@ function PromptHealthPanel() {
     );
   }
 
+  const recentScores = health.recentScores || [];
+  const highScores = recentScores.filter((s) => s.score >= 0.9).length;
+  const midScores = recentScores.filter((s) => s.score >= 0.8 && s.score < 0.9).length;
+  const lowScores = recentScores.filter((s) => s.score < 0.8).length;
+
   return (
     <Card>
       <CardHeader>
@@ -179,43 +184,61 @@ function PromptHealthPanel() {
           Prompt Health — Sentinel Verification
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
-            <div className="text-zinc-500 text-xs">Evaluations</div>
-            <div className="text-xl font-bold text-zinc-200">{health.totalEvaluations}</div>
+      <CardContent className="space-y-4">
+        {/* Stats row */}
+        <div className="grid grid-cols-4 gap-2 text-sm">
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-2.5 text-center">
+            <div className="text-zinc-500 text-[10px]">Evals</div>
+            <div className="text-lg font-bold text-zinc-200">{health.totalEvaluations}</div>
           </div>
-          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
-            <div className="text-zinc-500 text-xs">Pass Rate</div>
-            <div className={`text-xl font-bold ${health.passRate >= 80 ? 'text-emerald-400' : health.passRate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-2.5 text-center">
+            <div className="text-zinc-500 text-[10px]">Pass Rate</div>
+            <div className={`text-lg font-bold ${health.passRate >= 80 ? 'text-emerald-400' : 'text-red-400'}`}>
               {health.passRate}%
             </div>
           </div>
-          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
-            <div className="text-zinc-500 text-xs">Avg Confidence</div>
-            <div className={`text-xl font-bold ${health.avgConfidence >= 80 ? 'text-emerald-400' : 'text-yellow-400'}`}>
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-2.5 text-center">
+            <div className="text-zinc-500 text-[10px]">Avg Score</div>
+            <div className={`text-lg font-bold ${health.avgConfidence >= 80 ? 'text-emerald-400' : 'text-yellow-400'}`}>
               {health.avgConfidence}%
             </div>
           </div>
-          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
-            <div className="text-zinc-500 text-xs">Retries Needed</div>
-            <div className="text-xl font-bold text-orange-400">{health.totalRetries}</div>
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-2.5 text-center">
+            <div className="text-zinc-500 text-[10px]">Retries</div>
+            <div className="text-lg font-bold text-orange-400">{health.totalRetries}</div>
           </div>
         </div>
 
-        {/* Recent scores timeline */}
-        {health.recentScores && health.recentScores.length > 0 && (
-          <div className="mt-4 pt-3 border-t border-zinc-800/50">
-            <div className="text-zinc-500 text-xs mb-2">Last {health.recentScores.length} Evaluations</div>
-            <div className="flex items-end gap-1 h-16">
-              {health.recentScores.slice().reverse().map((s, i) => {
-                const pct = Math.max(20, s.score * 100);
+        {/* Confidence threshold bar */}
+        <div>
+          <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
+            <span>Confidence Threshold</span>
+            <span>{health.avgConfidence}% avg</span>
+          </div>
+          <div className="relative h-4 rounded-full bg-zinc-800 overflow-hidden">
+            <div
+              className={`absolute left-0 top-0 h-full rounded-full transition-all ${health.avgConfidence >= 80 ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-amber-600 to-amber-400'}`}
+              style={{ width: `${health.avgConfidence}%` }}
+            />
+            <div className="absolute left-[80%] top-0 h-full w-0.5 bg-zinc-400/50" />
+            <div className="absolute left-[80%] -top-3.5 text-[9px] text-zinc-500 -translate-x-1/2">80%</div>
+          </div>
+        </div>
+
+        {/* Recent scores — taller bar chart */}
+        {recentScores.length > 0 && (
+          <div>
+            <div className="text-zinc-500 text-[10px] mb-1.5">Last {recentScores.length} Evaluations</div>
+            <div className="flex items-end gap-1.5 h-28">
+              {recentScores.slice().reverse().map((s, i) => {
+                const barHeight = Math.max(15, (s.score * 100) - 50) * 2;
                 const color = s.score >= 0.9 ? 'bg-emerald-500' : s.score >= 0.8 ? 'bg-amber-500' : 'bg-red-500';
                 return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${(s.score * 100).toFixed(0)}% — ${new Date(s.createdAt).toLocaleString()}`}>
+                  <div key={i} className="flex-1 flex flex-col items-center justify-end h-full" title={`${(s.score * 100).toFixed(0)}% — ${new Date(s.createdAt).toLocaleString()}`}>
+                    <div className="text-[9px] text-zinc-600 mb-0.5">{(s.score * 100).toFixed(0)}</div>
                     <div
-                      className={`w-full rounded-t ${color} transition-all hover:opacity-80`}
-                      style={{ height: `${pct}%` }}
+                      className={`w-full rounded-t ${color} hover:brightness-125 transition-all cursor-default`}
+                      style={{ height: `${barHeight}%` }}
                     />
                   </div>
                 );
@@ -223,31 +246,34 @@ function PromptHealthPanel() {
             </div>
             <div className="flex justify-between text-[10px] text-zinc-600 mt-1">
               <span>Oldest</span>
-              <span className="flex items-center gap-3">
-                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-emerald-500" /> 90%+</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-amber-500" /> 80-89%</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-red-500" /> &lt;80%</span>
-              </span>
               <span>Latest</span>
             </div>
           </div>
         )}
 
-        {/* Confidence breakdown */}
-        <div className="mt-3 pt-3 border-t border-zinc-800/50">
-          <div className="text-zinc-500 text-xs mb-2">Confidence Threshold</div>
-          <div className="relative h-3 rounded-full bg-zinc-800 overflow-hidden">
-            <div
-              className={`absolute left-0 top-0 h-full rounded-full transition-all ${health.avgConfidence >= 80 ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-amber-600 to-amber-400'}`}
-              style={{ width: `${health.avgConfidence}%` }}
-            />
-            <div className="absolute left-[80%] top-0 h-full w-px bg-zinc-500" title="80% threshold" />
+        {/* Score distribution */}
+        {recentScores.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2">
+              <div className="text-lg font-bold text-emerald-400">{highScores}</div>
+              <div className="text-[10px] text-zinc-500">Excellent (90%+)</div>
+            </div>
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-2">
+              <div className="text-lg font-bold text-amber-400">{midScores}</div>
+              <div className="text-[10px] text-zinc-500">Good (80-89%)</div>
+            </div>
+            <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-2">
+              <div className="text-lg font-bold text-red-400">{lowScores}</div>
+              <div className="text-[10px] text-zinc-500">Rejected (&lt;80%)</div>
+            </div>
           </div>
-          <div className="flex justify-between text-[10px] text-zinc-600 mt-1">
-            <span>0%</span>
-            <span className="text-zinc-500">80% min</span>
-            <span>100%</span>
-          </div>
+        )}
+
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-4 text-[10px] text-zinc-600 pt-1 border-t border-zinc-800/50">
+          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-emerald-500" /> 90%+</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-amber-500" /> 80-89%</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-red-500" /> &lt;80% rejected</span>
         </div>
       </CardContent>
     </Card>

@@ -78,16 +78,55 @@ export function ProjectCard({ project }: ProjectCardProps) {
     }
   };
 
+  const isRunning = project.lastRunStatus === 'running';
+  const isCompleted = project.lastRunStatus === 'completed';
+  const isFailed = project.lastRunStatus === 'failed';
+
   return (
     <Link href={`/projects/${project.id}`}>
-      <Card className="hover:border-orange-500/30 hover:shadow-orange-500/5 cursor-pointer group relative">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="flex items-center gap-2 text-base font-medium">
-            <Flame className="h-4 w-4 text-orange-500 group-hover:text-orange-400 transition-colors" />
-            {project.name}
+      <Card className={cn(
+        'cursor-pointer group relative overflow-hidden transition-all duration-300',
+        'border-zinc-800/80 hover:border-orange-500/40',
+        'hover:shadow-lg hover:shadow-orange-500/10 hover:-translate-y-0.5',
+        isRunning && 'border-orange-500/30 shadow-md shadow-orange-500/5',
+        isCompleted && 'border-emerald-500/20',
+        isFailed && 'border-red-500/20',
+      )}>
+        {/* Top accent bar */}
+        <div className={cn(
+          'absolute top-0 left-0 right-0 h-[2px]',
+          isRunning ? 'bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500 animate-pulse' :
+          isCompleted ? 'bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-600' :
+          isFailed ? 'bg-gradient-to-r from-red-600 via-red-400 to-red-600' :
+          'bg-gradient-to-r from-transparent via-orange-500/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'
+        )} />
+
+        {/* Background glow on hover */}
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-500/0 via-transparent to-amber-500/0 group-hover:from-orange-500/[0.03] group-hover:to-amber-500/[0.02] transition-all duration-500" />
+
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
+          <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+            <div className={cn(
+              'flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300',
+              isRunning ? 'bg-orange-500/20 shadow-inner shadow-orange-500/10' :
+              isCompleted ? 'bg-emerald-500/15' :
+              isFailed ? 'bg-red-500/15' :
+              'bg-zinc-800/50 group-hover:bg-orange-500/15'
+            )}>
+              <Flame className={cn(
+                'h-4 w-4 transition-all duration-300',
+                isRunning ? 'text-orange-400 animate-pulse' :
+                isCompleted ? 'text-emerald-400' :
+                isFailed ? 'text-red-400' :
+                'text-zinc-500 group-hover:text-orange-400'
+              )} />
+            </div>
+            <span className="text-zinc-200 group-hover:text-white transition-colors truncate max-w-[180px]">
+              {project.name}
+            </span>
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className={statusColors[project.status] || ''}>
+            <Badge variant="outline" className={cn('text-[10px] font-medium', statusColors[project.status] || '')}>
               {project.status}
             </Badge>
             <button
@@ -95,7 +134,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
               disabled={deleting}
               className={cn(
                 'p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100',
-                'text-zinc-500 hover:text-red-400 hover:bg-red-500/10'
+                'text-zinc-600 hover:text-red-400 hover:bg-red-500/10'
               )}
               title="Delete project"
             >
@@ -103,29 +142,31 @@ export function ProjectCard({ project }: ProjectCardProps) {
             </button>
           </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-zinc-400 line-clamp-2">
+        <CardContent className="relative">
+          <p className="text-sm text-zinc-400 line-clamp-2 leading-relaxed">
             {project.description || 'No description'}
           </p>
-          <div className="mt-3 flex items-center gap-3 text-xs text-zinc-500 flex-wrap">
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
+
+          {/* Metadata row */}
+          <div className="mt-4 pt-3 border-t border-zinc-800/50 flex items-center gap-3 text-xs text-zinc-500 flex-wrap">
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-3 w-3 text-zinc-600" />
               {formatDate(project.updatedAt)}
             </span>
             {project.runCount > 0 && (
-              <span className="flex items-center gap-1">
-                <GitBranch className="h-3 w-3" />
-                {project.runCount} run{project.runCount !== 1 ? 's' : ''}
+              <span className="flex items-center gap-1.5">
+                <GitBranch className="h-3 w-3 text-zinc-600" />
+                <span className="text-zinc-400 font-medium">{project.runCount}</span> run{project.runCount !== 1 ? 's' : ''}
               </span>
             )}
             {typeInfo && (
-              <Badge variant="outline" className={cn('text-[10px] h-5', typeInfo.color)}>
+              <Badge variant="outline" className={cn('text-[10px] h-5 font-medium', typeInfo.color)}>
                 {typeInfo.label}
               </Badge>
             )}
             {RunIcon && (
-              <span className={cn('flex items-center gap-1', runColor)}>
-                <RunIcon className={cn('h-3 w-3', project.lastRunStatus === 'running' && 'animate-spin')} />
+              <span className={cn('flex items-center gap-1.5 ml-auto font-medium', runColor)}>
+                <RunIcon className={cn('h-3.5 w-3.5', isRunning && 'animate-spin')} />
                 {project.lastRunStatus}
               </span>
             )}

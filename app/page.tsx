@@ -49,7 +49,7 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <Header title="Doom Forge">
+      <Header title="The One Forge">
         <Link href="/projects/new">
           <Button size="sm">
             <Plus className="mr-2 h-4 w-4" />
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
             <div className="w-full max-w-lg mb-6">
               <DwarfForgeScene variant="idle" className="opacity-60" />
             </div>
-            <h2 className="doom-forge-title text-3xl tracking-widest uppercase mb-1">Doom Forge</h2>
+            <h2 className="doom-forge-title text-3xl tracking-widest uppercase mb-1">The One Forge</h2>
             <div className="mt-4 max-w-sm">
               <p className="doom-forge-poem text-sm tracking-wide leading-relaxed">
                 One Forge to build them all,<br />
@@ -84,9 +84,9 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Doom Forge poem banner */}
+            {/* The One Forge poem banner */}
             <div className="text-center py-3">
-              <h2 className="doom-forge-title text-2xl tracking-widest uppercase mb-2">Doom Forge</h2>
+              <h2 className="doom-forge-title text-2xl tracking-widest uppercase mb-2">The One Forge</h2>
               <p className="doom-forge-poem text-xs tracking-wide">
                 One Forge to build them all, One Pipe to find them, One DAG to bring them all, And in the pipeline bind them.
               </p>

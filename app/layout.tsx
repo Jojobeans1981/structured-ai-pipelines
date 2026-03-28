@@ -7,7 +7,7 @@ import { SessionProvider } from '@/src/components/providers/session-provider';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Doom Forge',
+  title: 'The One Forge',
   description: 'One Forge to build them all',
 };
 

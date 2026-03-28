@@ -439,6 +439,46 @@
 .dwarf-forge-complete .victory-sparks circle:nth-child(8) { --spark-dx: -45px; --spark-dy: -5px; animation-delay: 0.8s; }
 .dwarf-forge-complete .victory-sparks circle:nth-child(9) { --spark-dx: 45px; --spark-dy: 0px; animation-delay: 0.9s; }
 
+/* Eye of Sauron wink animation — stays open, then winks shut and reopens */
+@keyframes sauron-wink {
+  0%, 70% { transform: scaleY(1); }
+  78% { transform: scaleY(0.1); }
+  82% { transform: scaleY(0.1); }
+  90% { transform: scaleY(1); }
+  100% { transform: scaleY(1); }
+}
+
+.dwarf-forge-complete .sauron-eye-wink {
+  transform-origin: 100px 45px;
+  animation: sauron-wink 4s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+/* Eye flame flicker */
+@keyframes eye-flame-flicker {
+  0%, 100% { opacity: 0.3; transform: scaleY(1); }
+  25% { opacity: 0.5; transform: scaleY(1.15); }
+  50% { opacity: 0.25; transform: scaleY(0.9); }
+  75% { opacity: 0.45; transform: scaleY(1.1); }
+}
+
+.dwarf-forge-complete .eye-flames path {
+  transform-origin: center bottom;
+  animation: eye-flame-flicker 2s ease-in-out infinite;
+}
+.dwarf-forge-complete .eye-flames path:nth-child(2) { animation-delay: 0.3s; }
+.dwarf-forge-complete .eye-flames path:nth-child(3) { animation-delay: 0.6s; }
+.dwarf-forge-complete .eye-flames path:nth-child(4) { animation-delay: 0.9s; }
+.dwarf-forge-complete .eye-flames path:nth-child(5) { animation-delay: 0.15s; }
+
+/* Fire tendrils pulse */
+.dwarf-forge-complete .eye-tendrils path {
+  animation: ember-glow 2.5s ease-in-out infinite;
+}
+.dwarf-forge-complete .eye-tendrils path:nth-child(2) { animation-delay: 0.5s; }
+.dwarf-forge-complete .eye-tendrils path:nth-child(3) { animation-delay: 1s; }
+.dwarf-forge-complete .eye-tendrils path:nth-child(4) { animation-delay: 1.5s; }
+
 /* Scrollbar styling for forge theme */
 ::-webkit-scrollbar {
   width: 8px;

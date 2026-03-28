@@ -344,22 +344,23 @@ function CompletionDwarf({ className }: { className: string }) {
     <div className={`dwarf-forge-complete ${className}`}>
       <svg viewBox="0 0 200 200" className="w-full h-auto">
         <defs>
-          <radialGradient id="item-glow" cx="50%" cy="35%" r="50%">
-            <stop offset="0%" stopColor="#FFD700" stopOpacity="0.5" />
+          <radialGradient id="eye-glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FF4500" stopOpacity="0.8" />
+            <stop offset="40%" stopColor="#FF6B00" stopOpacity="0.4" />
             <stop offset="100%" stopColor="transparent" stopOpacity="0" />
           </radialGradient>
-          <linearGradient id="sword-blade" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#E0E0E0" />
-            <stop offset="50%" stopColor="#C0C0C0" />
-            <stop offset="100%" stopColor="#A0A0A0" />
-          </linearGradient>
+          <radialGradient id="iris-fire" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FFD700" stopOpacity="1" />
+            <stop offset="50%" stopColor="#FF8C00" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#FF4500" stopOpacity="0.7" />
+          </radialGradient>
         </defs>
 
-        {/* Radial glow */}
-        <circle cx="100" cy="55" r="60" fill="url(#item-glow)" className="forge-pulse" />
+        {/* Radial fire glow behind the eye */}
+        <circle cx="100" cy="45" r="55" fill="url(#eye-glow)" className="forge-pulse" />
 
         <g className="dwarf-triumph">
-          {/* Dwarf body — no default arms, we draw raised arms */}
+          {/* Dwarf body */}
           <ChibiDwarf x={100} y={100} scale={1.0} beardColor="#DAA520" helmetColor="#8B7355" tunicColor="#6B4226" showLeftArm={false} showRightArm={false} />
 
           {/* Left arm raised up */}
@@ -370,18 +371,39 @@ function CompletionDwarf({ className }: { className: string }) {
           <path d="M120 118 L135 90 L140 65" stroke="#D4A574" strokeWidth="8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           <circle cx="140" cy="63" r="5" fill="#D4A574" />
 
-          {/* === GLOWING SWORD held overhead === */}
+          {/* === EYE OF SAURON held overhead — winks when done === */}
           <g className="forged-item-glow">
-            {/* Sword blade — triangular */}
-            <path d="M72 60 L100 15 L128 60 Z" fill="url(#sword-blade)" />
-            <path d="M85 60 L100 25 L115 60 Z" fill="#D0D0D0" opacity="0.4" />
-            {/* Crossguard */}
-            <rect x="67" y="58" width="66" height="7" rx="3" fill="#C4A35A" />
-            <rect x="72" y="59" width="56" height="5" rx="2" fill="#DAA520" />
-            {/* Rune on blade */}
-            <text x="93" y="48" fontSize="8" fill="#FFD700" opacity="0.8" fontFamily="serif">&#x16A0;</text>
-            {/* Blade glow line */}
-            <path d="M100 20 L100 55" stroke="#FFD700" strokeWidth="1.5" opacity="0.4" />
+            {/* Outer flame wisps */}
+            <g className="eye-flames">
+              <path d="M60 45 Q70 20 80 45" fill="#FF4500" opacity="0.3" />
+              <path d="M120 45 Q130 20 140 45" fill="#FF4500" opacity="0.3" />
+              <path d="M65 45 Q75 25 85 45" fill="#FF6B00" opacity="0.25" />
+              <path d="M115 45 Q125 25 135 45" fill="#FF6B00" opacity="0.25" />
+              <path d="M75 45 Q85 10 100 5 Q115 10 125 45" fill="#FF4500" opacity="0.15" />
+            </g>
+
+            {/* Eye shape — almond/cat eye */}
+            <g className="sauron-eye-wink">
+              {/* Outer eye shape — dark rim */}
+              <ellipse cx="100" cy="45" rx="35" ry="18" fill="#1A0800" stroke="#FF4500" strokeWidth="2" />
+              {/* Inner eye — fiery iris */}
+              <ellipse cx="100" cy="45" rx="30" ry="15" fill="url(#iris-fire)" />
+              {/* Pupil — vertical slit */}
+              <ellipse cx="100" cy="45" rx="4" ry="14" fill="#0A0400" />
+              <ellipse cx="100" cy="45" rx="2.5" ry="12" fill="#1A0800" />
+              {/* Pupil highlight */}
+              <ellipse cx="97" cy="40" rx="2" ry="3" fill="#FFD700" opacity="0.4" />
+              {/* Inner fire ring */}
+              <ellipse cx="100" cy="45" rx="20" ry="10" fill="none" stroke="#FFD700" strokeWidth="0.8" opacity="0.5" />
+            </g>
+
+            {/* Fire tendrils extending from eye */}
+            <g className="eye-tendrils">
+              <path d="M65 45 Q55 42 48 38" stroke="#FF4500" strokeWidth="2" fill="none" opacity="0.5" strokeLinecap="round" />
+              <path d="M135 45 Q145 42 152 38" stroke="#FF4500" strokeWidth="2" fill="none" opacity="0.5" strokeLinecap="round" />
+              <path d="M68 38 Q58 30 52 25" stroke="#FF6B00" strokeWidth="1.5" fill="none" opacity="0.3" strokeLinecap="round" />
+              <path d="M132 38 Q142 30 148 25" stroke="#FF6B00" strokeWidth="1.5" fill="none" opacity="0.3" strokeLinecap="round" />
+            </g>
           </g>
         </g>
 

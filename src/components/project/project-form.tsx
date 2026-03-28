@@ -48,7 +48,11 @@ export function ProjectForm() {
     el.accept = '.zip,.pdf,.md,.txt';
     el.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) handleUpload(file);
+      if (file) {
+        setPendingZip(file);
+        setPendingFiles([]);
+        setUploadedFiles(0);
+      }
     };
     el.click();
   };
@@ -57,9 +61,13 @@ export function ProjectForm() {
     const el = document.createElement('input');
     el.type = 'file';
     (el as HTMLInputElement & { webkitdirectory: boolean }).webkitdirectory = true;
-    el.onchange = async (e) => {
+    el.onchange = (e) => {
       const files = Array.from((e.target as HTMLInputElement).files || []);
-      if (files.length > 0) await handleUploadFiles(files);
+      if (files.length > 0) {
+        setPendingFiles(files);
+        setPendingZip(null);
+        setUploadedFiles(0);
+      }
     };
     el.click();
   };
@@ -69,6 +77,7 @@ export function ProjectForm() {
     if (!projectId) return;
     setIsUploading(true);
     setError(null);
+    setUploadProgress({ current: 0, total: 1, phase: `Uploading ${file.name}` });
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -76,13 +85,18 @@ export function ProjectForm() {
         method: 'POST',
         body: formData,
       });
-      if (!res.ok) throw new Error('Upload failed');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errData.error || 'Upload failed');
+      }
       const data = await res.json();
       setUploadedFiles(data.imported);
+      setUploadProgress({ current: 1, total: 1, phase: 'Upload complete' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setIsUploading(false);
+      setUploadProgress({ current: 0, total: 0, phase: '' });
     }
   };
 

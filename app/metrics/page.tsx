@@ -476,28 +476,35 @@ function LearningStorePanel() {
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-orange-400" />
-          Learning Store — Self-Improvement Patterns
+          Learning Store — What the Forge Remembers
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <p className="text-xs text-zinc-600 -mt-1">
+          Quality gates catch bad output and record patterns. The forge injects warnings so agents don&apos;t repeat mistakes.
+        </p>
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
-            <div className="text-zinc-500 text-xs">Active Patterns</div>
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3" title="Mistakes the forge keeps making — warnings are injected before each agent run to prevent repeats">
+            <div className="text-zinc-500 text-xs">Recurring Issues</div>
             <div className="text-xl font-bold text-orange-400">{data.stats.activePatterns}</div>
+            <div className="text-zinc-600 text-[10px] mt-0.5">Still happening — agents get warned</div>
           </div>
-          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
-            <div className="text-zinc-500 text-xs">Resolved</div>
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3" title="Issues that were caught, warned about, and subsequently fixed in later runs">
+            <div className="text-zinc-500 text-xs">Lessons Learned</div>
             <div className="text-xl font-bold text-emerald-400">{data.stats.resolvedPatterns}</div>
+            <div className="text-zinc-600 text-[10px] mt-0.5">Fixed — forge won&apos;t repeat these</div>
           </div>
-          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
-            <div className="text-zinc-500 text-xs">Total Rejections</div>
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3" title="Total times a quality gate (Sentinel, Inspector, Guardian) caught bad output across all runs">
+            <div className="text-zinc-500 text-xs">Times Caught</div>
             <div className="text-xl font-bold text-red-400">{data.stats.totalRejections}</div>
+            <div className="text-zinc-600 text-[10px] mt-0.5">Total catches by all quality gates</div>
           </div>
-          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
-            <div className="text-zinc-500 text-xs">Top Offender</div>
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3" title="The agent that produces the most rejected output — targeted for improvement">
+            <div className="text-zinc-500 text-xs">Weakest Agent</div>
             <div className="text-sm font-medium text-zinc-200 truncate">
               {data.stats.topOffenders[0]?.agent || '—'}
             </div>
+            <div className="text-zinc-600 text-[10px] mt-0.5">Most rejections — needs improvement</div>
           </div>
         </div>
 

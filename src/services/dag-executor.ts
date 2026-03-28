@@ -556,7 +556,17 @@ export class DAGExecutor {
         'NEVER generate .py, .rb, .java, .go, .rs or any language not in the specified stack. ' +
         'NEVER generate requirements.txt, setup.py, Pipfile, Gemfile, go.mod, Cargo.toml or similar. ' +
         'If you are unsure about the stack, look at the PRD and phase documents for guidance. ' +
-        'Generating files in the wrong language is a critical error.';
+        'Generating files in the wrong language is a critical error.\n\n' +
+        '## CRITICAL: COMMON FAILURES TO AVOID\n\n' +
+        'The following issues are the most common reasons for rejection. Avoid ALL of them:\n\n' +
+        '1. **MISSING FILES**: If the phase spec lists directories (src/controllers/, src/models/, etc.), you MUST create files in ALL of them. Do not skip directories.\n' +
+        '2. **BROKEN IMPORTS**: Every import/require MUST reference a file you actually created. Check every import path.\n' +
+        '3. **INCOMPLETE package.json**: Must have ALL dependencies used in the code, a working "build" script, a "dev" or "start" script, and correct "main" entry point.\n' +
+        '4. **STUBS/TODOs**: NEVER output TODO, FIXME, "implement later", or empty function bodies. Every function must have a real implementation.\n' +
+        '5. **MISSING EVENT HANDLERS**: If you create a UI component with a button, it MUST have an onClick handler. No empty handlers.\n' +
+        '6. **CONFIG FILES**: If using TypeScript, include tsconfig.json. If using Tailwind, include tailwind.config. If using ESLint, include .eslintrc.\n' +
+        '7. **ENV VARS**: If you reference process.env.X anywhere, create a .env.example listing every variable with a description.\n' +
+        '8. **.gitignore**: Always include a .gitignore with node_modules, dist, .env, etc.\n';
     }
 
     const executor = new StageExecutor(client);

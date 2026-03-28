@@ -2,7 +2,6 @@ import { prisma } from '@/src/lib/prisma';
 import { CostTracker } from '@/src/services/cost-tracker';
 import { LearningStore } from '@/src/services/learning-store';
 import { TraceLogger } from '@/src/services/trace-logger';
-import { Gitlab } from '@gitbeaker/rest';
 
 /**
  * SCRIBE Agent — auto-documentation after each phase and at pipeline completion.
@@ -180,6 +179,15 @@ export class ScribeAgent {
     const url = new URL(cleanUrl);
     const host = url.origin;
     const projectPath = url.pathname.slice(1);
+
+    let Gitlab: typeof import('@gitbeaker/rest').Gitlab;
+    try {
+      const mod = await import('@gitbeaker/rest');
+      Gitlab = mod.Gitlab;
+    } catch {
+      console.log('[Scribe] @gitbeaker/rest not available — skipping GitLab commit');
+      return;
+    }
 
     const gl = new Gitlab({ host, token: account.access_token });
 

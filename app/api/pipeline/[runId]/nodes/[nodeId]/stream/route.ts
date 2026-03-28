@@ -485,6 +485,57 @@ async function handleVerifyNode(
             else warnings.push('TypeScript files found but no tsconfig.json');
           }
 
+          // Check 7: Dependencies used in code match package.json
+          if (pkgFile) {
+            try {
+              const pkg = JSON.parse(pkgFile.content);
+              const declaredDeps = new Set([
+                ...Object.keys(pkg.dependencies || {}),
+                ...Object.keys(pkg.devDependencies || {}),
+              ]);
+              const usedPackages = new Set<string>();
+              for (const file of projectFiles) {
+                const imports = file.content.matchAll(/(?:import|require)\s*\(?['"]([^./][^'"]*)['"]\)?/g);
+                for (const m of imports) {
+                  const pkg = m[1].startsWith('@') ? m[1].split('/').slice(0, 2).join('/') : m[1].split('/')[0];
+                  if (pkg !== 'react' && pkg !== 'react-dom' && pkg !== 'next') usedPackages.add(pkg);
+                }
+              }
+              const missing = [...usedPackages].filter((p) => !declaredDeps.has(p) && !['fs', 'path', 'os', 'url', 'crypto', 'stream', 'util', 'http', 'https', 'events', 'child_process', 'buffer', 'querystring', 'net', 'tls', 'zlib'].includes(p));
+              if (missing.length > 0) {
+                warnings.push(`${missing.length} packages imported but not in package.json: ${missing.slice(0, 8).join(', ')}${missing.length > 8 ? '...' : ''}`);
+              } else if (usedPackages.size > 0) {
+                checks.push(`All ${usedPackages.size} imported packages found in package.json`);
+              }
+            } catch { /* already caught above */ }
+          }
+
+          // Check 8: Environment variables referenced but no .env.example
+          const envVars = new Set<string>();
+          for (const file of projectFiles) {
+            const envMatches = file.content.matchAll(/process\.env\.([A-Z_][A-Z0-9_]*)/g);
+            for (const m of envMatches) envVars.add(m[1]);
+          }
+          if (envVars.size > 0) {
+            const hasEnvExample = projectFiles.some((f) => f.filePath === '.env.example' || f.filePath === '.env.local.example');
+            if (hasEnvExample) {
+              checks.push(`${envVars.size} env vars used, .env.example exists`);
+            } else {
+              warnings.push(`${envVars.size} env vars used (${[...envVars].slice(0, 5).join(', ')}) but no .env.example file`);
+            }
+          }
+
+          // Check 9: No syntax errors in JSON files
+          let jsonErrors = 0;
+          for (const file of projectFiles) {
+            if (file.filePath.endsWith('.json')) {
+              try { JSON.parse(file.content); } catch { jsonErrors++; warnings.push(`Invalid JSON: ${file.filePath}`); }
+            }
+          }
+          if (jsonErrors === 0 && projectFiles.some((f) => f.filePath.endsWith('.json'))) {
+            checks.push('All JSON files are valid');
+          }
+
           // Build result
           const passed = errors.length === 0;
           let artifact = `## Build Verification — Static Analysis ${passed ? '✅ PASSED' : '❌ ISSUES FOUND'}\n\n`;

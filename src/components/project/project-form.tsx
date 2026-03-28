@@ -363,14 +363,32 @@ export function ProjectForm() {
               }
             }}
           >
-            {pendingZip || pendingFiles.length > 0 ? (
-              <div className="flex items-center justify-center gap-2 text-sm text-emerald-400">
-                <CheckCircle2 className="h-4 w-4" />
-                {pendingZip ? `${pendingZip.name} ready` : `${pendingFiles.length} files ready`}
+            {uploadedFiles > 0 ? (
+              <div className="flex flex-col items-center gap-1 py-1">
+                <div className="flex items-center gap-2 text-sm text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {uploadedFiles} file{uploadedFiles !== 1 ? 's' : ''} uploaded successfully
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setUploadedFiles(0); setPendingZip(null); setPendingFiles([]); }}
+                  className="text-xs text-zinc-500 hover:text-zinc-300 underline"
+                >
+                  clear &amp; upload different files
+                </button>
+              </div>
+            ) : pendingZip || pendingFiles.length > 0 ? (
+              <div className="flex flex-col items-center gap-1 py-1">
+                <div className="flex items-center gap-2 text-sm text-orange-400">
+                  <Upload className="h-4 w-4" />
+                  {pendingZip ? `${pendingZip.name} selected` : `${pendingFiles.length} files selected`}
+                  {pendingZip && <span className="text-xs text-zinc-500">({(pendingZip.size / 1024).toFixed(0)} KB)</span>}
+                </div>
+                <p className="text-xs text-zinc-500">Will upload when you hit Create &amp; Start Pipeline</p>
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setPendingZip(null); setPendingFiles([]); }}
-                  className="text-xs text-zinc-500 hover:text-zinc-300 ml-2 underline"
+                  className="text-xs text-zinc-500 hover:text-zinc-300 underline"
                 >
                   clear
                 </button>

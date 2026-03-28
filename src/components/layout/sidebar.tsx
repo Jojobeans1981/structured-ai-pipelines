@@ -60,7 +60,7 @@ export function Sidebar({ mobile, open, onClose }: SidebarProps = {}) {
                   <Flame className="h-6 w-6" />
                 </div>
               </div>
-              <span className="forge-gradient-text text-lg tracking-tight">Gauntlet Forge</span>
+              <span className="forge-gradient-text text-lg tracking-tight">Doom Forge</span>
             </Link>
           </div>
 
@@ -167,7 +167,7 @@ export function Sidebar({ mobile, open, onClose }: SidebarProps = {}) {
               <Flame className="h-6 w-6" />
             </div>
           </div>
-          <span className="forge-gradient-text text-lg tracking-tight">Gauntlet Forge</span>
+          <span className="forge-gradient-text text-lg tracking-tight">Doom Forge</span>
         </Link>
       </div>
 

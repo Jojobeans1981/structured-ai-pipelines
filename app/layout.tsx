@@ -7,8 +7,8 @@ import { SessionProvider } from '@/src/components/providers/session-provider';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Gauntlet Forge',
-  description: 'Forge your code in structured fire',
+  title: 'Doom Forge',
+  description: 'One Forge to build them all',
 };
 
 export default function RootLayout({

@@ -25,7 +25,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
               <Flame className="h-5 w-5" />
             </div>
           </div>
-          <span className="forge-gradient-text text-base font-bold tracking-tight">Gauntlet Forge</span>
+          <span className="forge-gradient-text text-base font-bold tracking-tight">Doom Forge</span>
         </div>
       </div>
 

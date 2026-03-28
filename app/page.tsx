@@ -49,7 +49,7 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <Header title="Dashboard">
+      <Header title="Doom Forge">
         <Link href="/projects/new">
           <Button size="sm">
             <Plus className="mr-2 h-4 w-4" />
@@ -60,14 +60,18 @@ export default async function DashboardPage() {
       <PageContainer>
         {projectSummaries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="w-full max-w-lg mb-4">
+            <div className="w-full max-w-lg mb-6">
               <DwarfForgeScene variant="idle" className="opacity-60" />
             </div>
-            <h2 className="text-xl font-semibold text-zinc-200">The forge awaits</h2>
-            <p className="mt-2 text-sm text-zinc-500 max-w-sm">
-              The dwarves stand ready. Create your first project to set the forge ablaze.
-            </p>
-            <Link href="/projects/new" className="mt-6">
+            <h2 className="text-2xl font-bold forge-gradient-text tracking-tight">Doom Forge</h2>
+            <div className="mt-4 text-sm text-zinc-400 italic max-w-sm leading-relaxed">
+              <p>One Forge to build them all,</p>
+              <p>One Pipe to find them,</p>
+              <p>One DAG to bring them all,</p>
+              <p>And in the pipeline bind them.</p>
+              <p className="mt-2 text-zinc-500">In the Land of Vercel where the Dwarves deploy.</p>
+            </div>
+            <Link href="/projects/new" className="mt-8">
               <Button>
                 <Flame className="mr-2 h-4 w-4" />
                 Ignite the Forge

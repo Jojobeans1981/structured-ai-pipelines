@@ -261,7 +261,7 @@
   pointer-events: none;
 }
 
-/* Rings + runes layer — light sweeps across like firelight on carved stone */
+/* Rings + runes layer */
 .forge-watermark-runes {
   position: fixed;
   inset: 0;
@@ -273,59 +273,55 @@
   background-repeat: repeat;
 }
 
-/* Shimmer — a bright band of light that sweeps diagonally across the runes */
-.forge-watermark-runes::before {
-  content: '';
+/* Shimmer band — a real div that sweeps diagonally across the screen */
+.forge-shimmer-band {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     115deg,
     transparent 0%,
-    transparent 40%,
-    rgba(251, 191, 36, 0.12) 45%,
-    rgba(255, 215, 0, 0.20) 50%,
-    rgba(251, 191, 36, 0.12) 55%,
-    transparent 60%,
+    transparent 42%,
+    rgba(251, 191, 36, 0.15) 46%,
+    rgba(255, 215, 0, 0.30) 50%,
+    rgba(251, 191, 36, 0.15) 54%,
+    transparent 58%,
     transparent 100%
   );
-  background-size: 300% 300%;
-  animation: shimmer-sweep 6s ease-in-out infinite;
+  background-size: 400% 400%;
+  mix-blend-mode: screen;
+  animation: shimmer-sweep 5s linear infinite;
 }
 
 @keyframes shimmer-sweep {
-  0% { background-position: 200% 200%; }
-  100% { background-position: -100% -100%; }
+  0% { background-position: 150% 150%; }
+  100% { background-position: -50% -50%; }
 }
 
-/* Sparks — individual dots that pop in, glow, and fade out at different times */
-.forge-watermark-runes::after {
-  content: '';
+/* Individual spark — a real div that appears, flares, and fades */
+.forge-spark {
   position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(circle 2px at 12% 18%, #fbbf24 0%, transparent 100%),
-    radial-gradient(circle 3px at 38% 72%, #ff8c00 0%, transparent 100%),
-    radial-gradient(circle 2px at 67% 28%, #ffd700 0%, transparent 100%),
-    radial-gradient(circle 2.5px at 85% 65%, #ff6b00 0%, transparent 100%),
-    radial-gradient(circle 2px at 22% 55%, #ffee58 0%, transparent 100%),
-    radial-gradient(circle 3px at 55% 42%, #ff4500 0%, transparent 100%),
-    radial-gradient(circle 2px at 78% 88%, #fbbf24 0%, transparent 100%),
-    radial-gradient(circle 2.5px at 45% 12%, #ff8c00 0%, transparent 100%),
-    radial-gradient(circle 2px at 92% 35%, #ffd700 0%, transparent 100%),
-    radial-gradient(circle 3px at 8% 82%, #ff6b00 0%, transparent 100%);
-  animation: spark-pop 4s ease-in-out infinite;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fbbf24;
+  box-shadow: 0 0 6px 3px rgba(251, 191, 36, 0.8), 0 0 12px 6px rgba(249, 115, 22, 0.4);
+  animation: spark-life 3s ease-in-out infinite;
+  pointer-events: none;
 }
 
-@keyframes spark-pop {
-  0%, 100% { opacity: 0; transform: scale(0.5); }
-  10% { opacity: 0.9; transform: scale(1.2); }
-  20% { opacity: 0; transform: scale(0.5); }
-  30% { opacity: 0.7; transform: scale(1.1); }
-  40% { opacity: 0; transform: scale(0.5); }
-  55% { opacity: 0.8; transform: scale(1.3); }
-  65% { opacity: 0; transform: scale(0.5); }
-  80% { opacity: 0.6; transform: scale(1.0); }
-  90% { opacity: 0; transform: scale(0.5); }
+.forge-spark:nth-child(3) { background: #ff8c00; box-shadow: 0 0 6px 3px rgba(255, 140, 0, 0.8), 0 0 12px 6px rgba(255, 69, 0, 0.4); animation-duration: 2.5s; }
+.forge-spark:nth-child(4) { background: #ffd700; box-shadow: 0 0 6px 3px rgba(255, 215, 0, 0.8), 0 0 14px 7px rgba(251, 191, 36, 0.4); animation-duration: 3.5s; }
+.forge-spark:nth-child(5) { background: #ff4500; box-shadow: 0 0 6px 3px rgba(255, 69, 0, 0.8), 0 0 10px 5px rgba(255, 69, 0, 0.3); animation-duration: 2.8s; }
+.forge-spark:nth-child(6) { width: 3px; height: 3px; animation-duration: 4s; }
+.forge-spark:nth-child(7) { background: #ff6b00; animation-duration: 2.2s; }
+.forge-spark:nth-child(8) { width: 5px; height: 5px; animation-duration: 3.8s; }
+.forge-spark:nth-child(9) { background: #ffee58; box-shadow: 0 0 8px 4px rgba(255, 238, 88, 0.8), 0 0 16px 8px rgba(255, 215, 0, 0.3); animation-duration: 2.6s; }
+
+@keyframes spark-life {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  5% { opacity: 1; transform: scale(1.5); }
+  15% { opacity: 0.8; transform: scale(1); }
+  30% { opacity: 0; transform: scale(0); }
 }
 
 .forge-ember {

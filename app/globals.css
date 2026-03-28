@@ -261,7 +261,7 @@
   pointer-events: none;
 }
 
-/* Rings + runes layer — stronger at 20% */
+/* Rings + runes layer — shimmer + spark fire animation */
 .forge-watermark-runes {
   position: fixed;
   inset: 0;
@@ -271,6 +271,53 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='350' height='220' viewBox='0 0 350 220'%3E%3Cg fill='none' stroke='%23f97316'%3E%3Ccircle cx='175' cy='100' r='28' stroke-width='1.5'/%3E%3Ccircle cx='175' cy='100' r='23' stroke-width='0.8'/%3E%3Ctext x='175' y='105' font-family='serif' font-size='10' fill='%23f97316' text-anchor='middle'%3E%E1%9A%A0 %E1%9A%B1 %E1%9A%A6%3C/text%3E%3Cpath d='M30 160 L30 195' stroke-width='1.2'/%3E%3Cpath d='M30 163 L42 170'/%3E%3Cpath d='M30 175 L42 182'/%3E%3Cpath d='M65 155 L65 200' stroke-width='1.2'/%3E%3Cpath d='M65 155 L77 168 L65 177'/%3E%3Cpath d='M285 160 L285 195' stroke-width='1.2'/%3E%3Cpath d='M285 160 L275 170 L285 177'/%3E%3Cpath d='M285 180 L275 190'/%3E%3Cpath d='M320 160 L320 195' stroke-width='1.2'/%3E%3Cpath d='M320 160 L332 170'/%3E%3Cpath d='M320 178 L308 187'/%3E%3Ccircle cx='100' cy='30' r='2'/%3E%3Ccircle cx='250' cy='35' r='1.5'/%3E%3Ccircle cx='175' cy='145' r='1.5'/%3E%3C/g%3E%3C/svg%3E");
   background-size: 350px 220px;
   background-repeat: repeat;
+  animation: rune-shimmer 8s ease-in-out infinite;
+}
+
+@keyframes rune-shimmer {
+  0%, 100% {
+    opacity: 0.15;
+    filter: drop-shadow(0 0 0px transparent);
+  }
+  25% {
+    opacity: 0.25;
+    filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.15));
+  }
+  50% {
+    opacity: 0.12;
+    filter: drop-shadow(0 0 0px transparent);
+  }
+  75% {
+    opacity: 0.28;
+    filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.2));
+  }
+}
+
+/* Spark overlay — small bright dots that flicker randomly over the runes */
+.forge-watermark-runes::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 15% 20%, rgba(255, 183, 71, 0.9) 50%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 45% 60%, rgba(255, 140, 0, 0.8) 50%, transparent 100%),
+    radial-gradient(1px 1px at 72% 35%, rgba(255, 215, 0, 0.9) 50%, transparent 100%),
+    radial-gradient(2px 2px at 88% 75%, rgba(255, 69, 0, 0.7) 50%, transparent 100%),
+    radial-gradient(1px 1px at 30% 85%, rgba(255, 238, 88, 0.8) 50%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 60% 15%, rgba(255, 165, 0, 0.7) 50%, transparent 100%),
+    radial-gradient(1px 1px at 5% 50%, rgba(255, 200, 50, 0.8) 50%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 95% 45%, rgba(255, 140, 0, 0.9) 50%, transparent 100%);
+  background-size: 350px 220px;
+  background-repeat: repeat;
+  animation: spark-flicker 3s steps(4) infinite;
+}
+
+@keyframes spark-flicker {
+  0% { opacity: 0; }
+  25% { opacity: 0.8; }
+  50% { opacity: 0; }
+  75% { opacity: 0.6; }
+  100% { opacity: 0; }
 }
 
 .forge-ember {

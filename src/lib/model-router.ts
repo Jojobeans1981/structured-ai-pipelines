@@ -148,7 +148,7 @@ export async function getRoutingStatus(): Promise<{
 
   if (ollamaUp) {
     try {
-      const res = await fetch(`${process.env.OLLAMA_URL || 'http://10.10.3.7:11434'}/api/tags`);
+      const res = await fetch(`${process.env.OLLAMA_URL || 'http://localhost:11434'}/api/tags`);
       const data = await res.json();
       ollamaModels = (data.models || []).map((m: { name: string }) => m.name);
     } catch {
@@ -166,7 +166,7 @@ export async function getRoutingStatus(): Promise<{
 
   return {
     ollamaAvailable: ollamaUp,
-    ollamaUrl: process.env.OLLAMA_URL || 'http://10.10.3.7:11434',
+    ollamaUrl: process.env.OLLAMA_URL || 'http://localhost:11434',
     ollamaModels,
     claudeConfigured: !!process.env.ANTHROPIC_API_KEY,
     skillRouting,

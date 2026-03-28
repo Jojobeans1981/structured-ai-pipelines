@@ -3,7 +3,7 @@
  * Used as a fallback when Anthropic API credits run out.
  */
 
-const OLLAMA_BASE = process.env.OLLAMA_URL || 'http://10.10.3.7:11434';
+const OLLAMA_BASE = process.env.OLLAMA_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.1:8b';
 
 interface Message {

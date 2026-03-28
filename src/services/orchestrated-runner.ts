@@ -63,7 +63,7 @@ export class OrchestratedRunner {
     let ollamaModels: string[] = [];
     if (ollamaUp) {
       try {
-        const res = await fetch(`${process.env.OLLAMA_URL || 'http://10.10.3.7:11434'}/api/tags`, {
+        const res = await fetch(`${process.env.OLLAMA_URL || 'http://localhost:11434'}/api/tags`, {
           signal: AbortSignal.timeout(3000),
         });
         const data = await res.json();

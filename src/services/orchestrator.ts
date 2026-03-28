@@ -22,7 +22,7 @@
  * 2. Ollama/Qwen (free local, if available)
  * 3. Static fallback (hardcoded routing rules)
  */
-const ORCHESTRATOR_URL = process.env.ORCHESTRATOR_URL || 'http://10.10.3.7:11434';
+const ORCHESTRATOR_URL = process.env.ORCHESTRATOR_URL || 'http://localhost:11434';
 const ORCHESTRATOR_LOCAL_MODEL = process.env.ORCHESTRATOR_MODEL || 'qwen2.5-coder:1.5b';
 const GROQ_ORCHESTRATOR_MODEL = process.env.GROQ_ORCHESTRATOR_MODEL || 'llama-3.3-70b-versatile';
 

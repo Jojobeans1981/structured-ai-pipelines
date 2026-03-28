@@ -110,7 +110,7 @@ export class MetricsService {
 
     return {
       build: MetricsService.summarize(build, feedback, verifyStages, llmStages, 'build'),
-      diagnostic: MetricsService.summarize(build, feedback, verifyStages, llmStages, 'diagnostic'),
+      diagnostic: MetricsService.summarize(diagnostic, feedback, verifyStages, llmStages, 'diagnostic'),
     };
   }
 

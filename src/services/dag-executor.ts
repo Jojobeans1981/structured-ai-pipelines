@@ -812,7 +812,13 @@ export class DAGExecutor {
           }
         }
       } catch (err) {
-        console.error('[DAGExecutor] Guardian verification failed (non-fatal):', err);
+        const errMsg = err instanceof Error ? err.message : 'Unknown error';
+        console.error('[DAGExecutor] Guardian verification failed (non-fatal):', errMsg);
+        // Append warning to artifact so user sees it
+        await prisma.pipelineStage.update({
+          where: { id: stageId },
+          data: { artifactContent: artifactContent + `\n\n⚠️ **Guardian check failed:** ${errMsg} — output was not verified for context integrity.` },
+        }).catch(() => {});
       }
     }
 
@@ -1095,10 +1101,9 @@ export class DAGExecutor {
 
     const previousOutput = current?.artifactContent || current?.streamContent || null;
 
-    // Exponential backoff before retry: 1s, 2s, 4s, 8s... max 30s
-    const backoffMs = Math.min(1000 * Math.pow(2, current?.retryCount || 0), 30000);
-    console.log(`[DAGExecutor] Backoff ${backoffMs}ms before retry #${(current?.retryCount || 0) + 1}`);
-    await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    // Log retry (no blocking backoff — let the frontend re-poll naturally)
+    console.log(`[DAGExecutor] Retry #${(current?.retryCount || 0) + 1} for "${current?.displayName}"`);
+
 
     await prisma.pipelineStage.update({
       where: { id: stageId },

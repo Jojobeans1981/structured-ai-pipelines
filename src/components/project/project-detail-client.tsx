@@ -131,12 +131,19 @@ export function ProjectDetailClient({ project, runs: initialRuns, needsFeedback 
       </Card>
 
       <div className="flex gap-3">
-        <Button onClick={() => setBuildDialogOpen(true)}>
-          <Flame className="mr-2 h-4 w-4" /> Start Pipeline
-        </Button>
-        <Button variant="outline" onClick={() => setDiagnosticDialogOpen(true)}>
-          <Stethoscope className="mr-2 h-4 w-4" /> Diagnose
-        </Button>
+        {(() => {
+          const hasActiveRun = runs.some((r) => ['running', 'planning', 'paused'].includes(r.status));
+          return (
+            <>
+              <Button onClick={() => setBuildDialogOpen(true)} disabled={hasActiveRun}>
+                <Flame className="mr-2 h-4 w-4" /> {hasActiveRun ? 'Pipeline Running...' : 'Start Pipeline'}
+              </Button>
+              <Button variant="outline" onClick={() => setDiagnosticDialogOpen(true)} disabled={hasActiveRun}>
+                <Stethoscope className="mr-2 h-4 w-4" /> Diagnose
+              </Button>
+            </>
+          );
+        })()}
       </div>
 
       <BuildStartDialog projectId={project.id} open={buildDialogOpen} onOpenChange={setBuildDialogOpen} />

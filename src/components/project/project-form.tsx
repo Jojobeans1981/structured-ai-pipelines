@@ -45,11 +45,19 @@ export function ProjectForm() {
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   const showFilePicker = () => {
-    zipInputRef.current?.click();
+    console.log('[Upload] showFilePicker called, ref:', !!zipInputRef.current);
+    if (zipInputRef.current) {
+      zipInputRef.current.value = '';
+      zipInputRef.current.click();
+    }
   };
 
   const showFolderPicker = () => {
-    folderInputRef.current?.click();
+    console.log('[Upload] showFolderPicker called, ref:', !!folderInputRef.current);
+    if (folderInputRef.current) {
+      folderInputRef.current.value = '';
+      folderInputRef.current.click();
+    }
   };
 
   const handleUpload = async (file: File, projectId?: string) => {
@@ -236,20 +244,21 @@ export function ProjectForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Hidden file inputs — triggered by ref.click() */}
+          {/* File inputs — visually hidden but still in DOM and clickable */}
           <input
             ref={zipInputRef}
             type="file"
             accept=".zip,.pdf,.md,.txt"
-            className="hidden"
+            style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}
+            tabIndex={-1}
             onChange={(e) => {
+              console.log('[Upload] ZIP input changed, files:', e.target.files?.length);
               const file = e.target.files?.[0];
               if (file) {
                 setPendingZip(file);
                 setPendingFiles([]);
                 setUploadedFiles(0);
               }
-              e.target.value = '';
             }}
           />
           <input
@@ -259,15 +268,16 @@ export function ProjectForm() {
             webkitdirectory=""
             directory=""
             multiple
-            className="hidden"
+            style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}
+            tabIndex={-1}
             onChange={(e) => {
+              console.log('[Upload] Folder input changed, files:', e.target.files?.length);
               const files = Array.from(e.target.files || []);
               if (files.length > 0) {
                 setPendingFiles(files);
                 setPendingZip(null);
                 setUploadedFiles(0);
               }
-              e.target.value = '';
             }}
           />
 

@@ -41,44 +41,15 @@ export function ProjectForm() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [step, setStep] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const zipInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const showFilePicker = () => {
-    const el = document.createElement('input');
-    el.type = 'file';
-    el.accept = '.zip,.pdf,.md,.txt';
-    el.style.display = 'none';
-    document.body.appendChild(el);
-    el.onchange = () => {
-      const file = el.files?.[0];
-      if (file) {
-        setPendingZip(file);
-        setPendingFiles([]);
-        setUploadedFiles(0);
-      }
-      document.body.removeChild(el);
-    };
-    el.click();
+    zipInputRef.current?.click();
   };
 
   const showFolderPicker = () => {
-    const el = document.createElement('input');
-    el.type = 'file';
-    el.setAttribute('webkitdirectory', '');
-    el.setAttribute('directory', '');
-    el.setAttribute('mozdirectory', '');
-    el.multiple = true;
-    el.style.display = 'none';
-    document.body.appendChild(el);
-    el.onchange = () => {
-      const files = Array.from(el.files || []);
-      if (files.length > 0) {
-        setPendingFiles(files);
-        setPendingZip(null);
-        setUploadedFiles(0);
-      }
-      document.body.removeChild(el);
-    };
-    el.click();
+    folderInputRef.current?.click();
   };
 
   const handleUpload = async (file: File, projectId?: string) => {
@@ -265,6 +236,41 @@ export function ProjectForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Hidden file inputs — triggered by ref.click() */}
+          <input
+            ref={zipInputRef}
+            type="file"
+            accept=".zip,.pdf,.md,.txt"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setPendingZip(file);
+                setPendingFiles([]);
+                setUploadedFiles(0);
+              }
+              e.target.value = '';
+            }}
+          />
+          <input
+            ref={folderInputRef}
+            type="file"
+            // @ts-expect-error webkitdirectory is non-standard but widely supported
+            webkitdirectory=""
+            directory=""
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files || []);
+              if (files.length > 0) {
+                setPendingFiles(files);
+                setPendingZip(null);
+                setUploadedFiles(0);
+              }
+              e.target.value = '';
+            }}
+          />
+
           {/* Project name */}
           <div className="space-y-2">
             <label htmlFor="name" className="text-sm font-medium">

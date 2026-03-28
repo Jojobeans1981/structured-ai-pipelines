@@ -1,6 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Doom Forge title — curvy fantasy font with molten glow animation */
+.doom-forge-title {
+  font-family: 'Cinzel Decorative', 'Georgia', serif;
+  font-weight: 900;
+  background: linear-gradient(
+    90deg,
+    #f97316 0%,
+    #fbbf24 25%,
+    #ff4500 50%,
+    #fbbf24 75%,
+    #f97316 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: doom-title-shimmer 4s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.3));
+}
+
+@keyframes doom-title-shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Poem text — italic serif with subtle fade-in */
+.doom-forge-poem {
+  font-family: 'Georgia', 'Cinzel Decorative', serif;
+  font-style: italic;
+  color: #78716c;
+  animation: doom-poem-fade 3s ease-in forwards;
+}
+
+@keyframes doom-poem-fade {
+  0% { opacity: 0; transform: translateY(5px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
 
 @layer base {
   :root {

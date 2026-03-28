@@ -63,13 +63,17 @@ export default async function DashboardPage() {
             <div className="w-full max-w-lg mb-6">
               <DwarfForgeScene variant="idle" className="opacity-60" />
             </div>
-            <h2 className="text-2xl font-bold forge-gradient-text tracking-tight">Doom Forge</h2>
-            <div className="mt-4 text-sm text-zinc-400 italic max-w-sm leading-relaxed">
-              <p>One Forge to build them all,</p>
-              <p>One Pipe to find them,</p>
-              <p>One DAG to bring them all,</p>
-              <p>And in the pipeline bind them.</p>
-              <p className="mt-2 text-zinc-500">In the Land of Vercel where the Dwarves deploy.</p>
+            <h2 className="doom-forge-title text-3xl tracking-widest uppercase mb-1">Doom Forge</h2>
+            <div className="mt-4 max-w-sm">
+              <p className="doom-forge-poem text-sm tracking-wide leading-relaxed">
+                One Forge to build them all,<br />
+                One Pipe to find them,<br />
+                One DAG to bring them all,<br />
+                And in the pipeline bind them.
+              </p>
+              <p className="doom-forge-poem text-xs tracking-wide mt-2 opacity-50">
+                In the Land of Vercel where the Dwarves deploy.
+              </p>
             </div>
             <Link href="/projects/new" className="mt-8">
               <Button>
@@ -82,8 +86,8 @@ export default async function DashboardPage() {
           <div className="space-y-6">
             {/* Doom Forge poem banner */}
             <div className="text-center py-3">
-              <h2 className="text-xl font-bold forge-gradient-text tracking-widest uppercase mb-2">Doom Forge</h2>
-              <p className="text-xs text-zinc-600 italic tracking-wide">
+              <h2 className="doom-forge-title text-2xl tracking-widest uppercase mb-2">Doom Forge</h2>
+              <p className="doom-forge-poem text-xs tracking-wide">
                 One Forge to build them all, One Pipe to find them, One DAG to bring them all, And in the pipeline bind them.
               </p>
             </div>

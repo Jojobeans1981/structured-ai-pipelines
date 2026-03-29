@@ -297,6 +297,22 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
     },
   }, store.status === 'running' || store.status === 'paused' || store.status === 'planning');
 
+  // Loading state — show skeleton while stages load
+  if (store.stages.length === 0 && store.status !== 'completed' && store.status !== 'cancelled' && store.status !== 'failed') {
+    return (
+      <div className="space-y-4">
+        <div className="h-20 animate-pulse rounded-lg bg-zinc-800/50 border border-zinc-700/30" />
+        <div className="grid grid-cols-3 gap-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-24 animate-pulse rounded-lg bg-zinc-800/30" />
+          ))}
+        </div>
+        <div className="h-32 animate-pulse rounded-lg bg-zinc-800/20" />
+        <p className="text-sm text-zinc-500 text-center">Loading pipeline...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* DAG Mode: Plan Approval */}

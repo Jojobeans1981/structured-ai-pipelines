@@ -24,6 +24,11 @@ interface ExtractedFile {
  * Very forgiving — handles many Llama/GPT output formats.
  */
 function extractFilePathFromContext(line: string): string | null {
+  // Skip lines that are clearly error messages, not file headers
+  if (/^(?:Error|Warning|Cannot find|Module not found|Failed to|ENOENT|SyntaxError|TypeError|ReferenceError)/i.test(line.trim())) {
+    return null;
+  }
+
   // Strip markdown formatting for easier matching
   const clean = line.replace(/\*\*/g, '').replace(/^#+\s*/, '').replace(/^\d+\.\s*/, '').trim();
 

@@ -110,6 +110,9 @@ model PipelineRun {
   agentVotes         AgentVote[]
   confidenceScores   ConfidenceScore[]
   completenessChecks CompletenessCheck[]
+
+  @@index([projectId])
+  @@index([projectId, status])
 }
 
 model PipelineStage {
@@ -149,6 +152,11 @@ model PipelineStage {
   files            ProjectFile[]
   agentVotes       AgentVote[]
   confidenceScores ConfidenceScore[]
+
+  @@index([runId])
+  @@index([runId, status])
+  @@index([nodeType])
+  @@index([skillName])
 }
 
 model ProjectFile {

@@ -77,36 +77,22 @@ export class MetricsService {
   }
 
   static async getMetricsSummary(userId: string): Promise<MetricsSummary> {
-    const metrics = await prisma.pipelineMetric.findMany({
-      where: { userId },
-    });
+    // Run all 4 queries in parallel instead of sequentially
+    const [metrics, feedback, verifyStages, llmStages] = await Promise.all([
+      prisma.pipelineMetric.findMany({ where: { userId } }),
+      prisma.projectFeedback.findMany({ where: { userId } }),
+      prisma.pipelineStage.findMany({
+        where: { run: { project: { userId } }, nodeType: 'verify' },
+        select: { runId: true, retryCount: true, status: true },
+      }),
+      prisma.pipelineStage.findMany({
+        where: { run: { project: { userId } }, nodeType: 'skill', durationMs: { not: null } },
+        select: { runId: true, durationMs: true, run: { select: { type: true } } },
+      }),
+    ]);
 
     const build = metrics.filter((m) => m.pipelineType === 'build');
     const diagnostic = metrics.filter((m) => m.pipelineType === 'diagnostic');
-
-    // Get feedback data for this user
-    const feedback = await prisma.projectFeedback.findMany({
-      where: { userId },
-    });
-
-    // Get verify stage retry counts to calculate auto-fix rate
-    const verifyStages = await prisma.pipelineStage.findMany({
-      where: {
-        run: { project: { userId } },
-        nodeType: 'verify',
-      },
-      select: { runId: true, retryCount: true, status: true },
-    });
-
-    // Get LLM-only durations (stages that actually ran LLM, not gates/verify)
-    const llmStages = await prisma.pipelineStage.findMany({
-      where: {
-        run: { project: { userId } },
-        nodeType: 'skill',
-        durationMs: { not: null },
-      },
-      select: { runId: true, durationMs: true, run: { select: { type: true } } },
-    });
 
     return {
       build: MetricsService.summarize(build, feedback, verifyStages, llmStages, 'build'),

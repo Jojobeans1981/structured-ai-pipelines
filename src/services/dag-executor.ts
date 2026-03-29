@@ -516,7 +516,16 @@ export class DAGExecutor {
         'Generate implementation prompts that include COMPLETE file contents. ' +
         'Every prompt must specify exact file paths and complete code — not pseudocode or outlines. ' +
         'The executor receiving this prompt has NO context beyond what you provide. ' +
-        'Include package.json with all dependencies, config files, and every source file.';
+        'Include package.json with all dependencies, config files, and every source file.\n\n' +
+        '## CRITICAL: PROMPTS MUST DEMAND REAL FUNCTIONALITY\n\n' +
+        'Each prompt must explicitly instruct the executor to:\n' +
+        '- Implement REAL business logic, not stubs or placeholders\n' +
+        '- Include realistic seed data (3-5 demo items) so the app looks populated\n' +
+        '- Style every component properly — no unstyled HTML\n' +
+        '- Wire up all user interactions — clicks, forms, navigation must work\n' +
+        '- If there is a list view, it must show items. If there is a form, it must submit.\n' +
+        '- Include error handling and loading states in the UI\n' +
+        '- The output must be a FINISHED app, not a starting point for more coding\n';
     }
 
     // Inject setup-analyzer instructions — must produce actionable, beginner-friendly setup guide
@@ -574,7 +583,17 @@ export class DAGExecutor {
         '5. **MISSING EVENT HANDLERS**: If you create a UI component with a button, it MUST have an onClick handler. No empty handlers.\n' +
         '6. **CONFIG FILES**: If using TypeScript, include tsconfig.json. If using Tailwind, include tailwind.config. If using ESLint, include .eslintrc.\n' +
         '7. **ENV VARS**: If you reference process.env.X anywhere, create a .env.example listing every variable with a description.\n' +
-        '8. **.gitignore**: Always include a .gitignore with node_modules, dist, .env, etc.\n';
+        '8. **.gitignore**: Always include a .gitignore with node_modules, dist, .env, etc.\n\n' +
+        '## CRITICAL: NO HOLLOW APPS\n\n' +
+        'Your output must be a REAL, WORKING application — not a skeleton or scaffold.\n\n' +
+        '- Every component must render REAL UI with actual content, not just "Hello World" or placeholder text.\n' +
+        '- Every function must contain REAL LOGIC that does what the PRD describes, not pass-through or no-ops.\n' +
+        '- State management must actually manage state — forms must submit, lists must filter, data must persist.\n' +
+        '- API routes must return real data, not hardcoded empty arrays or mock responses.\n' +
+        '- Styles must make the app look FINISHED — proper spacing, colors, responsive layout. Not unstyled HTML.\n' +
+        '- If the PRD says "user can create tasks", there must be a form that creates tasks, a list that shows them, and delete/edit buttons that work.\n' +
+        '- Include at least 3-5 realistic seed/demo data items so the app looks populated on first load.\n' +
+        '- The app must be USABLE by a real person immediately after running npm run dev. No further coding needed.\n';
     }
 
     const executor = new StageExecutor(client);

@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, existsSync } from 'fs'
+import { writeFileSync, mkdirSync, readFileSync, existsSync, readdirSync, statSync } from 'fs'
 import { join, dirname } from 'path'
 import { tmpdir } from 'os'
 import type { SSEEvent } from './types/sse'
@@ -14,14 +14,34 @@ import { generateManifest } from './agents/prompt-agent'
 import { scaffoldFile } from './agents/scaffolder-agent'
 import { validateFiles } from './agents/validator-agent'
 import { buildForgeLessonsSection } from './lessons-context'
+import { CompletenessPass, detectProjectType } from '@/src/services/completeness-pass'
+import { BuildVerifier } from '@/src/services/build-verifier'
+import { TestGenerator } from '@/src/services/test-generator'
+import { DockerfileGenerator } from '@/src/services/dockerfile-generator'
+import { CIGenerator } from '@/src/services/ci-generator'
+import { SBOMScanner } from '@/src/services/sbom-scanner'
+import type { ProjectType } from '@/src/types/dag'
+import type { BugReport, CodeMap } from './types/bug'
+import type { RootCause } from './types/fix'
+import { mapCodePaths } from './agents/archaeologist-agent'
+import { analyzeRootCause } from './agents/root-cause-agent'
+import { planFix } from './agents/fix-planner-agent'
+import { scaffoldFix } from './agents/fix-scaffolder-agent'
 
 const MAX_VALIDATION_CYCLES = 3
+const MAX_BUILD_FIX_CYCLES = parseInt(process.env.FORGE_MAX_AUTO_FIX || '3', 10)
 const STAGE_DATA_FILE = '.forge-stage-data.json'
+const IGNORED_REPO_DIRS = new Set(['.git', 'node_modules', '.next', 'dist', 'build', '__pycache__', '.venv', 'venv'])
 
 interface BuildStageData {
   conventions: ConventionsProfile
   prd: PRDOutput
   greenfield: boolean
+}
+
+interface RepoFile {
+  filePath: string
+  content: string
 }
 
 function emitLog(
@@ -33,6 +53,185 @@ function emitLog(
 ) {
   emit({ type: 'log', step, level, message })
   addForgeRunLog(runId, { step, level, message }).catch(() => {})
+}
+
+function writeRepoFile(workDir: string, filePath: string, content: string): void {
+  const fullPath = join(workDir, filePath)
+  mkdirSync(dirname(fullPath), { recursive: true })
+  writeFileSync(fullPath, content, 'utf-8')
+}
+
+function readRepoFiles(workDir: string, dir = workDir): RepoFile[] {
+  const files: RepoFile[] = []
+
+  for (const entry of readdirSync(dir)) {
+    if (IGNORED_REPO_DIRS.has(entry)) continue
+
+    const fullPath = join(dir, entry)
+    let stats
+    try {
+      stats = statSync(fullPath)
+    } catch {
+      continue
+    }
+
+    if (stats.isDirectory()) {
+      files.push(...readRepoFiles(workDir, fullPath))
+      continue
+    }
+
+    try {
+      const content = readFileSync(fullPath, 'utf-8')
+      const filePath = fullPath.slice(workDir.length + 1).replace(/\\/g, '/')
+      files.push({ filePath, content })
+    } catch {
+      // Skip binary or unreadable files.
+    }
+  }
+
+  return files
+}
+
+function updateModifiedFiles(
+  modifiedFiles: Map<string, string>,
+  files: Array<{ filePath: string; content: string }>,
+  workDir: string,
+): void {
+  for (const file of files) {
+    writeRepoFile(workDir, file.filePath, file.content)
+    modifiedFiles.set(file.filePath, file.content)
+  }
+}
+
+function inferProjectName(repoUrl: string, projectFiles: RepoFile[]): string {
+  const packageJson = projectFiles.find((file) => file.filePath === 'package.json')
+  if (packageJson) {
+    try {
+      const parsed = JSON.parse(packageJson.content) as { name?: string }
+      if (parsed.name) {
+        return parsed.name
+      }
+    } catch {
+      // fall through to repo name inference
+    }
+  }
+
+  try {
+    const url = new URL(repoUrl)
+    const pathParts = url.pathname.split('/').filter(Boolean)
+    const repoName = pathParts[pathParts.length - 1] ?? 'forge-app'
+    return repoName.replace(/\.git$/, '')
+  } catch {
+    return 'forge-app'
+  }
+}
+
+function inferNodeCommands(workDir: string, conventions: ConventionsProfile): {
+  lintCommand: string | null
+  testCommand: string | null
+} {
+  const fallback = {
+    lintCommand: conventions.lintCommand ?? null,
+    testCommand: conventions.testCommand ?? null,
+  }
+
+  const packageJsonPath = join(workDir, 'package.json')
+  if (!existsSync(packageJsonPath)) {
+    return fallback
+  }
+
+  try {
+    const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as {
+      scripts?: Record<string, string>
+    }
+    const scripts = pkg.scripts ?? {}
+    return {
+      lintCommand: fallback.lintCommand ?? (scripts.lint ? 'npm run lint' : null),
+      testCommand: fallback.testCommand ?? (scripts.test ? 'npm test' : null),
+    }
+  } catch {
+    return fallback
+  }
+}
+
+function buildBugReportFromErrors(runId: string, cycle: number, errors: string[]): BugReport {
+  const errorLogs = errors.join('\n\n')
+  return {
+    description: `Forge build auto-fix cycle ${cycle} for run ${runId}.\n\nThe generated project failed verification and needs targeted repairs.`,
+    errorLogs,
+    symptoms: errors
+      .map((error) => error.split('\n')[0]?.trim() ?? error.trim())
+      .filter(Boolean)
+      .slice(0, 5)
+      .join('\n'),
+  }
+}
+
+async function runBuildAutoFixCycle(opts: {
+  userId: string
+  runId: string
+  workDir: string
+  modifiedFiles: Map<string, string>
+  errors: string[]
+  emit: (event: SSEEvent) => void
+  cycle: number
+  language: string
+  framework?: string
+}): Promise<boolean> {
+  const { userId, runId, workDir, modifiedFiles, errors, emit, cycle, language, framework } = opts
+  const bugReport = buildBugReportFromErrors(runId, cycle, errors)
+  const tree = buildTree(workDir, 3)
+  const codeSamples = extractCodeSamples(workDir, 8, 120)
+
+  emitLog(emit, runId, 'AutoFix', `Auto-fix cycle ${cycle}/${MAX_BUILD_FIX_CYCLES}: mapping impacted code...`)
+  const codeMap: CodeMap = await mapCodePaths(userId, bugReport, tree, codeSamples)
+
+  emitLog(emit, runId, 'AutoFix', 'Analyzing root cause from verifier errors...')
+  const rootCause: RootCause = await analyzeRootCause(userId, bugReport, codeMap)
+  emitLog(emit, runId, 'AutoFix', `Root cause (${rootCause.confidence}): ${rootCause.cause}`, 'success')
+
+  emitLog(emit, runId, 'AutoFix', 'Planning targeted repairs...')
+  const fixPlan = await planFix(userId, bugReport, rootCause, codeMap)
+  if (fixPlan.steps.length === 0) {
+    emitLog(emit, runId, 'AutoFix', 'Planner returned no repair steps', 'warn')
+    return false
+  }
+
+  let appliedChanges = 0
+
+  for (const step of fixPlan.steps) {
+    if (step.action === 'delete') {
+      emitLog(emit, runId, 'AutoFix', `Skipping delete step for ${step.file}; Forge publish does not support deletions yet`, 'warn')
+      continue
+    }
+
+    emitLog(emit, runId, 'AutoFix', `Repairing ${step.file} (${step.action})...`)
+    const existingPath = join(workDir, step.file)
+    const existingContent = existsSync(existingPath) ? readFileSync(existingPath, 'utf-8') : null
+    const fixFile = await scaffoldFix(userId, step, existingContent, rootCause)
+    updateModifiedFiles(modifiedFiles, [{ filePath: fixFile.path, content: fixFile.content }], workDir)
+    appliedChanges += 1
+
+    await addForgeLessonLearned({
+      runId,
+      phase: cycle,
+      phaseName: 'Build Auto-Fix',
+      error: errors.join('\n\n').slice(0, 4000),
+      fix: `Updated ${fixFile.path}`,
+      rootCause: rootCause.cause,
+      preventionRule: fixPlan.summary || `Address verifier-reported failure in ${fixFile.path}`,
+      language,
+      framework,
+    })
+  }
+
+  if (appliedChanges === 0) {
+    emitLog(emit, runId, 'AutoFix', 'No repair steps could be applied', 'warn')
+    return false
+  }
+
+  emitLog(emit, runId, 'AutoFix', `Applied ${appliedChanges} targeted repair${appliedChanges === 1 ? '' : 's'}`, 'success')
+  return true
 }
 
 export async function runBuildPipelineStage1(opts: {
@@ -103,7 +302,7 @@ export async function runBuildPipelineStage2(opts: {
   repoUrl: string
   emit: (event: SSEEvent) => void
 }): Promise<void> {
-  const { userId, runId, emit } = opts
+  const { userId, runId, repoUrl, emit } = opts
   const workDir = join(tmpdir(), `forge-${runId}`)
 
   // 1. Load stage data
@@ -195,56 +394,169 @@ export async function runBuildPipelineStage2(opts: {
     }
   }
 
-  // 6. Write files to work dir
-  for (const file of currentFiles) {
-    const fullPath = join(workDir, file.path)
-    mkdirSync(dirname(fullPath), { recursive: true })
-    writeFileSync(fullPath, file.content, 'utf-8')
-  }
+  // 6. Materialize the generated files on top of the checked-out repo.
+  const modifiedFiles = new Map<string, string>()
+  updateModifiedFiles(
+    modifiedFiles,
+    currentFiles.map((file) => ({ filePath: file.path, content: file.content })),
+    workDir,
+  )
 
-  // 7-8. Run lint/test
   let lintPassed = true
   let testsPassed = true
-  const errors: string[] = []
+  let errors: string[] = []
+  let finalFiles: Array<{ path: string; content: string }> = []
 
-  if (conventions.lintCommand) {
-    try {
-      emitLog(emit, runId, 'Verify', `Running lint: ${conventions.lintCommand}`)
-      execSync(conventions.lintCommand, { cwd: workDir, timeout: 60000, stdio: 'pipe' })
-      emitLog(emit, runId, 'Verify', 'Lint passed', 'success')
-    } catch (err) {
-      lintPassed = false
-      const msg = err instanceof Error ? err.message : 'Lint failed'
-      errors.push(`Lint: ${msg.slice(0, 500)}`)
-      emitLog(emit, runId, 'Verify', 'Lint failed', 'warn')
+  for (let cycle = 0; cycle <= MAX_BUILD_FIX_CYCLES; cycle++) {
+    let repoFiles = readRepoFiles(workDir)
+    let projectType: ProjectType = detectProjectType(repoFiles.map((file) => ({ filePath: file.filePath })))
+
+    emitLog(emit, runId, 'Complete', cycle === 0 ? 'Running completeness pass...' : `Re-running completeness pass after auto-fix ${cycle}/${MAX_BUILD_FIX_CYCLES}...`)
+    const completenessResult = CompletenessPass.run(repoFiles, projectType)
+    if (completenessResult.files.length > 0) {
+      updateModifiedFiles(modifiedFiles, completenessResult.files, workDir)
+      emitLog(emit, runId, 'Complete', `Scaffolded ${completenessResult.files.length} critical files`, 'success')
+    } else {
+      emitLog(emit, runId, 'Complete', 'Completeness pass found no missing critical files', 'success')
+    }
+
+    repoFiles = readRepoFiles(workDir)
+    projectType = detectProjectType(repoFiles.map((file) => ({ filePath: file.filePath })))
+
+    emitLog(emit, runId, 'Artifacts', cycle === 0 ? 'Scaffolding tests, Docker, CI, and SBOM...' : `Refreshing launch artifacts after auto-fix ${cycle}/${MAX_BUILD_FIX_CYCLES}...`)
+    const testResult = TestGenerator.scaffold(repoFiles, projectType)
+    const testFiles = [...testResult.configFiles, ...testResult.files]
+    if (testFiles.length > 0) {
+      updateModifiedFiles(modifiedFiles, testFiles, workDir)
+    }
+
+    if (projectType === 'node') {
+      const packageJson = repoFiles.find((file) => file.filePath === 'package.json')
+      if (packageJson) {
+        const updatedPackageJson = TestGenerator.mergeTestDeps(packageJson.content, projectType)
+        if (updatedPackageJson !== packageJson.content) {
+          updateModifiedFiles(modifiedFiles, [{ filePath: 'package.json', content: updatedPackageJson }], workDir)
+        }
+      }
+    }
+
+    repoFiles = readRepoFiles(workDir)
+    const projectName = inferProjectName(repoUrl, repoFiles)
+
+    const dockerResult = DockerfileGenerator.generate(repoFiles, { projectName, projectType })
+    if (dockerResult.files.length > 0) {
+      updateModifiedFiles(modifiedFiles, dockerResult.files, workDir)
+    }
+
+    const ciResult = CIGenerator.generate(repoFiles, projectType, projectName)
+    if (ciResult.files.length > 0) {
+      updateModifiedFiles(modifiedFiles, ciResult.files, workDir)
+    }
+
+    const sbomResult = SBOMScanner.scan(repoFiles)
+    if (sbomResult.components.length > 0) {
+      updateModifiedFiles(modifiedFiles, [{ filePath: 'sbom.cdx.json', content: SBOMScanner.toCycloneDX(sbomResult, projectName) }], workDir)
+    }
+
+    const artifactCount = testFiles.length + dockerResult.files.length + ciResult.files.length + (sbomResult.components.length > 0 ? 1 : 0)
+    emitLog(emit, runId, 'Artifacts', `Prepared ${artifactCount} launch artifacts`, 'success')
+
+    repoFiles = readRepoFiles(workDir)
+    projectType = detectProjectType(repoFiles.map((file) => ({ filePath: file.filePath })))
+    errors = []
+    lintPassed = true
+    testsPassed = true
+
+    emitLog(emit, runId, 'Verify', `Running final build verification for ${projectType} project...`)
+    const buildResult = await BuildVerifier.verify(workDir)
+    if (buildResult.success) {
+      emitLog(emit, runId, 'Verify', 'Build verification passed', 'success')
+    } else {
+      errors.push(...buildResult.errors.map((error) => `Build: ${error.slice(0, 500)}`))
+      emitLog(emit, runId, 'Verify', 'Build verification failed', 'error')
+    }
+
+    if (buildResult.warnings.length > 0) {
+      for (const warning of buildResult.warnings) {
+        emitLog(emit, runId, 'Verify', warning, 'warn')
+      }
+    }
+
+    const { lintCommand, testCommand } = inferNodeCommands(workDir, conventions)
+
+    if (lintCommand) {
+      try {
+        emitLog(emit, runId, 'Verify', `Running lint: ${lintCommand}`)
+        execSync(lintCommand, { cwd: workDir, timeout: 60000, stdio: 'pipe' })
+        emitLog(emit, runId, 'Verify', 'Lint passed', 'success')
+      } catch (err) {
+        lintPassed = false
+        const msg = err instanceof Error ? err.message : 'Lint failed'
+        errors.push(`Lint: ${msg.slice(0, 500)}`)
+        emitLog(emit, runId, 'Verify', 'Lint failed', 'error')
+      }
+    } else {
+      emitLog(emit, runId, 'Verify', 'No lint command detected in the final artifact', 'warn')
+    }
+
+    if (testCommand) {
+      try {
+        emitLog(emit, runId, 'Verify', `Running tests: ${testCommand}`)
+        execSync(testCommand, { cwd: workDir, timeout: 120000, stdio: 'pipe' })
+        emitLog(emit, runId, 'Verify', 'Tests passed', 'success')
+      } catch (err) {
+        testsPassed = false
+        const msg = err instanceof Error ? err.message : 'Tests failed'
+        errors.push(`Tests: ${msg.slice(0, 500)}`)
+        emitLog(emit, runId, 'Verify', 'Tests failed', 'error')
+      }
+    } else {
+      emitLog(emit, runId, 'Verify', 'No test command detected in the final artifact', 'warn')
+    }
+
+    finalFiles = Array.from(modifiedFiles.entries())
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([path, content]) => ({ path, content }))
+
+    if (errors.length === 0) {
+      break
+    }
+
+    if (cycle === MAX_BUILD_FIX_CYCLES) {
+      emitLog(emit, runId, 'AutoFix', `Auto-fix limit reached after ${MAX_BUILD_FIX_CYCLES} cycle(s); surfacing remaining errors for manual review`, 'warn')
+      break
+    }
+
+    const repaired = await runBuildAutoFixCycle({
+      userId,
+      runId,
+      workDir,
+      modifiedFiles,
+      errors,
+      emit,
+      cycle: cycle + 1,
+      language: conventions.language,
+      framework: conventions.framework ?? undefined,
+    })
+
+    if (!repaired) {
+      emitLog(emit, runId, 'AutoFix', 'Auto-fix could not produce an actionable repair plan', 'warn')
+      break
     }
   }
 
-  if (conventions.testCommand) {
-    try {
-      emitLog(emit, runId, 'Verify', `Running tests: ${conventions.testCommand}`)
-      execSync(conventions.testCommand, { cwd: workDir, timeout: 120000, stdio: 'pipe' })
-      emitLog(emit, runId, 'Verify', 'Tests passed', 'success')
-    } catch (err) {
-      testsPassed = false
-      const msg = err instanceof Error ? err.message : 'Tests failed'
-      errors.push(`Tests: ${msg.slice(0, 500)}`)
-      emitLog(emit, runId, 'Verify', 'Tests failed', 'warn')
-    }
-  }
-
-  // 9. Save diff
+  // 10. Save the verified artifact set that will actually be published.
   await saveForgeRunDiff(runId, {
-    files: currentFiles.map(f => ({ path: f.path, content: f.content })),
+    files: finalFiles,
     lintPassed,
     testsPassed,
     errors,
   })
 
-  // 10. Emit diff event
+  // 11. Emit diff event
   emit({
     type: 'diff',
-    files: currentFiles.map(f => ({ path: f.path, content: f.content })),
+    files: finalFiles,
     lintPassed,
     testsPassed,
     errors,

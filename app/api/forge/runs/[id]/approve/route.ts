@@ -41,6 +41,14 @@ export async function POST(
       return NextResponse.json({ error: 'No diff found for this run' }, { status: 409 })
     }
 
+    const diffErrors = Array.isArray(diff.errors) ? (diff.errors as string[]) : []
+    if (diffErrors.length > 0) {
+      return NextResponse.json(
+        { error: 'Cannot publish a Forge run with verification errors. Fix the run or regenerate before approving.' },
+        { status: 409 },
+      )
+    }
+
     await updateForgeRun(runId, { status: 'publishing' })
 
     const token = await getGitLabToken(session.user.id)

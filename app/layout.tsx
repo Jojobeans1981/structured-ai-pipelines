@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { LayoutShell } from '@/src/components/layout/layout-shell';
 import { SessionProvider } from '@/src/components/providers/session-provider';
+import { BuildBadge } from '@/src/components/layout/build-badge';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -47,6 +48,7 @@ export default function RootLayout({
               {children}
             </LayoutShell>
           </div>
+          <BuildBadge />
         </SessionProvider>
       </body>
     </html>

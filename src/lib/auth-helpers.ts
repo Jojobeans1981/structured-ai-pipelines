@@ -3,8 +3,16 @@ import { authOptions } from '@/src/lib/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
 
-// Set to true to bypass auth and use a demo user (for public testing)
-const AUTH_BYPASS = true;
+function shouldBypassAuth(): boolean {
+  const raw = process.env.AUTH_BYPASS_DEMO?.trim().toLowerCase()
+  if (raw === 'true') return true
+  if (raw === 'false') return false
+
+  // Safe default: demo auth is only enabled outside production unless explicitly overridden.
+  return process.env.NODE_ENV !== 'production'
+}
+
+const AUTH_BYPASS = shouldBypassAuth();
 const DEMO_USER_EMAIL = 'demo@gauntletforge.dev';
 
 async function getOrCreateDemoUser() {

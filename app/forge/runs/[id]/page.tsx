@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { notFound } from 'next/navigation'
-import { getSessionOrDemo } from '@/src/lib/auth-helpers'
+import { getForgeSessionOrDemo } from '@/src/lib/auth-helpers'
 import { getForgeRunWithDetails } from '@/src/services/forge/db'
 import RunDetailView from './run-detail-view'
 
@@ -9,7 +9,7 @@ export default async function ForgeRunDetailPage({
 }: {
   params: { id: string }
 }) {
-  const session = await getSessionOrDemo()
+  const session = await getForgeSessionOrDemo()
   if (!session?.user?.id) {
     redirect('/api/auth/signin')
   }

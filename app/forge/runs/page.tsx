@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { getSessionOrDemo } from '@/src/lib/auth-helpers'
+import { getForgeSessionOrDemo } from '@/src/lib/auth-helpers'
 import { listForgeRuns } from '@/src/services/forge/db'
 import ModeBadge from '@/src/components/forge/mode-badge'
 import RunStatusBadge from '@/src/components/forge/run-status-badge'
 
 export default async function ForgeRunsPage() {
-  const session = await getSessionOrDemo()
+  const session = await getForgeSessionOrDemo()
   if (!session?.user?.id) {
     redirect('/api/auth/signin')
   }

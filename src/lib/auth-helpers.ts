@@ -3,16 +3,32 @@ import { authOptions } from '@/src/lib/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
 
-function shouldBypassAuth(): boolean {
-  const raw = process.env.AUTH_BYPASS_DEMO?.trim().toLowerCase()
+function readBooleanEnv(name: string): boolean | null {
+  const raw = process.env[name]?.trim().toLowerCase()
   if (raw === 'true') return true
   if (raw === 'false') return false
+  return null
+}
+
+function shouldBypassAuth(): boolean {
+  const explicit = readBooleanEnv('AUTH_BYPASS_DEMO')
+  if (explicit !== null) return explicit
 
   // Safe default: demo auth is only enabled outside production unless explicitly overridden.
   return process.env.NODE_ENV !== 'production'
 }
 
+function shouldEnableForgeGuestAccess(): boolean {
+  const explicit = readBooleanEnv('FORGE_GUEST_ACCESS')
+  if (explicit !== null) return explicit
+
+  // Forge is safe to browse in guest/demo mode by default so others can try it
+  // without opening auth across the rest of the app.
+  return true
+}
+
 const AUTH_BYPASS = shouldBypassAuth();
+const FORGE_GUEST_ACCESS = shouldEnableForgeGuestAccess();
 const DEMO_USER_EMAIL = 'demo@gauntletforge.dev';
 
 async function getOrCreateDemoUser() {
@@ -53,6 +69,25 @@ export async function getSessionOrDemo(): Promise<{ user: { id: string; name?: s
     const user = await getOrCreateDemoUser();
     return { user };
   }
+  return null;
+}
+
+/**
+ * Forge-specific session resolver.
+ * Keeps Forge open to guest/demo users by default, even when the rest of the
+ * app still requires authentication.
+ */
+export async function getForgeSessionOrDemo(): Promise<{ user: { id: string; name?: string | null; email?: string | null } } | null> {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) {
+    return session as { user: { id: string; name?: string | null; email?: string | null } };
+  }
+
+  if (FORGE_GUEST_ACCESS || AUTH_BYPASS) {
+    const user = await getOrCreateDemoUser();
+    return { user };
+  }
+
   return null;
 }
 

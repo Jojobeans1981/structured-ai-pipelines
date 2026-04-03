@@ -3,8 +3,8 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSession, signIn, signOut } from 'next-auth/react';
-import { LayoutDashboard, BarChart3, Settings, LogIn, LogOut, Flame, Hammer, User } from 'lucide-react';
+import { useSession, signOut } from 'next-auth/react';
+import { LayoutDashboard, BarChart3, Settings, LogOut, Flame, Hammer, User } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Button } from '@/src/components/ui/button';
 import { DwarfForgeScene } from '@/src/components/forge/dwarf-forge-scene';
@@ -130,23 +130,16 @@ export function Sidebar({ mobile, open, onClose }: SidebarProps = {}) {
               </div>
             )}
             {status === 'unauthenticated' && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-3 rounded-lg bg-orange-500/5 border border-orange-500/10 px-3 py-2">
+              <div className="rounded-lg bg-orange-500/5 border border-orange-500/10 px-3 py-3">
+                <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold ring-2 ring-orange-500/30">
                     <User className="h-4 w-4" />
                   </div>
-                  <span className="truncate text-sm font-medium text-zinc-300">
-                    Demo Mode
-                  </span>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-zinc-300">Demo Mode</div>
+                    <div className="text-xs text-zinc-500">Sign-in is optional for quick trials.</div>
+                  </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  onClick={() => signIn('gitlab')}
-                  className="w-full flex items-center gap-2 text-sm text-zinc-400 hover:text-orange-300 hover:bg-orange-500/10 justify-start px-3"
-                >
-                  <LogIn className="h-4 w-4" />
-                  Sign in with GitLab
-                </Button>
               </div>
             )}
           </div>
@@ -242,23 +235,16 @@ export function Sidebar({ mobile, open, onClose }: SidebarProps = {}) {
           </div>
         )}
         {status === 'unauthenticated' && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 rounded-lg bg-orange-500/5 border border-orange-500/10 px-3 py-2">
+          <div className="rounded-lg bg-orange-500/5 border border-orange-500/10 px-3 py-3">
+            <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold ring-2 ring-orange-500/30">
                 <User className="h-4 w-4" />
               </div>
-              <span className="truncate text-sm font-medium text-zinc-300">
-                Demo Mode
-              </span>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium text-zinc-300">Demo Mode</div>
+                <div className="text-xs text-zinc-500">Sign-in is optional for quick trials.</div>
+              </div>
             </div>
-            <Button
-              variant="ghost"
-              onClick={() => signIn('gitlab')}
-              className="w-full flex items-center gap-2 text-sm text-zinc-400 hover:text-orange-300 hover:bg-orange-500/10 justify-start px-3"
-            >
-              <LogIn className="h-4 w-4" />
-              Sign in with GitLab
-            </Button>
           </div>
         )}
       </div>

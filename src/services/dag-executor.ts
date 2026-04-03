@@ -25,6 +25,23 @@ interface AdvanceResult {
 }
 
 export class DAGExecutor {
+  private static deriveDisplayName(node: Partial<DAGNode>, stageIndex: number): string {
+    if (typeof node.displayName === 'string' && node.displayName.trim().length > 0) {
+      return node.displayName.trim();
+    }
+
+    const phaseIndex = typeof node.phaseIndex === 'number' ? node.phaseIndex : null;
+    if (node.skillName === 'prompt-builder' && phaseIndex !== null) return `Phase ${phaseIndex} Prompts`;
+    if (node.skillName === 'phase-executor' && phaseIndex !== null) return `Phase ${phaseIndex} Build`;
+    if (node.skillName === 'fix-executor' && phaseIndex !== null) return `Fix Phase ${phaseIndex}`;
+    if (node.skillName === 'prd-architect') return 'PRD Generation';
+    if (node.skillName === 'phase-builder') return 'Phase Extraction';
+    if (node.skillName === '__verify__' || node.nodeType === 'verify') return 'Build Verification';
+    if (node.skillName === 'setup-analyzer') return 'Setup Guide';
+    if (node.skillName) return node.skillName;
+    return node.id?.trim() || `Stage ${stageIndex + 1}`;
+  }
+
   /**
    * Validate an execution plan for structural correctness.
    * Checks for: missing dependencies, circular references, empty graphs.
@@ -138,19 +155,20 @@ export class DAGExecutor {
     await prisma.$transaction(async (tx) => {
       for (const layer of layers) {
         for (const node of layer) {
+          const displayName = DAGExecutor.deriveDisplayName(node, stageIndex);
           await tx.pipelineStage.create({
             data: {
               runId,
               stageIndex,
               skillName: node.skillName || '__gate__',
-              displayName: node.displayName,
+              displayName,
               status: 'pending',
-              dependsOn: node.dependsOn,
-              nodeType: node.nodeType,
-              parallelGroup: node.parallelGroup,
-              gateType: node.gateType,
-              maxRetries: node.maxRetries,
-              phaseIndex: node.phaseIndex,
+              dependsOn: Array.isArray(node.dependsOn) ? node.dependsOn : [],
+              nodeType: node.nodeType || 'skill',
+              parallelGroup: node.parallelGroup ?? null,
+              gateType: node.gateType ?? null,
+              maxRetries: typeof node.maxRetries === 'number' ? node.maxRetries : 2,
+              phaseIndex: typeof node.phaseIndex === 'number' ? node.phaseIndex : null,
               nodeId: node.id,
             },
           });

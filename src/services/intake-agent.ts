@@ -3,6 +3,72 @@ import { type ExecutionPlan, type DAGNode } from '@/src/types/dag';
 import { DAGExecutor } from '@/src/services/dag-executor';
 import { createWithFallback } from '@/src/lib/anthropic';
 
+const SKILL_DISPLAY_NAMES: Record<string, string> = {
+  'prd-architect': 'PRD Generation',
+  'phase-builder': 'Phase Extraction',
+  'prompt-builder': 'Prompt Generation',
+  'prompt-validator': 'Prompt Validation',
+  'phase-executor': 'Code Execution',
+  'setup-analyzer': 'Setup Guide',
+  'bug-intake': 'Bug Intake',
+  'code-archaeologist': 'Code Archaeology',
+  'root-cause-analyzer': 'Root Cause Analysis',
+  'fix-planner': 'Fix Planning',
+  'fix-prompt-builder': 'Fix Prompt Generation',
+  'fix-executor': 'Fix Execution',
+  'lessons-learned': 'Lessons Learned',
+  '__verify__': 'Build Verification',
+}
+
+function buildFallbackDisplayName(node: Partial<DAGNode> & { id?: string }, index: number): string {
+  const skillName = node.skillName ?? ''
+  const phaseIndex = typeof node.phaseIndex === 'number' ? node.phaseIndex : null
+
+  if (skillName === 'prompt-builder' && phaseIndex !== null) return `Phase ${phaseIndex} Prompts`
+  if (skillName === 'phase-executor' && phaseIndex !== null) return `Phase ${phaseIndex} Build`
+  if (skillName === 'fix-executor' && phaseIndex !== null) return `Fix Phase ${phaseIndex}`
+  if (skillName && SKILL_DISPLAY_NAMES[skillName]) return SKILL_DISPLAY_NAMES[skillName]
+  if (node.nodeType === 'verify') return 'Verification'
+  if (node.nodeType === 'gate') return 'Approval Gate'
+  return node.id?.trim() || `Stage ${index + 1}`
+}
+
+function normalizePlan(plan: ExecutionPlan): ExecutionPlan {
+  const nodes = (plan.nodes ?? []).map((node, index) => {
+    const displayName = typeof node.displayName === 'string' && node.displayName.trim().length > 0
+      ? node.displayName.trim()
+      : buildFallbackDisplayName(node, index)
+
+    return {
+      ...node,
+      id: String(node.id ?? `node-${index + 1}`),
+      skillName: node.skillName ?? null,
+      displayName,
+      description: typeof node.description === 'string' ? node.description : '',
+      nodeType: node.nodeType ?? 'skill',
+      dependsOn: Array.isArray(node.dependsOn) ? node.dependsOn : [],
+      parallelGroup: node.parallelGroup ?? null,
+      gateType: node.gateType ?? null,
+      maxRetries: typeof node.maxRetries === 'number' ? node.maxRetries : 2,
+      phaseIndex: typeof node.phaseIndex === 'number' ? node.phaseIndex : null,
+    } satisfies DAGNode
+  })
+
+  const nodeIds = new Set(nodes.map((node) => node.id))
+  const edges = Array.isArray(plan.edges)
+    ? plan.edges.filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to))
+    : []
+
+  return {
+    ...plan,
+    type: plan.type ?? 'build',
+    estimatedPhases: typeof plan.estimatedPhases === 'number' ? plan.estimatedPhases : nodes.length,
+    parallelGroups: Array.isArray(plan.parallelGroups) ? plan.parallelGroups : [],
+    nodes,
+    edges,
+  }
+}
+
 const INTAKE_SYSTEM_PROMPT = `You are the Gauntlet Forge Intake Agent. Your job is to analyze a user's request and generate an execution plan as a directed acyclic graph (DAG).
 
 ## What you do:
@@ -133,7 +199,7 @@ export class IntakeAgent {
     try {
       // Try to extract JSON if wrapped in markdown code block
       const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, text];
-      plan = JSON.parse(jsonMatch[1] || text);
+      plan = normalizePlan(JSON.parse(jsonMatch[1] || text));
     } catch (err) {
       console.error('[IntakeAgent] Failed to parse plan JSON:', text.substring(0, 500));
       throw new Error('Intake agent returned invalid JSON. Please try again.');

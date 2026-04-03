@@ -14,8 +14,9 @@ function shouldBypassAuth(): boolean {
   const explicit = readBooleanEnv('AUTH_BYPASS_DEMO')
   if (explicit !== null) return explicit
 
-  // Safe default: demo auth is only enabled outside production unless explicitly overridden.
-  return process.env.NODE_ENV !== 'production'
+  // Default to demo access so teammates can open and try the app quickly.
+  // Set AUTH_BYPASS_DEMO=false to force real authentication again.
+  return true
 }
 
 function shouldEnableForgeGuestAccess(): boolean {

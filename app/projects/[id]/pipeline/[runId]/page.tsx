@@ -1,4 +1,4 @@
-import { redirect, notFound } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { getSessionOrDemo } from '@/src/lib/auth-helpers';
 import { prisma } from '@/src/lib/prisma';
 import { Header } from '@/src/components/layout/header';
@@ -12,7 +12,7 @@ interface Props {
 
 export default async function PipelineRunPage({ params }: Props) {
   const session = await getSessionOrDemo();
-  if (!session?.user?.id) redirect('/api/auth/signin');
+  if (!session?.user?.id) notFound();
 
   const run = await prisma.pipelineRun.findUnique({
     where: { id: params.runId },

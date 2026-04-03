@@ -11,11 +11,8 @@ function readBooleanEnv(name: string): boolean | null {
 }
 
 function shouldBypassAuth(): boolean {
-  const explicit = readBooleanEnv('AUTH_BYPASS_DEMO')
-  if (explicit !== null) return explicit
-
-  // Default to demo access so teammates can open and try the app quickly.
-  // Set AUTH_BYPASS_DEMO=false to force real authentication again.
+  // Force demo access for now so anyone with the app URL can try it without
+  // being bounced into GitLab auth. We can reintroduce an env flag later.
   return true
 }
 
@@ -48,11 +45,7 @@ export async function getAuthenticatedUser() {
   if (session?.user?.id) {
     return session.user;
   }
-  // Fall back to demo user if bypass is enabled
-  if (AUTH_BYPASS) {
-    return getOrCreateDemoUser();
-  }
-  return null;
+  return getOrCreateDemoUser();
 }
 
 /**
@@ -65,12 +58,8 @@ export async function getSessionOrDemo(): Promise<{ user: { id: string; name?: s
   if (session?.user?.id) {
     return session as { user: { id: string; name?: string | null; email?: string | null } };
   }
-  // Fall back to demo user if bypass is enabled
-  if (AUTH_BYPASS) {
-    const user = await getOrCreateDemoUser();
-    return { user };
-  }
-  return null;
+  const user = await getOrCreateDemoUser();
+  return { user };
 }
 
 /**
@@ -84,12 +73,8 @@ export async function getForgeSessionOrDemo(): Promise<{ user: { id: string; nam
     return session as { user: { id: string; name?: string | null; email?: string | null } };
   }
 
-  if (FORGE_GUEST_ACCESS || AUTH_BYPASS) {
-    const user = await getOrCreateDemoUser();
-    return { user };
-  }
-
-  return null;
+  const user = await getOrCreateDemoUser();
+  return { user };
 }
 
 export function unauthorizedResponse() {

@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { getSessionOrDemo } from '@/src/lib/auth-helpers';
 import { prisma } from '@/src/lib/prisma';
 import { Header } from '@/src/components/layout/header';
@@ -7,7 +7,7 @@ import { ApiKeyForm } from '@/src/components/settings/api-key-form';
 
 export default async function SettingsPage() {
   const session = await getSessionOrDemo();
-  if (!session?.user?.id) redirect('/api/auth/signin');
+  if (!session?.user?.id) notFound();
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },

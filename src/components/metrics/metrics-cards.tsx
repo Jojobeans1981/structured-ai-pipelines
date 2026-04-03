@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent } from '@/src/components/ui/card';
-import { CheckCircle, Wrench, ThumbsUp, Coins, Zap, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Wrench, ThumbsUp, Coins, Zap, AlertTriangle, Gauge, Layers3, Sparkles } from 'lucide-react';
 import { formatDuration } from '@/src/lib/utils';
 import { type MetricsSummary, type MetricsSummaryItem } from '@/src/types/metrics';
 
@@ -92,8 +92,66 @@ function renderRow(label: string, item: MetricsSummaryItem) {
 }
 
 export function MetricsCards({ summary }: MetricsCardsProps) {
+  const totalRuns = summary.build.totalRuns + summary.diagnostic.totalRuns;
+  const totalCost = summary.build.totalCostUsd + summary.diagnostic.totalCostUsd;
+  const avgSuccessSignal = totalRuns > 0
+    ? Math.round(
+        ((summary.build.buildPassRate * summary.build.totalRuns) + (summary.diagnostic.buildPassRate * summary.diagnostic.totalRuns)) /
+        totalRuns
+      )
+    : 0;
+
+  let planFit = 'Beta Tester';
+  let planHint = 'Best for quick trials, demos, and finding the best prompt patterns.';
+  if (totalRuns >= 15 || totalCost >= 10) {
+    planFit = 'Studio';
+    planHint = 'You are using Forge like a repeatable delivery tool. Shared templates and deploy flows are the next value unlock.';
+  }
+  if (totalRuns >= 40 || totalCost >= 50) {
+    planFit = 'Team Workspace';
+    planHint = 'Your usage pattern points toward collaboration, approvals, usage controls, and production delivery workflows.';
+  }
+
   return (
     <div className="space-y-4">
+      <div className="grid gap-3 md:grid-cols-3">
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-3">
+              <Gauge className="h-5 w-5 text-cyan-400" />
+              <div>
+                <p className="text-xs text-muted-foreground">Beta Readiness Signal</p>
+                <p className="text-lg font-semibold">{avgSuccessSignal}%</p>
+                <p className="text-xs text-muted-foreground">Weighted by completed run volume</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-3">
+              <Layers3 className="h-5 w-5 text-orange-400" />
+              <div>
+                <p className="text-xs text-muted-foreground">Recommended Lane</p>
+                <p className="text-lg font-semibold">{planFit}</p>
+                <p className="text-xs text-muted-foreground">{planHint}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-emerald-400" />
+              <div>
+                <p className="text-xs text-muted-foreground">Usage Snapshot</p>
+                <p className="text-lg font-semibold">{totalRuns} total runs</p>
+                <p className="text-xs text-muted-foreground">${totalCost.toFixed(2)} tracked model spend</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
       {renderRow('Build Pipeline', summary.build)}
       {renderRow('Diagnostic Pipeline', summary.diagnostic)}
     </div>

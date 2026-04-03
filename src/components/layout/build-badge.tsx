@@ -3,16 +3,12 @@ function readBuildMetadata() {
   const branch = process.env.VERCEL_GIT_COMMIT_REF || process.env.GIT_BRANCH || ''
   const env = process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown'
   const url = process.env.VERCEL_URL || ''
-  const bypassRaw = process.env.AUTH_BYPASS_DEMO?.trim().toLowerCase()
-  const demoAuthEnabled =
-    bypassRaw === 'true' ? true : bypassRaw === 'false' ? false : process.env.NODE_ENV !== 'production'
 
   return {
     sha: sha ? sha.slice(0, 7) : 'local',
     branch: branch || 'workspace',
     env,
     url,
-    demoAuthEnabled,
   }
 }
 
@@ -32,8 +28,9 @@ export function BuildBadge() {
         <span className="text-zinc-500">sha:</span> {build.sha}
       </div>
       <div>
-        <span className="text-zinc-500">demo auth:</span> {build.demoAuthEnabled ? 'on' : 'off'}
+        <span className="text-zinc-500">beta access:</span> demo mode on
       </div>
+      <div className="text-zinc-500">login intentionally disabled for testers</div>
       {build.url && (
         <div className="max-w-[220px] truncate text-zinc-500" title={build.url}>
           {build.url}

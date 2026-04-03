@@ -1,4 +1,4 @@
-import { redirect, notFound } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { getSessionOrDemo } from '@/src/lib/auth-helpers';
 import { prisma } from '@/src/lib/prisma';
 import { Header } from '@/src/components/layout/header';
@@ -11,7 +11,7 @@ interface Props {
 
 export default async function ProjectDetailPage({ params }: Props) {
   const session = await getSessionOrDemo();
-  if (!session?.user?.id) redirect('/api/auth/signin');
+  if (!session?.user?.id) notFound();
 
   const project = await prisma.project.findUnique({
     where: { id: params.id },

@@ -70,6 +70,10 @@ const STATUS_ICONS = {
   warn: <AlertTriangle className="h-4 w-4 text-yellow-400" />,
 };
 
+function clampScore(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
 function StatCard({ icon, label, value, sub }: {
   icon: React.ReactNode;
   label: string;
@@ -119,6 +123,19 @@ export function BuildSummaryPanel({ runId }: { runId: string }) {
     return <Card><CardContent className="py-8 text-center text-red-400">{error}</CardContent></Card>;
   }
   if (!data) return null;
+
+  const passCount = data.verification.filter((check) => check.status === 'pass').length;
+  const warnCount = data.verification.filter((check) => check.status === 'warn').length;
+  const failCount = data.verification.filter((check) => check.status === 'fail').length;
+  const verificationScore = data.verification.length > 0
+    ? clampScore(((passCount + warnCount * 0.5) / data.verification.length) * 100)
+    : 0;
+  const firstPassScore = data.totalStages > 0
+    ? clampScore((data.approvedFirstPass / data.totalStages) * 100)
+    : 0;
+  const deliveryScore = data.totalFilesGenerated > 0 ? 100 : 0;
+  const readinessScore = clampScore((verificationScore * 0.5) + (firstPassScore * 0.25) + (deliveryScore * 0.25));
+  const readinessLabel = readinessScore >= 85 ? 'Strong' : readinessScore >= 65 ? 'Promising' : 'Needs Work';
 
   const handleExport = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -188,6 +205,43 @@ export function BuildSummaryPanel({ runId }: { runId: string }) {
               </p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-zinc-300">Production Readiness Snapshot</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-4">
+            <StatCard
+              icon={<Shield className="h-3.5 w-3.5" />}
+              label="Readiness"
+              value={`${readinessScore}%`}
+              sub={readinessLabel}
+            />
+            <StatCard
+              icon={<CheckCircle className="h-3.5 w-3.5" />}
+              label="Verification"
+              value={`${verificationScore}%`}
+              sub={`${passCount} pass / ${warnCount} warn / ${failCount} fail`}
+            />
+            <StatCard
+              icon={<GitBranch className="h-3.5 w-3.5" />}
+              label="First Pass"
+              value={`${firstPassScore}%`}
+              sub={`${data.approvedFirstPass} of ${data.totalStages} stages`}
+            />
+            <StatCard
+              icon={<FileText className="h-3.5 w-3.5" />}
+              label="Delivery"
+              value={deliveryScore > 0 ? 'Ready' : 'Missing'}
+              sub={deliveryScore > 0 ? `${data.totalFilesGenerated} files exported` : 'No output files'}
+            />
+          </div>
+          <div className="mt-3 rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3 text-sm text-zinc-400">
+            This score blends verification health, first-pass completion, and whether a usable delivery artifact was produced. It is meant as a buyer-facing confidence signal, not a substitute for human review.
+          </div>
         </CardContent>
       </Card>
 

@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Textarea } from '@/src/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
-import { Loader2, Flame, Stethoscope, RefreshCw, Sparkles, TestTube, Rocket, GitBranch, Upload, CheckCircle2 } from 'lucide-react';
+import { Loader2, Flame, Stethoscope, RefreshCw, Sparkles, TestTube, Rocket, GitBranch, Upload, CheckCircle2, Wand2, ShieldCheck, PackageCheck, Save, Trash2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { forgeTemplates, forgeSamplePrompts } from '@/src/lib/product-offerings';
+import { loadSavedTemplates, saveSavedTemplates, type SavedForgeTemplate } from '@/src/lib/saved-templates';
 
 const pipelineTypes = [
   { id: 'build', label: 'Build', icon: Flame, description: 'Create a new project from scratch', color: 'text-orange-400 border-orange-500/30 bg-orange-500/10' },
@@ -40,9 +42,14 @@ export function ProjectForm() {
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; phase: string }>({ current: 0, total: 0, phase: '' });
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [step, setStep] = useState(0);
+  const [savedTemplates, setSavedTemplates] = useState<SavedForgeTemplate[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setSavedTemplates(loadSavedTemplates());
+  }, []);
 
   const showFilePicker = () => {
     console.log('[Upload] showFilePicker called, ref:', !!zipInputRef.current);
@@ -182,6 +189,45 @@ export function ProjectForm() {
   const [pendingZip, setPendingZip] = useState<File | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
+  const applyTemplate = (templateId: string) => {
+    const template = forgeTemplates.find((item) => item.id === templateId);
+    if (!template) return;
+
+    setSelectedType(template.pipelineType);
+    setName((current) => current.trim() ? current : template.projectName);
+    setInput(template.prompt);
+    setTouched((prev) => ({ ...prev, name: true, input: true }));
+  };
+
+  const applySavedTemplate = (template: SavedForgeTemplate) => {
+    setSelectedType(template.pipelineType);
+    setName((current) => current.trim() ? current : (template.projectName || ''));
+    setInput(template.prompt);
+    setTouched((prev) => ({ ...prev, name: true, input: true }));
+  };
+
+  const handleSaveTemplate = () => {
+    if (!input.trim()) return;
+
+    const nextTemplate: SavedForgeTemplate = {
+      id: `${Date.now()}`,
+      title: name.trim() || `Saved ${selectedType} template`,
+      pipelineType: selectedType as SavedForgeTemplate['pipelineType'],
+      prompt: input.trim(),
+      projectName: name.trim() || undefined,
+    };
+
+    const next = [nextTemplate, ...savedTemplates].slice(0, 8);
+    setSavedTemplates(next);
+    saveSavedTemplates(next);
+  };
+
+  const handleDeleteTemplate = (templateId: string) => {
+    const next = savedTemplates.filter((template) => template.id !== templateId);
+    setSavedTemplates(next);
+    saveSavedTemplates(next);
+  };
+
   const hasFiles = !!(pendingZip || pendingFiles.length > 0);
   const totalSteps = hasFiles ? 3 : 2;
 
@@ -259,15 +305,134 @@ export function ProjectForm() {
   };
 
   return (
-    <Card className="max-w-2xl">
+    <Card className="max-w-4xl border-orange-500/10 bg-zinc-950/80">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Flame className="h-5 w-5 text-orange-400" />
           New Project
         </CardTitle>
+        <p className="text-sm text-zinc-400">
+          Pick a template, describe the target outcome, and Forge will shape a runnable delivery package around it.
+        </p>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-zinc-200">
+              <Wand2 className="h-4 w-4 text-orange-400" />
+              Template Gallery
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {forgeTemplates.map((template) => {
+                const selected = selectedType === template.pipelineType && input.trim() === template.prompt.trim();
+                return (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => applyTemplate(template.id)}
+                    className={cn(
+                      'rounded-xl border p-4 text-left transition-all',
+                      selected
+                        ? 'border-orange-500/40 bg-orange-500/10 shadow-sm shadow-orange-500/10'
+                        : 'border-zinc-800 bg-zinc-900/60 hover:border-zinc-700 hover:bg-zinc-900'
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-zinc-100">{template.title}</span>
+                      <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+                        {template.badge}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-zinc-400">{template.outcome}</p>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+              <div className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">Try one of these prompts</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {forgeSamplePrompts.map((sample) => (
+                  <button
+                    key={sample}
+                    type="button"
+                    onClick={() => {
+                      setInput(sample);
+                      setTouched((prev) => ({ ...prev, input: true }));
+                    }}
+                    className="rounded-full border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:border-orange-500/30 hover:text-orange-300"
+                  >
+                    {sample}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">Saved team-ready templates</div>
+                <Button type="button" variant="outline" size="sm" onClick={handleSaveTemplate} disabled={!input.trim()}>
+                  <Save className="mr-2 h-3.5 w-3.5" />
+                  Save Current
+                </Button>
+              </div>
+              {savedTemplates.length === 0 ? (
+                <p className="mt-2 text-xs text-zinc-500">Save a good prompt here so beta testers can reuse it quickly in this browser.</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {savedTemplates.map((template) => (
+                    <div key={template.id} className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => applySavedTemplate(template)}
+                        className="flex-1 text-left"
+                      >
+                        <div className="text-sm text-zinc-200">{template.title}</div>
+                        <div className="text-xs text-zinc-500">{template.pipelineType}</div>
+                      </button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteTemplate(template.id)}
+                        className="h-8 w-8 text-zinc-500 hover:text-red-400"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-zinc-200">
+                <PackageCheck className="h-4 w-4 text-emerald-400" />
+                Deliverables
+              </div>
+              <p className="mt-2 text-xs leading-5 text-zinc-400">
+                Code, generated files, setup guidance, and a project history your team can revisit.
+              </p>
+            </div>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-zinc-200">
+                <ShieldCheck className="h-4 w-4 text-cyan-400" />
+                Trust Layer
+              </div>
+              <p className="mt-2 text-xs leading-5 text-zinc-400">
+                Verification, retries, and observability make the output feel reviewable instead of mysterious.
+              </p>
+            </div>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-zinc-200">
+                <GitBranch className="h-4 w-4 text-orange-400" />
+                Best Fit
+              </div>
+              <p className="mt-2 text-xs leading-5 text-zinc-400">
+                Best for prototypes, client work, internal tools, debugging, deployment packs, and launch-ready starters.
+              </p>
+            </div>
+          </div>
           {/* File inputs — visually hidden but still in DOM and clickable */}
           <input
             ref={zipInputRef}
@@ -327,7 +492,7 @@ export function ProjectForm() {
 
           {/* Pipeline type selector */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">What do you need?</label>
+            <label className="text-sm font-medium">Pipeline Mode</label>
             <div className="grid grid-cols-3 gap-2">
               {pipelineTypes.map((type) => {
                 const Icon = type.icon;
@@ -358,7 +523,7 @@ export function ProjectForm() {
           {/* Description / input */}
           <div className="space-y-2">
             <label htmlFor="input" className="text-sm font-medium">
-              Describe what you need
+              Describe the outcome you want
             </label>
             <Textarea
               id="input"
@@ -375,6 +540,9 @@ export function ProjectForm() {
             {touched.input && !input.trim() && (
               <p className="text-xs text-red-500">Please describe what you need</p>
             )}
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-3 text-xs text-zinc-500">
+              Tip: mention the target user, must-have screens or endpoints, deployment target, and what counts as done.
+            </div>
           </div>
 
           {/* Upload zone */}

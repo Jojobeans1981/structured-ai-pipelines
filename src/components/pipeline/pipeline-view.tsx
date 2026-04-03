@@ -20,6 +20,8 @@ import { BuildSummaryPanel } from '@/src/components/pipeline/build-summary';
 import { ProgressBar } from '@/src/components/pipeline/progress-bar';
 import { DwarfForgeScene } from '@/src/components/forge/dwarf-forge-scene';
 import { useKeyboardShortcuts } from '@/src/hooks/use-keyboard-shortcuts';
+import { Card, CardContent } from '@/src/components/ui/card';
+import { RunLaunchPanel } from '@/src/components/pipeline/run-launch-panel';
 
 interface PipelineViewProps {
   runId: string;
@@ -432,6 +434,33 @@ export function PipelineView({ runId, projectId }: PipelineViewProps) {
               </Button>
             </div>
           </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="border-zinc-800 bg-zinc-900/40">
+              <CardContent className="pt-6">
+                <div className="text-sm font-medium text-zinc-200">Shareable Outcome</div>
+                <p className="mt-2 text-sm text-zinc-400">
+                  You now have a run summary, generated files, and a project view that is easy to hand to another teammate.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-zinc-800 bg-zinc-900/40">
+              <CardContent className="pt-6">
+                <div className="text-sm font-medium text-zinc-200">Trust Report</div>
+                <p className="mt-2 text-sm text-zinc-400">
+                  Review the build summary below for verification, cost, stage outcomes, and observable pipeline traces.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-zinc-800 bg-zinc-900/40">
+              <CardContent className="pt-6">
+                <div className="text-sm font-medium text-zinc-200">Suggested Next Step</div>
+                <p className="mt-2 text-sm text-zinc-400">
+                  Go back to the project to inspect files, download the artifact, or run the next feature or deploy pass.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          <RunLaunchPanel projectId={projectId} runId={runId} />
           <CostDisplay runId={runId} />
           <BuildSummaryPanel runId={runId} />
           <TraceTimeline runId={runId} />

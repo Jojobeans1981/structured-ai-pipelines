@@ -7,6 +7,7 @@ import { Button } from '@/src/components/ui/button';
 import { Textarea } from '@/src/components/ui/textarea';
 import { Loader2, Stethoscope } from 'lucide-react';
 import { CodeFileInput, type CodeFile } from '@/src/components/pipeline/code-file-input';
+import { forgeSamplePrompts } from '@/src/lib/product-offerings';
 
 interface DiagnosticStartDialogProps {
   projectId: string;
@@ -76,6 +77,22 @@ export function DiagnosticStartDialog({ projectId, open, onOpenChange }: Diagnos
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-zinc-200">Quick-start diagnostic prompts</div>
+            <div className="flex flex-wrap gap-2">
+              {forgeSamplePrompts.slice(-2).concat('Users can log in locally but get redirected in production after deploy.').map((sample) => (
+                <button
+                  key={sample}
+                  type="button"
+                  onClick={() => setDescription(sample)}
+                  className="rounded-full border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:border-blue-500/30 hover:text-blue-300"
+                >
+                  {sample}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Bug Description *</label>
             <Textarea

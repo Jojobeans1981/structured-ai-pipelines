@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Badge } from '@/src/components/ui/badge';
 import { Button } from '@/src/components/ui/button';
-import { Flame, Stethoscope, Clock, Download, Trash2, XCircle, ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
+import { Flame, Stethoscope, Clock, Download, Trash2, XCircle, ThumbsUp, ThumbsDown, MessageSquare, ShieldCheck, PackageCheck, Rocket } from 'lucide-react';
 import { formatDate, formatDuration } from '@/src/lib/utils';
 import { BuildStartDialog } from '@/src/components/pipeline/build-start-dialog';
 import { DiagnosticStartDialog } from '@/src/components/pipeline/diagnostic-start-dialog';
@@ -129,6 +129,42 @@ export function ProjectDetailClient({ project, runs: initialRuns, needsFeedback 
           <p className="text-zinc-400">{project.description || 'No description'}</p>
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm font-medium text-zinc-200">
+              <PackageCheck className="h-4 w-4 text-emerald-400" />
+              Delivery Pack
+            </div>
+            <p className="mt-2 text-sm text-zinc-400">
+              Generated files, downloadable ZIP, and rerunnable pipelines all live here.
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm font-medium text-zinc-200">
+              <ShieldCheck className="h-4 w-4 text-cyan-400" />
+              Trust Signals
+            </div>
+            <p className="mt-2 text-sm text-zinc-400">
+              Build history, retries, and verification surfaces make the output easier to review with a team.
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm font-medium text-zinc-200">
+              <Rocket className="h-4 w-4 text-orange-400" />
+              Next Move
+            </div>
+            <p className="mt-2 text-sm text-zinc-400">
+              Start another run when you want to add features, fix issues, or generate a deployment package.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="flex gap-3">
         {(() => {

@@ -10,6 +10,7 @@ import { MetricsCards } from '@/src/components/metrics/metrics-cards';
 import { StageTimeChart } from '@/src/components/metrics/stage-time-chart';
 import { HistoryTable } from '@/src/components/metrics/history-table';
 import { BarChart3, BookOpen, AlertTriangle, Shield, Brain, Users } from 'lucide-react';
+import { forgeBetaPlans, forgeTrustSignals } from '@/src/lib/product-offerings';
 
 function avgStageDurations(history: { stageDurations: Record<string, number> }[]): Record<string, number> {
   const totals: Record<string, { sum: number; count: number }> = {};
@@ -40,6 +41,43 @@ export default function MetricsPage() {
       <Header title="Metrics" />
       <PageContainer>
         <div className="space-y-6">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+            <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 via-zinc-950 to-zinc-950">
+              <CardHeader>
+                <CardTitle className="text-lg">Operator Trust Dashboard</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <p className="leading-6 text-zinc-300">
+                  This page is now part of the product story, not just internal telemetry. It shows whether Forge is producing work a buyer can trust, how expensive each run is, and where quality gates are catching issues before handoff.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {forgeTrustSignals.map((signal) => (
+                    <div key={signal} className="rounded-lg border border-white/10 bg-black/20 p-3 text-zinc-200">
+                      {signal}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Commercial Framing</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {forgeBetaPlans.map((plan) => (
+                  <div key={plan.name} className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-zinc-100">{plan.name}</span>
+                      <span className="text-xs text-cyan-300">{plan.price}</span>
+                    </div>
+                    <p className="mt-1 text-zinc-400">{plan.highlight}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+
           {isLoading ? (
             <div className="space-y-4">
               {[1, 2].map((i) => (

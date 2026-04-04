@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Copy, Download, ExternalLink, Loader2, Rocket, Share2 } from 'lucide-react';
@@ -8,6 +8,13 @@ import { Copy, Download, ExternalLink, Loader2, Rocket, Share2 } from 'lucide-re
 interface RunLaunchPanelProps {
   projectId: string;
   runId: string;
+}
+
+interface PreviewCapabilities {
+  livePreviewAvailable: boolean;
+  livePreviewReason: string | null;
+  fallbackPreviewAvailable: boolean;
+  fallbackUrl: string;
 }
 
 function formatPreviewError(message: string): string {
@@ -42,12 +49,47 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewExpiresAt, setPreviewExpiresAt] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [loadingCapabilities, setLoadingCapabilities] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [errorHint, setErrorHint] = useState<string | null>(null);
+  const [capabilities, setCapabilities] = useState<PreviewCapabilities | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch(`/api/projects/${projectId}/preview`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!active) return;
+        setCapabilities(data);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCapabilities({
+          livePreviewAvailable: false,
+          livePreviewReason: 'Preview capability check failed.',
+          fallbackPreviewAvailable: true,
+          fallbackUrl: `/projects/${projectId}/preview`,
+        });
+      })
+      .finally(() => {
+        if (active) setLoadingCapabilities(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [projectId]);
 
   const handlePreview = async () => {
+    if (capabilities && !capabilities.livePreviewAvailable) {
+      setError(formatPreviewError(capabilities.livePreviewReason || 'Live preview requires Docker.'));
+      setErrorHint(formatPreviewHint(capabilities.livePreviewReason || 'Live preview requires Docker.'));
+      return;
+    }
+
     setLoadingPreview(true);
     setError(null);
     setErrorHint(null);
@@ -70,6 +112,11 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
     } finally {
       setLoadingPreview(false);
     }
+  };
+
+  const handleFallbackPreview = () => {
+    const fallbackUrl = capabilities?.fallbackUrl || `/projects/${projectId}/preview`;
+    window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleDownload = async () => {
@@ -119,10 +166,22 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
         <p className="text-sm text-zinc-300">
           Turn this run into something demoable right away: open a live preview when available, export the artifact, or share the run link with a teammate.
         </p>
+        {!loadingCapabilities && capabilities && !capabilities.livePreviewAvailable && (
+          <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-xs text-zinc-400">
+            Live preview is unavailable on this host. Fallback preview remains available from stored project files.
+          </div>
+        )}
         <div className="flex flex-wrap gap-3">
-          <Button onClick={handlePreview} disabled={loadingPreview}>
-            {loadingPreview ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
-            {previewUrl ? 'Refresh Preview' : 'Launch Preview'}
+          <Button
+            onClick={handlePreview}
+            disabled={loadingPreview || loadingCapabilities || (capabilities ? !capabilities.livePreviewAvailable : false)}
+          >
+            {loadingPreview || loadingCapabilities ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
+            {previewUrl ? 'Refresh Live Preview' : 'Launch Live Preview'}
+          </Button>
+          <Button variant="secondary" onClick={handleFallbackPreview} disabled={loadingCapabilities || (capabilities ? !capabilities.fallbackPreviewAvailable : false)}>
+            <Rocket className="mr-2 h-4 w-4" />
+            Open Fallback Preview
           </Button>
           <Button variant="outline" onClick={handleDownload} disabled={downloading}>
             {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}

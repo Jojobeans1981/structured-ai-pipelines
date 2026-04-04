@@ -7,6 +7,32 @@ interface Props {
   params: { id: string };
 }
 
+export async function GET(_request: Request, { params }: Props) {
+  const user = await getAuthenticatedUser();
+  if (!user) return unauthorizedResponse();
+
+  const project = await prisma.project.findUnique({
+    where: { id: params.id },
+    select: { userId: true },
+  });
+
+  if (!project || project.userId !== user.id) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const fileCount = await prisma.projectFile.count({
+    where: { projectId: params.id },
+  });
+  const dockerAvailability = DockerSandbox.getAvailability();
+
+  return NextResponse.json({
+    livePreviewAvailable: dockerAvailability.available,
+    livePreviewReason: dockerAvailability.reason,
+    fallbackPreviewAvailable: fileCount > 0,
+    fallbackUrl: `/projects/${params.id}/preview`,
+  });
+}
+
 /**
  * POST /api/projects/[id]/preview — Launch a live preview container.
  * Returns a localhost URL that expires after 30 minutes.

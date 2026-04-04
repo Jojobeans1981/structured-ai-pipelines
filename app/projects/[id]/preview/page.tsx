@@ -6,6 +6,33 @@ import { PageContainer } from '@/src/components/layout/page-container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { ExternalLink, Eye, FileCode2, FileText } from 'lucide-react';
 
+function canRenderStandaloneHtml(htmlContent: string): boolean {
+  const lower = htmlContent.toLowerCase();
+
+  if (
+    lower.includes('type="module"') ||
+    lower.includes("type='module'") ||
+    lower.includes('/_next/') ||
+    lower.includes('__next') ||
+    lower.includes('/src/main.') ||
+    lower.includes('./src/main.') ||
+    lower.includes('/src/index.') ||
+    lower.includes('vite/client') ||
+    lower.includes('<script src=')
+  ) {
+    return false;
+  }
+
+  const stripped = lower
+    .replace(/<style[\s\S]*?<\/style>/g, '')
+    .replace(/<script[\s\S]*?<\/script>/g, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return stripped.length > 0;
+}
+
 function buildHtmlPreviewDocument(
   htmlContent: string,
   cssFiles: Array<{ filePath: string; content: string }>
@@ -68,7 +95,8 @@ export default async function ProjectFallbackPreviewPage({
   const entryFiles = project.files.filter((file) =>
     /(^|\/)(page|layout|app|main|index)\.(tsx?|jsx?)$/i.test(file.filePath)
   ).slice(0, 6);
-  const previewDocument = htmlFile ? buildHtmlPreviewDocument(htmlFile.content, cssFiles) : null;
+  const renderableHtmlFile = htmlFile && canRenderStandaloneHtml(htmlFile.content) ? htmlFile : null;
+  const previewDocument = renderableHtmlFile ? buildHtmlPreviewDocument(renderableHtmlFile.content, cssFiles) : null;
 
   return (
     <>
@@ -108,7 +136,7 @@ export default async function ProjectFallbackPreviewPage({
                   sandbox="allow-scripts allow-same-origin"
                 />
                 <p className="mt-3 text-xs text-zinc-500">
-                  Source: {htmlFile?.filePath || 'HTML entry'}{cssFiles.length > 0 ? ` + ${cssFiles.length} CSS file(s)` : ''}
+                  Source: {renderableHtmlFile?.filePath || 'HTML entry'}{cssFiles.length > 0 ? ` + ${cssFiles.length} CSS file(s)` : ''}
                 </p>
               </CardContent>
             </Card>
@@ -122,8 +150,13 @@ export default async function ProjectFallbackPreviewPage({
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-zinc-400">
-                  No standalone HTML entry was found, so this fallback shows the primary generated entry files instead.
+                  No self-contained HTML entry was found, so this fallback shows the primary generated entry files instead.
                 </p>
+                {htmlFile && !renderableHtmlFile && (
+                  <p className="text-sm text-zinc-500">
+                    Detected HTML shell at <span className="font-mono text-zinc-300">{htmlFile.filePath}</span>, but it depends on external framework assets that are not runnable in hosted fallback mode.
+                  </p>
+                )}
                 {entryFiles.length > 0 ? (
                   entryFiles.map((file) => (
                     <div key={file.id} className="rounded-lg border border-zinc-800 bg-zinc-950/60">

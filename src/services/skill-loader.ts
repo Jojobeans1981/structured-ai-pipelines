@@ -1,6 +1,17 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { prisma } from '@/src/lib/prisma';
+import {
+  ANALYSIS_ARCHITECTURE_PROMPT,
+  ANALYSIS_CODE_QUALITY_PROMPT,
+  ANALYSIS_PERFORMANCE_PROMPT,
+  ANALYSIS_SECURITY_PROMPT,
+  ANALYSIS_UX_PROMPT,
+  GUARDIAN_AGENT_PROMPT,
+  INSPECTOR_AGENT_PROMPT,
+  SENTINEL_AGENT_PROMPT,
+  SOCRATIC_AGENT_PROMPT,
+} from '@/src/services/agent-skill-prompts';
 
 const skillCache = new Map<string, string>();
 
@@ -67,6 +78,15 @@ const INTERNAL_SKILLS: Record<string, string> = {
   '__gate__': 'You are a pipeline gate. Pause and await human approval.',
   '__verify__': 'You are a build verification node. Run install and build checks.',
   'setup-analyzer': SETUP_ANALYZER_PROMPT,
+  'guardian-agent': GUARDIAN_AGENT_PROMPT,
+  'sentinel-agent': SENTINEL_AGENT_PROMPT,
+  'inspector-agent': INSPECTOR_AGENT_PROMPT,
+  'socratic-agent': SOCRATIC_AGENT_PROMPT,
+  'analysis-architecture': ANALYSIS_ARCHITECTURE_PROMPT,
+  'analysis-code-quality': ANALYSIS_CODE_QUALITY_PROMPT,
+  'analysis-security': ANALYSIS_SECURITY_PROMPT,
+  'analysis-performance': ANALYSIS_PERFORMANCE_PROMPT,
+  'analysis-ux': ANALYSIS_UX_PROMPT,
 };
 
 export class SkillLoader {
@@ -147,6 +167,7 @@ export class SkillLoader {
       'phase-executor', 'educator', 'project-orchestrator', 'bug-intake', 'code-archaeologist',
       'root-cause-analyzer', 'fix-planner', 'fix-prompt-builder', 'fix-executor',
       'lessons-learned', 'diagnostic-orchestrator', 'metrics-tracker', 'code-mentor',
+      'guardian-agent', 'sentinel-agent', 'inspector-agent', 'socratic-agent',
       'setup-analyzer',
       'forge-analyzer', 'forge-prd', 'forge-prompt', 'forge-scaffolder', 'forge-validator',
       'forge-archaeologist', 'forge-root-cause', 'forge-fix-planner', 'forge-fix-scaffolder',

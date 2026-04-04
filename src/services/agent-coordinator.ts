@@ -3,11 +3,12 @@ import { prisma } from '@/src/lib/prisma';
 import { createWithFallback } from '@/src/lib/anthropic';
 import { TraceLogger } from '@/src/services/trace-logger';
 import { DecisionOption, DecisionResult } from '@/src/services/decision-agent';
+import { SkillLoader } from '@/src/services/skill-loader';
 
 interface AgentSpec {
   role: string;
   label: string;
-  systemPrompt: string;
+  skillName: string;
   weight: number; // vote weight — security gets 1.5x on security-related decisions
 }
 
@@ -39,57 +40,32 @@ const DEFAULT_AGENTS: AgentSpec[] = [
   {
     role: 'architecture',
     label: 'Architecture Analyst',
+    skillName: 'analysis-architecture',
     weight: 1.0,
-    systemPrompt: `You are an architecture analysis agent. Evaluate the decision from a structural perspective:
-- Separation of concerns and modularity
-- Scalability implications
-- Dependency management and coupling
-- System boundaries and interfaces
-Respond with ONLY valid JSON: { "votedOption": "<option id>", "confidence": 0.0-1.0, "reasoning": "<2-3 sentences>" }`,
   },
   {
     role: 'code_quality',
     label: 'Code Quality Analyst',
+    skillName: 'analysis-code-quality',
     weight: 1.0,
-    systemPrompt: `You are a code quality analysis agent. Evaluate the decision from a maintainability perspective:
-- Code readability and conventions
-- Testability of the approach
-- Technical debt implications
-- Pattern consistency
-Respond with ONLY valid JSON: { "votedOption": "<option id>", "confidence": 0.0-1.0, "reasoning": "<2-3 sentences>" }`,
   },
   {
     role: 'security',
     label: 'Security Analyst',
+    skillName: 'analysis-security',
     weight: 1.5,
-    systemPrompt: `You are a security analysis agent. Evaluate the decision from a security perspective:
-- Input validation and sanitization
-- Authentication and authorization implications
-- Data exposure risks
-- OWASP Top 10 considerations
-Respond with ONLY valid JSON: { "votedOption": "<option id>", "confidence": 0.0-1.0, "reasoning": "<2-3 sentences>" }`,
   },
   {
     role: 'performance',
     label: 'Performance Analyst',
+    skillName: 'analysis-performance',
     weight: 1.0,
-    systemPrompt: `You are a performance analysis agent. Evaluate the decision from an efficiency perspective:
-- Computational complexity
-- Memory and resource usage
-- Network and I/O patterns
-- Caching opportunities
-Respond with ONLY valid JSON: { "votedOption": "<option id>", "confidence": 0.0-1.0, "reasoning": "<2-3 sentences>" }`,
   },
   {
     role: 'ux',
     label: 'UX Analyst',
+    skillName: 'analysis-ux',
     weight: 0.8,
-    systemPrompt: `You are a UX analysis agent. Evaluate the decision from a user experience perspective:
-- Error handling and user feedback
-- Loading states and perceived performance
-- Accessibility considerations
-- Consistency with existing UI patterns
-Respond with ONLY valid JSON: { "votedOption": "<option id>", "confidence": 0.0-1.0, "reasoning": "<2-3 sentences>" }`,
   },
 ];
 
@@ -242,10 +218,11 @@ export class AgentCoordinator {
     const spanId = await TraceLogger.agentSpawn(runId, traceId, parentSpanId, spec.role);
 
     try {
+      const systemPrompt = await SkillLoader.getSkillPromptAsync(spec.skillName);
       const response = await createWithFallback(client, {
         model: 'claude-haiku-4-5-20251001', // Use cheaper model for analysis agents
         max_tokens: 512,
-        system: spec.systemPrompt,
+        system: systemPrompt,
         messages: [{ role: 'user', content: context }],
       });
 

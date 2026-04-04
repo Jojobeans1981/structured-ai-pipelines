@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 import { prisma } from '@/src/lib/prisma';
 import { TraceLogger } from '@/src/services/trace-logger';
+import { DockerSandbox } from '@/src/services/docker-sandbox';
 
 /**
  * Validation Agent — runs lint/test/coverage/security checks on generated code.
@@ -43,10 +44,15 @@ export class ValidationAgent {
 
     let report: ValidationReport;
 
-    if (run?.outputPath && ValidationAgent.isDockerAvailable()) {
+    const dockerAvailability = DockerSandbox.getAvailability();
+
+    if (run?.outputPath && dockerAvailability.available) {
       report = await ValidationAgent.runDockerValidation(run.outputPath);
     } else {
       report = await ValidationAgent.runLightweightValidation(runId, projectId);
+      if (!dockerAvailability.available) {
+        report.summary = `${report.summary} Docker sandbox unavailable: ${dockerAvailability.reason ?? 'unknown reason'}`;
+      }
     }
 
     report.durationMs = Date.now() - startTime;
@@ -70,15 +76,6 @@ export class ValidationAgent {
 
     console.log(`[ValidationAgent] ${report.ready ? 'READY' : 'NOT READY'}: ${report.summary} (${report.durationMs}ms)`);
     return report;
-  }
-
-  private static isDockerAvailable(): boolean {
-    try {
-      execSync('docker info', { stdio: 'ignore', timeout: 5000 });
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   /**

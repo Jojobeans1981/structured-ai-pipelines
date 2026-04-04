@@ -1,6 +1,6 @@
-import { execSync, exec } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import { mkdirSync, writeFileSync, existsSync, rmSync } from 'fs';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
 
@@ -27,17 +27,73 @@ const BUILD_TIMEOUT = 120;
 const START_TIMEOUT = 15;
 const HEALTH_TIMEOUT = 10;
 
+interface DockerAvailability {
+  available: boolean;
+  reason: string | null;
+}
+
+function normalizeDockerError(message: string): string {
+  const lower = message.toLowerCase();
+
+  if (lower.includes('permission denied') && lower.includes('docker api')) {
+    return 'Docker is installed, but this app process does not have permission to access the Docker daemon.';
+  }
+
+  if (lower.includes('the system cannot find the file specified') || lower.includes('is not recognized')) {
+    return 'Docker CLI is not installed or is not on PATH for this server process.';
+  }
+
+  if (lower.includes('server version')) {
+    return 'Docker CLI responded, but the Docker daemon did not return a server version.';
+  }
+
+  return `Docker check failed: ${message}`;
+}
+
 export class DockerSandbox {
+  private static availabilityCache: { expiresAt: number; value: DockerAvailability } | null = null;
+
+  private static runDockerCommand(args: string[], timeoutMs: number): string {
+    return execFileSync('docker', args, {
+      encoding: 'utf-8',
+      stdio: 'pipe',
+      timeout: timeoutMs,
+    }).trim();
+  }
+
+  static getAvailability(): DockerAvailability {
+    const cached = DockerSandbox.availabilityCache;
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
+    let value: DockerAvailability;
+    try {
+      const serverVersion = DockerSandbox.runDockerCommand(['version', '--format', '{{.Server.Version}}'], 15000);
+      value = serverVersion
+        ? { available: true, reason: null }
+        : { available: false, reason: 'Docker CLI is installed, but the Docker daemon did not report a server version.' };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      value = {
+        available: false,
+        reason: normalizeDockerError(message),
+      };
+    }
+
+    DockerSandbox.availabilityCache = {
+      expiresAt: Date.now() + 10_000,
+      value,
+    };
+
+    return value;
+  }
+
   /**
    * Check if Docker is available on this machine.
    */
   static isAvailable(): boolean {
-    try {
-      execSync('docker info', { stdio: 'pipe', timeout: 5000 });
-      return true;
-    } catch {
-      return false;
-    }
+    return DockerSandbox.getAvailability().available;
   }
 
   /**
@@ -61,7 +117,7 @@ export class DockerSandbox {
       mkdirSync(projectDir, { recursive: true });
       for (const file of files) {
         const fullPath = join(projectDir, file.filePath);
-        const dir = fullPath.substring(0, fullPath.lastIndexOf('/'));
+        const dir = dirname(fullPath);
         if (dir && dir !== projectDir) {
           mkdirSync(dir, { recursive: true });
         }
@@ -217,8 +273,16 @@ export class DockerSandbox {
     expiresAt: string | null;
     error: string | null;
   }> {
-    if (!DockerSandbox.isAvailable()) {
-      return { success: false, url: null, containerId: null, port: null, expiresAt: null, error: 'Docker not available' };
+    const availability = DockerSandbox.getAvailability();
+    if (!availability.available) {
+      return {
+        success: false,
+        url: null,
+        containerId: null,
+        port: null,
+        expiresAt: null,
+        error: availability.reason || 'Docker not available',
+      };
     }
 
     const sandboxId = randomBytes(4).toString('hex');
@@ -230,7 +294,7 @@ export class DockerSandbox {
       mkdirSync(projectDir, { recursive: true });
       for (const file of files) {
         const fullPath = join(projectDir, file.filePath);
-        const dir = fullPath.substring(0, fullPath.lastIndexOf('/'));
+        const dir = dirname(fullPath);
         if (dir && dir !== projectDir) mkdirSync(dir, { recursive: true });
         writeFileSync(fullPath, file.content, 'utf-8');
       }
@@ -244,7 +308,6 @@ export class DockerSandbox {
         `docker run -d --name ${containerName} ` +
         `-v "${projectDir}:/app" -w /app ` +
         `-p 0:3000 -p 0:5173 -p 0:4173 -p 0:8080 ` +
-        `--stop-timeout ${ttlSeconds} ` +
         `${DOCKER_IMAGE} sh -c "npm install --no-audit --no-fund && (npm run dev || npm start)" 2>&1`,
         { encoding: 'utf-8', timeout: 30000 }
       ).trim();
@@ -259,14 +322,20 @@ export class DockerSandbox {
           `docker port ${containerName} 2>/dev/null`,
           { encoding: 'utf-8', timeout: 5000 }
         );
-        // Parse output like "3000/tcp -> 0.0.0.0:49152"
-        const portMatch = portOutput.match(/-> [\d.]+:(\d+)/);
+        // Parse output like "3000/tcp -> 0.0.0.0:49152" or "3000/tcp -> [::]:49152"
+        const portMatch = portOutput.match(/:(\d+)\s*$/m);
         if (portMatch) hostPort = parseInt(portMatch[1], 10);
       } catch { /* ignore */ }
 
-      // Schedule auto-cleanup
-      const cleanupCmd = `sleep ${ttlSeconds} && docker rm -f ${containerName} 2>/dev/null && rm -rf ${projectDir}`;
-      exec(`sh -c '${cleanupCmd}'`);
+      // Schedule auto-cleanup inside the running Node process instead of using a Unix shell.
+      setTimeout(() => {
+        try {
+          execSync(`docker rm -f ${containerName} 2>/dev/null`, { stdio: 'pipe', timeout: 10000 });
+        } catch { /* container may already be gone */ }
+        try {
+          rmSync(projectDir, { recursive: true, force: true });
+        } catch { /* dir may already be gone */ }
+      }, ttlSeconds * 1000);
 
       const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
       const url = hostPort ? `http://localhost:${hostPort}` : null;

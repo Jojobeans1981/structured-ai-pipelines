@@ -10,6 +10,34 @@ interface RunLaunchPanelProps {
   runId: string;
 }
 
+function formatPreviewError(message: string): string {
+  const lower = message.toLowerCase();
+
+  if (lower.includes('does not have permission to access the docker daemon')) {
+    return 'Live preview is blocked because this app cannot access the Docker daemon. Docker is installed, but the current server process needs Docker Desktop/daemon permission.';
+  }
+
+  if (lower.includes('live preview requires docker')) {
+    return message;
+  }
+
+  return message;
+}
+
+function formatPreviewHint(message: string): string | null {
+  const lower = message.toLowerCase();
+
+  if (lower.includes('does not have permission to access the docker daemon')) {
+    return 'Try confirming Docker Desktop is running, then restart this Next.js server from a shell that has Docker access.';
+  }
+
+  if (lower.includes('live preview requires docker')) {
+    return 'If this machine should support previews, verify Docker Desktop is installed, running, and reachable from the server process.';
+  }
+
+  return null;
+}
+
 export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewExpiresAt, setPreviewExpiresAt] = useState<string | null>(null);
@@ -17,10 +45,12 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
   const [downloading, setDownloading] = useState(false);
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [errorHint, setErrorHint] = useState<string | null>(null);
 
   const handlePreview = async () => {
     setLoadingPreview(true);
     setError(null);
+    setErrorHint(null);
     try {
       const res = await fetch(`/api/projects/${projectId}/preview`, {
         method: 'POST',
@@ -34,7 +64,9 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
       setPreviewUrl(data.url || null);
       setPreviewExpiresAt(data.expiresAt || null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to launch preview');
+      const message = err instanceof Error ? err.message : 'Failed to launch preview';
+      setError(formatPreviewError(message));
+      setErrorHint(formatPreviewHint(message));
     } finally {
       setLoadingPreview(false);
     }
@@ -43,6 +75,7 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
   const handleDownload = async () => {
     setDownloading(true);
     setError(null);
+    setErrorHint(null);
     try {
       const res = await fetch(`/api/projects/${projectId}/download`);
       if (!res.ok) {
@@ -123,7 +156,12 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
             )}
           </div>
         )}
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && (
+          <div className="space-y-1">
+            <p className="text-sm text-red-400">{error}</p>
+            {errorHint && <p className="text-xs text-zinc-500">{errorHint}</p>}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

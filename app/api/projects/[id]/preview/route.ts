@@ -25,9 +25,14 @@ export async function POST(_request: Request, { params }: Props) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  if (!DockerSandbox.isAvailable()) {
+  const dockerAvailability = DockerSandbox.getAvailability();
+  if (!dockerAvailability.available) {
     return NextResponse.json(
-      { error: 'Docker is not available on this server. Live preview requires Docker.' },
+      {
+        error: dockerAvailability.reason
+          ? `Live preview requires Docker. ${dockerAvailability.reason}`
+          : 'Docker is not available on this server. Live preview requires Docker.',
+      },
       { status: 503 }
     );
   }

@@ -33,11 +33,28 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-me}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
+      PREVIEW_WORKER_URL: ${PREVIEW_WORKER_URL:-http://preview-worker:3010}
+      PREVIEW_WORKER_TOKEN: ${PREVIEW_WORKER_TOKEN:-preview-worker-dev-token}
     ports:
       - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - forge-net
+
+  preview-worker:
+    build:
+      context: ./preview-worker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PREVIEW_WORKER_TOKEN: ${PREVIEW_WORKER_TOKEN:-preview-worker-dev-token}
+      PREVIEW_WORKER_PUBLIC_BASE_URL: ${PREVIEW_WORKER_PUBLIC_BASE_URL:-http://localhost}
+    ports:
+      - "3010:3010"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - forge-net
 

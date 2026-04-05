@@ -24,6 +24,7 @@ model User {
   feedback ProjectFeedback[]
   specCaches SpecCache[]
   forgeRuns ForgeRun[]
+  previewSessions PreviewSession[]
 }
 
 model Account {
@@ -77,6 +78,30 @@ model Project {
   files   ProjectFile[]
   metrics PipelineMetric[]
   feedback ProjectFeedback[]
+  previewSessions PreviewSession[]
+}
+
+model PreviewSession {
+  id          String   @id @default(cuid())
+  projectId   String
+  userId      String
+  provider    String
+  status      String   @default("launching") // launching | running | stopped | failed | expired
+  previewUrl  String?
+  containerId String?
+  port        Int?
+  expiresAt   DateTime?
+  startedAt   DateTime?
+  stoppedAt   DateTime?
+  error       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
+  @@index([userId, createdAt])
 }
 
 model PipelineRun {

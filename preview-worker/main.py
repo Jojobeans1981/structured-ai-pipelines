@@ -105,15 +105,27 @@ def ensure_project_files(files: list[PreviewFile]) -> str:
         raise
 
 
-def choose_start_command(package_json_path: Path) -> str:
+def choose_start_command(project_dir: Path, package_json_path: Path) -> str:
     pkg = json.loads(package_json_path.read_text(encoding="utf-8"))
     scripts = pkg.get("scripts", {})
+    dependencies = {
+        **pkg.get("dependencies", {}),
+        **pkg.get("devDependencies", {}),
+    }
+    start_script = scripts.get("start", "")
 
     if "dev" in scripts:
         return "(npm run dev -- --hostname 0.0.0.0 || npm run dev -- --host 0.0.0.0 || npm run dev)"
     if "preview" in scripts:
         return "(npm run preview -- --host 0.0.0.0 || npm run preview)"
+    if dependencies.get("vite") or any((project_dir / name).exists() for name in ("vite.config.ts", "vite.config.js", "vite.config.mjs")):
+        return "npx vite --host 0.0.0.0"
+    if dependencies.get("next") or any((project_dir / name).exists() for name in ("next.config.js", "next.config.mjs", "next.config.ts")):
+        return "npx next dev -H 0.0.0.0 -p 3000"
     if "start" in scripts:
+        if ".ts" in start_script and ("react" in dependencies or "react-dom" in dependencies):
+            if any((project_dir / name).exists() for name in ("vite.config.ts", "vite.config.js", "vite.config.mjs")):
+                return "npx vite --host 0.0.0.0"
         return "npm start"
     return "npm run dev"
 
@@ -167,7 +179,7 @@ def health():
 def launch_preview(payload: LaunchPreviewRequest):
     project_dir = ensure_project_files(payload.files)
     package_json_path = Path(project_dir) / "package.json"
-    start_command = choose_start_command(package_json_path)
+    start_command = choose_start_command(Path(project_dir), package_json_path)
     ttl_seconds = max(60, min(payload.ttlSeconds, 3600))
 
     try:

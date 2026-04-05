@@ -123,6 +123,7 @@ export class PreviewWorkerClient {
     return requestWorker<WorkerLaunchResponse>('/preview/launch', {
       method: 'POST',
       body: JSON.stringify({ files, ttlSeconds, projectId }),
+      timeoutMs: 90000,
     });
   }
 

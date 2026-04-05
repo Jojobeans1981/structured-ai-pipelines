@@ -165,6 +165,19 @@ def check_url(url: str) -> bool:
         return False
 
 
+def get_bound_host_ports(container) -> dict[int, int]:
+    container.reload()
+    ports = container.attrs.get("NetworkSettings", {}).get("Ports", {})
+    bound_ports: dict[int, int] = {}
+
+    for port in PORT_CANDIDATES:
+        binding = ports.get(f"{port}/tcp")
+        if binding and len(binding) > 0:
+            bound_ports[port] = int(binding[0]["HostPort"])
+
+    return bound_ports
+
+
 @app.get("/health")
 def health():
     try:
@@ -204,16 +217,8 @@ def launch_preview(payload: LaunchPreviewRequest):
             "error": str(error),
         }
 
-    container.reload()
-    ports = container.attrs.get("NetworkSettings", {}).get("Ports", {})
-
-    host_port = None
-    for port in PORT_CANDIDATES:
-        binding = ports.get(f"{port}/tcp")
-        if binding and len(binding) > 0:
-            host_port = int(binding[0]["HostPort"])
-            break
-
+    bound_ports = get_bound_host_ports(container)
+    host_port = bound_ports.get(3000) or next(iter(bound_ports.values()), None)
     preview_url = build_preview_url(host_port) if host_port else None
     expires_at = datetime.fromtimestamp(time.time() + ttl_seconds, tz=timezone.utc).isoformat()
     active_previews[container.id] = {
@@ -239,15 +244,23 @@ def launch_preview(payload: LaunchPreviewRequest):
                     "error": logs or "Preview container exited before becoming healthy.",
                 }
 
-            if check_url(preview_url):
-                return {
-                    "success": True,
-                    "url": preview_url,
-                    "containerId": container.id,
-                    "port": host_port,
-                    "expiresAt": expires_at,
-                    "error": None,
-                }
+            bound_ports = get_bound_host_ports(container)
+            for candidate_port in PORT_CANDIDATES:
+                host_candidate = bound_ports.get(candidate_port)
+                if not host_candidate:
+                    continue
+
+                candidate_url = build_preview_url(host_candidate)
+                if check_url(candidate_url):
+                    active_previews[container.id]["previewUrl"] = candidate_url
+                    return {
+                        "success": True,
+                        "url": candidate_url,
+                        "containerId": container.id,
+                        "port": host_candidate,
+                        "expiresAt": expires_at,
+                        "error": None,
+                    }
             time.sleep(2)
 
     logs = container.logs(tail=100).decode("utf-8", errors="ignore")

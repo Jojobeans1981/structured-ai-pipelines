@@ -1,0 +1,17 @@
+[Unit]
+Description=Forge Preview Worker
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/structured-ai-pipelines/preview-worker
+Environment=PREVIEW_WORKER_TOKEN=replace-with-real-token
+Environment=PREVIEW_WORKER_PUBLIC_BASE_URL=http://replace-with-public-host
+ExecStart=/opt/structured-ai-pipelines/preview-worker/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 3010
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target

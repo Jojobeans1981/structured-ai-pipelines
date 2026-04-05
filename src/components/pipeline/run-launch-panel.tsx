@@ -31,11 +31,23 @@ interface PreviewCapabilities {
   } | null;
 }
 
-function formatPreviewError(message: string): string {
+function summarizePreviewError(message: string): string {
   const lower = message.toLowerCase();
 
   if (lower.includes('does not have permission to access the docker daemon')) {
     return 'Live preview is blocked because this app cannot access the Docker daemon. Docker is installed, but the current server process needs Docker Desktop/daemon permission.';
+  }
+
+  if (lower.includes('preview worker request timed out')) {
+    return 'Preview launch took too long. The worker may still be starting the app, or the generated app may be stuck during install/startup.';
+  }
+
+  if (lower.includes('eresolve unable to resolve dependency tree')) {
+    return 'The generated app has an npm dependency conflict, so the preview container could not finish installing dependencies.';
+  }
+
+  if (lower.includes("cannot find module '@vitejs/plugin-react'")) {
+    return 'The generated app is missing `@vitejs/plugin-react`, so Vite could not start.';
   }
 
   if (lower.includes('live preview requires docker')) {
@@ -60,6 +72,18 @@ function formatPreviewHint(message: string): string | null {
     return 'Check that the remote preview worker is deployed, reachable from this app, and has Docker access.';
   }
 
+  if (lower.includes('eresolve unable to resolve dependency tree')) {
+    return 'Regenerate or fix the project so package versions are compatible, then launch preview again.';
+  }
+
+  if (lower.includes("cannot find module '@vitejs/plugin-react'")) {
+    return 'Add `@vitejs/plugin-react` to the generated project and keep its version compatible with Vite.';
+  }
+
+  if (lower.includes('preview launch took too long')) {
+    return 'Refresh this page after a moment. If no preview URL appears, inspect the generated project dependencies.';
+  }
+
   return null;
 }
 
@@ -70,7 +94,8 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
   const [stoppingPreview, setStoppingPreview] = useState(false);
   const [loadingCapabilities, setLoadingCapabilities] = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+  const [shareCopyState, setShareCopyState] = useState<'idle' | 'copied'>('idle');
+  const [previewCopyState, setPreviewCopyState] = useState<'idle' | 'copied'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const [capabilities, setCapabilities] = useState<PreviewCapabilities | null>(null);
@@ -78,17 +103,17 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
   useEffect(() => {
     let active = true;
 
-    fetch(`/api/projects/${projectId}/preview`)
-      .then((res) => res.json())
-      .then((data) => {
+    const refreshCapabilities = async () => {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/preview`, { cache: 'no-store' });
+        const data = await res.json();
         if (!active) return;
         setCapabilities(data);
         if (data.activePreview?.status === 'running' && data.activePreview.previewUrl) {
           setPreviewUrl(data.activePreview.previewUrl);
           setPreviewExpiresAt(data.activePreview.expiresAt || null);
         }
-      })
-      .catch(() => {
+      } catch {
         if (!active) return;
         setCapabilities({
           livePreviewAvailable: false,
@@ -97,19 +122,43 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
           fallbackUrl: `/projects/${projectId}/preview`,
           activePreview: null,
         });
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoadingCapabilities(false);
-      });
+      }
+    };
+
+    refreshCapabilities();
 
     return () => {
       active = false;
     };
   }, [projectId]);
 
+  useEffect(() => {
+    if (!capabilities?.activePreview || capabilities.activePreview.status !== 'running') {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/preview`, { cache: 'no-store' });
+        const data = await res.json();
+        setCapabilities(data);
+        if (data.activePreview?.status === 'running' && data.activePreview.previewUrl) {
+          setPreviewUrl(data.activePreview.previewUrl);
+          setPreviewExpiresAt(data.activePreview.expiresAt || null);
+        }
+      } catch {
+        // Keep the current preview state if background refresh fails once.
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [projectId, capabilities?.activePreview?.id, capabilities?.activePreview?.status]);
+
   const handlePreview = async () => {
     if (capabilities && !capabilities.livePreviewAvailable) {
-      setError(formatPreviewError(capabilities.livePreviewReason || 'Live preview requires Docker.'));
+      setError(summarizePreviewError(capabilities.livePreviewReason || 'Live preview requires Docker.'));
       setErrorHint(formatPreviewHint(capabilities.livePreviewReason || 'Live preview requires Docker.'));
       return;
     }
@@ -144,10 +193,15 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
           error: null,
         },
       } : current);
+
+      if (data.url) {
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to launch preview';
-      setError(formatPreviewError(message));
-      setErrorHint(formatPreviewHint(message));
+      const summary = summarizePreviewError(message);
+      setError(summary);
+      setErrorHint(formatPreviewHint(message) || (summary !== message ? 'Full launch logs are available from the preview worker if you need deeper debugging.' : null));
     } finally {
       setLoadingPreview(false);
     }
@@ -200,6 +254,17 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
     ? (previewUrl ? 'Refresh Remote Preview' : 'Launch Remote Preview')
     : (previewUrl ? 'Refresh Live Preview' : 'Launch Live Preview');
   const openPreviewButtonLabel = previewProvider === 'preview-worker' ? 'Open Remote Preview' : 'Open Preview';
+  const handleCopyPreviewUrl = async () => {
+    if (!previewUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(previewUrl);
+      setPreviewCopyState('copied');
+      setTimeout(() => setPreviewCopyState('idle'), 1500);
+    } catch {
+      setError('Could not copy preview URL to clipboard');
+    }
+  };
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -229,8 +294,8 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
   const handleCopyShare = async () => {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/share/run/${runId}`);
-      setCopyState('copied');
-      setTimeout(() => setCopyState('idle'), 1500);
+      setShareCopyState('copied');
+      setTimeout(() => setShareCopyState('idle'), 1500);
     } catch {
       setError('Could not copy link to clipboard');
     }
@@ -274,8 +339,8 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
             Download ZIP
           </Button>
           <Button variant="outline" onClick={handleCopyShare}>
-            {copyState === 'copied' ? <Copy className="mr-2 h-4 w-4" /> : <Share2 className="mr-2 h-4 w-4" />}
-            {copyState === 'copied' ? 'Link Copied' : 'Copy Share Link'}
+            {shareCopyState === 'copied' ? <Copy className="mr-2 h-4 w-4" /> : <Share2 className="mr-2 h-4 w-4" />}
+            {shareCopyState === 'copied' ? 'Link Copied' : 'Copy Share Link'}
           </Button>
           <Button
             variant="outline"
@@ -288,6 +353,12 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
             <Button variant="secondary" onClick={() => window.open(previewUrl, '_blank', 'noopener,noreferrer')}>
               <Rocket className="mr-2 h-4 w-4" />
               {openPreviewButtonLabel}
+            </Button>
+          )}
+          {previewUrl && (
+            <Button variant="outline" onClick={handleCopyPreviewUrl}>
+              <Copy className="mr-2 h-4 w-4" />
+              {previewCopyState === 'copied' ? 'Preview URL Copied' : 'Copy Preview URL'}
             </Button>
           )}
           {activePreview?.status === 'running' && activePreview.containerId && (
@@ -311,6 +382,11 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
               </div>
             )}
           </div>
+        )}
+        {loadingPreview && (
+          <p className="text-xs text-zinc-500">
+            Launching preview. This can take up to 90 seconds while the worker installs dependencies and starts the app.
+          </p>
         )}
         {error && (
           <div className="space-y-1">

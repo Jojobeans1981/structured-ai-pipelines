@@ -50,6 +50,16 @@ export async function GET(_request: Request, { params }: Props) {
             stoppedAt: new Date().toISOString(),
             error: workerStatus.error || latestSession.error,
           };
+        } else if (workerStatus.previewUrl && workerStatus.previewUrl !== latestSession.previewUrl) {
+          await PreviewSessionService.syncRunning(latestSession.id, {
+            previewUrl: workerStatus.previewUrl,
+            expiresAt: workerStatus.expiresAt,
+          });
+          activePreview = {
+            ...latestSession,
+            previewUrl: workerStatus.previewUrl,
+            expiresAt: workerStatus.expiresAt || latestSession.expiresAt,
+          };
         }
       }
     } catch (error) {

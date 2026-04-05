@@ -113,6 +113,22 @@ export class PreviewSessionService {
     });
   }
 
+  static async syncRunning(
+    sessionId: string,
+    data: {
+      previewUrl?: string | null;
+      expiresAt?: string | null;
+    }
+  ): Promise<void> {
+    await prisma.previewSession.update({
+      where: { id: sessionId },
+      data: {
+        previewUrl: data.previewUrl,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
+      },
+    });
+  }
+
   static async markFailed(sessionId: string, error: string): Promise<void> {
     await prisma.previewSession.update({
       where: { id: sessionId },

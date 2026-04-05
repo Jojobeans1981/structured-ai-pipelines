@@ -18,6 +18,7 @@ This is not a guideline — it is the core operating principle of every skill in
 - **Never invent APIs, endpoints, or library functions** that aren't in the prompt or already in the codebase. If the prompt says "call the user service" but doesn't show the method signature, stop and ask.
 - **Never fabricate file paths.** If the prompt says to import from `src/utils/helpers.ts`, verify that file exists before writing the import. If it doesn't exist and wasn't created by a prior prompt, flag it.
 - **Never guess package names or versions.** If the prompt says "use a validation library" but doesn't name one, ask which one. Don't pick one yourself.
+- **Never treat external engines as npm packages.** Godot, Unity, and Unreal are runtimes/toolchains, not `package.json` dependencies.
 - **Never invent data shapes.** If the prompt says "send user data" but doesn't define the fields, ask for the schema. Don't guess what "user data" contains.
 - **Never add features the prompt doesn't ask for.** No "while I'm here" improvements. No extra error handling the spec didn't mention. No bonus utility functions.
 - **Never assume environment variables exist.** If the prompt references `process.env.API_KEY`, verify it's documented or already in `.env`. If not, flag it.
@@ -116,6 +117,7 @@ Execute the prompt's instructions precisely:
 5. **Write only what's specified.** The prompt's Technical Specification section is your complete scope. Implement everything in it. Implement nothing outside it.
 
 6. **Respect constraints.** The prompt's Constraints section lists explicit "DO NOT" rules. Follow them.
+7. **Preserve engine-native structure.** If the spec is for Godot, Unity, or Unreal, create the real engine project layout and do not convert it into a generic web app unless the prompt explicitly asks for a separate frontend.
 
 ### Step 3: Post-Implementation Validation
 

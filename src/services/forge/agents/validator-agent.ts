@@ -19,6 +19,11 @@ Phase 4 — Environment Variables: Verify env vars are documented (in .env.examp
 Phase 5 — Entry Point Wiring: Verify entry points (index.ts, app.ts, main.ts) import and use the generated services/components.
 Phase 6 — Database Validation: Check migrations, seed data, and connection config are consistent.
 
+Special rule for engine projects:
+- Godot, Unity, and Unreal are external runtimes/toolchains, not npm dependencies.
+- Do not require package.json for engine projects unless there is a separate web companion app.
+- Flag any package.json that tries to install godot, unity, or unreal as invalid and propose a fix.
+
 ## Output
 
 Return ONLY valid JSON:

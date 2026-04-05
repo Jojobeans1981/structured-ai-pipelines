@@ -24,12 +24,15 @@ Focus especially on:
 - missing entry points
 - missing runtime packages imported by config files
 - incompatible React / react-dom / Vite / plugin versions
+- removal of invalid engine runtime packages like godot, unity, or unreal from npm manifests
+- preserving real engine project structure for Godot, Unity, and Unreal instead of forcing a web scaffold
 
 Rules:
 - Return only files that should actually be created or modified
 - Output complete file contents, not diffs
 - Prefer fixing package manifests and config over broad rewrites
 - Do not add placeholder comments
+- If the project is engine-based, fix it as an engine project and do not convert it into a generic npm app
 
 Return ONLY valid JSON:
 {

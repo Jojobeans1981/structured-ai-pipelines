@@ -13,6 +13,8 @@ import { generatePRD } from './agents/prd-agent'
 import { generateManifest } from './agents/prompt-agent'
 import { scaffoldFile } from './agents/scaffolder-agent'
 import { validateFiles } from './agents/validator-agent'
+import { evaluateLaunchReadiness } from './agents/launcher-agent'
+import { finishLaunchReadiness } from './agents/finisher-agent'
 import { buildForgeLessonsSection } from './lessons-context'
 import { CompletenessPass, detectProjectType } from '@/src/services/completeness-pass'
 import { BuildVerifier } from '@/src/services/build-verifier'
@@ -231,6 +233,56 @@ async function runBuildAutoFixCycle(opts: {
   }
 
   emitLog(emit, runId, 'AutoFix', `Applied ${appliedChanges} targeted repair${appliedChanges === 1 ? '' : 's'}`, 'success')
+  return true
+}
+
+async function runLaunchFinisherCycle(opts: {
+  userId: string
+  runId: string
+  workDir: string
+  modifiedFiles: Map<string, string>
+  repoFiles: RepoFile[]
+  launchAssessment: Awaited<ReturnType<typeof evaluateLaunchReadiness>>
+  emit: (event: SSEEvent) => void
+  cycle: number
+  language: string
+  framework?: string
+}): Promise<boolean> {
+  const { userId, runId, workDir, modifiedFiles, repoFiles, launchAssessment, emit, cycle, language, framework } = opts
+
+  emitLog(emit, runId, 'Launcher', `Finisher cycle ${cycle}/${MAX_BUILD_FIX_CYCLES}: repairing launch blockers...`)
+  const finisherResult = await finishLaunchReadiness({
+    userId,
+    files: repoFiles,
+    assessment: launchAssessment,
+  })
+
+  if (finisherResult.fixes.length === 0) {
+    emitLog(emit, runId, 'Launcher', 'Finisher returned no file changes', 'warn')
+    return false
+  }
+
+  updateModifiedFiles(
+    modifiedFiles,
+    finisherResult.fixes.map((fix) => ({ filePath: fix.file, content: fix.content })),
+    workDir,
+  )
+
+  for (const fix of finisherResult.fixes) {
+    await addForgeLessonLearned({
+      runId,
+      phase: cycle,
+      phaseName: 'Launch Finisher',
+      error: launchAssessment.blockers.join('\n').slice(0, 4000),
+      fix: `Updated ${fix.file}`,
+      rootCause: launchAssessment.summary || 'Launch readiness blockers detected by launcher agent',
+      preventionRule: fix.description || finisherResult.summary || 'Ensure generated projects are runnable before publish',
+      language,
+      framework,
+    })
+  }
+
+  emitLog(emit, runId, 'Launcher', `Finisher applied ${finisherResult.fixes.length} launch repair${finisherResult.fixes.length === 1 ? '' : 's'}`, 'success')
   return true
 }
 
@@ -466,6 +518,50 @@ export async function runBuildPipelineStage2(opts: {
     errors = []
     lintPassed = true
     testsPassed = true
+
+    emitLog(emit, runId, 'Launcher', `Evaluating launch readiness for ${projectType} project...`)
+    const launchAssessment = await evaluateLaunchReadiness({
+      userId,
+      files: repoFiles,
+      projectType,
+      conventions,
+    })
+
+    if (launchAssessment.ready) {
+      emitLog(
+        emit,
+        runId,
+        'Launcher',
+        `Launch-ready via ${launchAssessment.framework ?? projectType}${launchAssessment.startCommand ? ` using "${launchAssessment.startCommand}"` : ''}`,
+        'success',
+      )
+    } else {
+      emitLog(emit, runId, 'Launcher', launchAssessment.summary || 'Launcher agent found startup blockers', 'warn')
+      for (const blocker of launchAssessment.blockers) {
+        emitLog(emit, runId, 'Launcher', blocker, 'warn')
+      }
+
+      if (cycle < MAX_BUILD_FIX_CYCLES) {
+        const finished = await runLaunchFinisherCycle({
+          userId,
+          runId,
+          workDir,
+          modifiedFiles,
+          repoFiles,
+          launchAssessment,
+          emit,
+          cycle: cycle + 1,
+          language: conventions.language,
+          framework: conventions.framework ?? undefined,
+        })
+
+        if (finished) {
+          continue
+        }
+      }
+
+      errors.push(...launchAssessment.blockers.map((blocker) => `Launch: ${blocker.slice(0, 500)}`))
+    }
 
     emitLog(emit, runId, 'Verify', `Running final build verification for ${projectType} project...`)
     const buildResult = await BuildVerifier.verify(workDir)

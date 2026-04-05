@@ -24,6 +24,15 @@ export function detectProjectType(files: Array<{ filePath: string }>): ProjectTy
 }
 
 export class CompletenessPass {
+  private static readonly NON_NPM_RUNTIME_PACKAGES = new Set([
+    'godot',
+    'unity',
+    'unreal',
+    'unreal-engine',
+    'gamemaker',
+    'game-maker',
+  ]);
+
   /**
    * Scan project files and generate any missing critical scaffolding.
    */
@@ -152,6 +161,21 @@ export class CompletenessPass {
         if (!reasons.includes(reason)) reasons.push(reason);
       }
     };
+
+    const removeUnsupportedPackages = (bucket: Record<string, string>) => {
+      for (const packageName of Object.keys(bucket)) {
+        if (CompletenessPass.NON_NPM_RUNTIME_PACKAGES.has(packageName)) {
+          delete bucket[packageName];
+          changed = true;
+          if (!reasons.includes('removed unsupported non-npm runtime packages')) {
+            reasons.push('removed unsupported non-npm runtime packages');
+          }
+        }
+      }
+    };
+
+    removeUnsupportedPackages(dependencies);
+    removeUnsupportedPackages(devDependencies);
 
     if (hasReactFiles || dependencies.react || dependencies['react-dom']) {
       setDep(dependencies, 'react', '^18.3.1', 'aligned React runtime versions');

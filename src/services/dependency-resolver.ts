@@ -74,6 +74,15 @@ const DEV_PATTERNS = [
   /^tailwindcss$/,
 ];
 
+const NON_NPM_RUNTIME_PACKAGES = new Set([
+  'godot',
+  'unity',
+  'unreal',
+  'unreal-engine',
+  'gamemaker',
+  'game-maker',
+]);
+
 export class DependencyResolver {
   /**
    * Scan project files, extract imports, and return all required npm packages.
@@ -99,6 +108,7 @@ export class DependencyResolver {
         if (!pkgName) continue;
         // Skip node built-ins
         if (DependencyResolver.isNodeBuiltin(pkgName)) continue;
+        if (NON_NPM_RUNTIME_PACKAGES.has(pkgName)) continue;
 
         if (!packageImports.has(pkgName)) {
           packageImports.set(pkgName, new Set());

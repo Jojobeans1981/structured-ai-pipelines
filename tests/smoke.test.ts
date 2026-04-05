@@ -242,6 +242,37 @@ export default defineConfig({ plugins: [react()] });`,
     expect(pkg.devDependencies['@testing-library/react']).toBe('^16.3.0');
     expect(pkg.scripts.dev).toBe('vite');
   });
+
+  it('removes unsupported non-npm runtime packages from package.json', () => {
+    const files = [
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          name: 'broken-game-app',
+          private: true,
+          scripts: { dev: 'vite' },
+          dependencies: {
+            react: '^18.3.1',
+            godot: '^3.3.0',
+          },
+          devDependencies: {
+            vite: '^5.4.14',
+          },
+        }),
+      },
+      {
+        filePath: 'src/App.tsx',
+        content: `export default function App() { return <div>Game</div>; }`,
+      },
+    ];
+
+    const result = CompletenessPass.run(files, 'node');
+    const pkgUpdate = result.files.find((f) => f.filePath === 'package.json');
+    expect(pkgUpdate).toBeTruthy();
+
+    const pkg = JSON.parse(pkgUpdate!.content);
+    expect(pkg.dependencies.godot).toBeUndefined();
+  });
 });
 
 describe('Dependency Resolver', () => {

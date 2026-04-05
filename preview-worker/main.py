@@ -118,6 +118,14 @@ def choose_start_command(package_json_path: Path) -> str:
     return "npm run dev"
 
 
+def build_launch_command(start_command: str) -> str:
+    install_command = (
+        "(npm install --no-audit --no-fund "
+        "|| npm install --legacy-peer-deps --no-audit --no-fund)"
+    )
+    return f"{install_command} && ({start_command})"
+
+
 def cleanup_preview(container_id: str, project_dir: str) -> None:
     try:
         client = get_docker_client()
@@ -166,7 +174,7 @@ def launch_preview(payload: LaunchPreviewRequest):
         client = get_docker_client()
         container = client.containers.run(
             DOCKER_IMAGE,
-            command=["sh", "-lc", f"npm install --no-audit --no-fund && ({start_command})"],
+            command=["sh", "-lc", build_launch_command(start_command)],
             detach=True,
             name=f"forge-preview-{int(time.time())}-{os.getpid()}",
             working_dir="/app",

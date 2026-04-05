@@ -50,6 +50,9 @@ export class DockerfileGenerator {
       case 'static':
         files.push(...DockerfileGenerator.generateStatic(port));
         break;
+      case 'godot':
+      case 'unity':
+      case 'unreal':
       default:
         return { files: [], projectType, imageName, port };
     }
@@ -96,6 +99,10 @@ export class DockerfileGenerator {
       case 'python': return 8000;
       case 'go': return 8080;
       case 'static': return 80;
+      case 'godot':
+      case 'unity':
+      case 'unreal':
+        return 0;
       default: return 3000;
     }
   }

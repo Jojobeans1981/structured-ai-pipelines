@@ -52,7 +52,15 @@ export interface VerifyResult {
 }
 
 /** Project type detected from files on disk */
-export type ProjectType = 'node' | 'python' | 'go' | 'static' | 'unknown';
+export type ProjectType =
+  | 'node'
+  | 'python'
+  | 'go'
+  | 'static'
+  | 'godot'
+  | 'unity'
+  | 'unreal'
+  | 'unknown';
 
 /** Status of a node during DAG execution */
 export type DAGNodeStatus =

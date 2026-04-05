@@ -13,7 +13,38 @@ export interface CompletenessResult {
   report: string;
 }
 
+function isGodotProject(files: Array<{ filePath: string }>): boolean {
+  return files.some((f) =>
+    f.filePath === 'project.godot' ||
+    f.filePath.endsWith('.tscn') ||
+    f.filePath.endsWith('.gd') ||
+    f.filePath.startsWith('addons/')
+  );
+}
+
+function isUnityProject(files: Array<{ filePath: string }>): boolean {
+  return files.some((f) =>
+    f.filePath.startsWith('Assets/') ||
+    f.filePath.startsWith('ProjectSettings/') ||
+    f.filePath.endsWith('.unity') ||
+    f.filePath.endsWith('.asmdef') ||
+    f.filePath.endsWith('.meta')
+  );
+}
+
+function isUnrealProject(files: Array<{ filePath: string }>): boolean {
+  return files.some((f) =>
+    f.filePath.endsWith('.uproject') ||
+    f.filePath.startsWith('Config/') ||
+    f.filePath.startsWith('Content/') ||
+    f.filePath.startsWith('Source/')
+  );
+}
+
 export function detectProjectType(files: Array<{ filePath: string }>): ProjectType {
+  if (isGodotProject(files)) return 'godot';
+  if (isUnityProject(files)) return 'unity';
+  if (isUnrealProject(files)) return 'unreal';
   if (files.some((f) => f.filePath === 'package.json')) return 'node';
   if (files.some((f) => f.filePath === 'requirements.txt' || f.filePath === 'pyproject.toml')) return 'python';
   if (files.some((f) => f.filePath === 'go.mod')) return 'go';
@@ -109,6 +140,10 @@ export class CompletenessPass {
         files.push(postcssResult);
         reportLines.push(`- Generated \`postcss.config.js\` (${postcssResult.reason})`);
       }
+    }
+
+    if (projectType === 'godot' || projectType === 'unity' || projectType === 'unreal') {
+      reportLines.push(`- Detected \`${projectType}\` engine project; skipped Node/Vite scaffolding and preserved engine runtime layout`);
     }
 
     // 8. .env.example (all project types)
@@ -753,6 +788,39 @@ __pycache__/
 venv/
 .pytest_cache/
 *.egg-info/
+`;
+    }
+
+    if (projectType === 'godot') {
+      content += `
+# Godot
+.godot/
+.import/
+export_presets.cfg
+`;
+    }
+
+    if (projectType === 'unity') {
+      content += `
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+.vs/
+`;
+    }
+
+    if (projectType === 'unreal') {
+      content += `
+# Unreal Engine
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
 `;
     }
 

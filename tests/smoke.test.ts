@@ -151,6 +151,21 @@ describe('Project Type Detection', () => {
     expect(detectProjectType([{ filePath: 'go.mod' }])).toBe('go');
   });
 
+  it('detects godot from engine files before treating it like node', () => {
+    expect(detectProjectType([
+      { filePath: 'project.godot' },
+      { filePath: 'package.json' },
+    ])).toBe('godot');
+  });
+
+  it('detects unity from project folders', () => {
+    expect(detectProjectType([{ filePath: 'ProjectSettings/ProjectVersion.txt' }])).toBe('unity');
+  });
+
+  it('detects unreal from .uproject files', () => {
+    expect(detectProjectType([{ filePath: 'Game.uproject' }])).toBe('unreal');
+  });
+
   it('returns unknown for unrecognized files', () => {
     expect(detectProjectType([{ filePath: 'README.md' }])).toBe('unknown');
   });
@@ -273,6 +288,24 @@ export default defineConfig({ plugins: [react()] });`,
     const pkg = JSON.parse(pkgUpdate!.content);
     expect(pkg.dependencies.godot).toBeUndefined();
   });
+
+  it('does not scaffold node files for godot projects', () => {
+    const files = [
+      {
+        filePath: 'project.godot',
+        content: '; Engine configuration file.',
+      },
+      {
+        filePath: 'scenes/Main.tscn',
+        content: '[gd_scene load_steps=2 format=3]',
+      },
+    ];
+
+    const result = CompletenessPass.run(files, 'godot');
+    expect(result.files.find((f) => f.filePath === 'package.json')).toBeUndefined();
+    expect(result.files.find((f) => f.filePath === 'vite.config.ts')).toBeUndefined();
+    expect(result.files.find((f) => f.filePath === '.gitignore')).toBeTruthy();
+  });
 });
 
 describe('Dependency Resolver', () => {
@@ -330,6 +363,12 @@ describe('Test Generator', () => {
     expect(result.framework).toBe('none');
   });
 
+  it('returns no test scaffolding for engine projects', () => {
+    const result = TestGenerator.scaffold([], 'unity');
+    expect(result.files.length).toBe(0);
+    expect(result.framework).toBe('none');
+  });
+
   it('pins compatible test dependency versions instead of latest', () => {
     const updated = TestGenerator.mergeTestDeps(JSON.stringify({
       name: 'app',
@@ -362,6 +401,11 @@ describe('Dockerfile Generator', () => {
     const ignore = result.files.find((f) => f.filePath === '.dockerignore');
     expect(ignore).toBeTruthy();
     expect(ignore!.content).toContain('node_modules');
+  });
+
+  it('skips docker scaffolding for engine projects without engine worker support', () => {
+    const result = DockerfileGenerator.generate([], { projectName: 'godot-game', projectType: 'godot' });
+    expect(result.files.length).toBe(0);
   });
 
   it('detects correct port', () => {

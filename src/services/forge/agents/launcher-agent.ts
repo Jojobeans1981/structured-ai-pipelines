@@ -24,7 +24,7 @@ You receive:
 3. The repo conventions
 
 You must determine:
-1. What kind of project this is (React/Vite, Next.js, Express, Python, Go, static, etc.)
+1. What kind of project this is (React/Vite, Next.js, Express, Python, Go, static, Godot, Unity, Unreal, etc.)
 2. Which install command should be used
 3. Which start/dev command should be used
 4. Which port the app is expected to serve on
@@ -36,6 +36,8 @@ Be strict. If package versions are obviously incompatible, the app is NOT ready.
 If Vite React config exists but @vitejs/plugin-react is missing or incompatible, the app is NOT ready.
 If React and react-dom major versions are mismatched, the app is NOT ready.
 If testing dependencies force an incompatible React range, the app is NOT ready.
+If the project is a Godot, Unity, or Unreal project, do NOT treat it as a normal npm app.
+For engine projects, mark it ready only when the engine-specific project structure is present and make it clear that launch requires an engine-capable worker/runtime.
 
 Return ONLY valid JSON:
 {

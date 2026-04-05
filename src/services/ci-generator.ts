@@ -37,6 +37,9 @@ export class CIGenerator {
       case 'static':
         files.push(CIGenerator.generateStaticWorkflow(safeName));
         break;
+      case 'godot':
+      case 'unity':
+      case 'unreal':
       default:
         return { files: [], provider: 'none' };
     }

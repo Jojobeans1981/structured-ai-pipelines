@@ -18,6 +18,9 @@ const TEST_FRAMEWORKS: Record<ProjectType, { framework: string; devDeps: string[
   python: { framework: 'pytest', devDeps: ['pytest', 'pytest-cov'] },
   go: { framework: 'go test', devDeps: [] },
   static: { framework: 'none', devDeps: [] },
+  godot: { framework: 'none', devDeps: [] },
+  unity: { framework: 'none', devDeps: [] },
+  unreal: { framework: 'none', devDeps: [] },
   unknown: { framework: 'none', devDeps: [] },
 };
 

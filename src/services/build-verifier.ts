@@ -1,15 +1,35 @@
 import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { type VerifyResult, type ProjectType } from '@/src/types/dag';
+import { type ProjectType, type VerifyResult } from '@/src/types/dag';
 
 const BUILD_TIMEOUT = parseInt(process.env.FORGE_BUILD_TIMEOUT || '120000', 10);
 
 export class BuildVerifier {
+  private static hasAnyFile(outputDir: string, relativePaths: string[]): boolean {
+    return relativePaths.some((relativePath) => existsSync(join(outputDir, relativePath)));
+  }
+
+  private static hasRootFileWithExtension(outputDir: string, extension: string): boolean {
+    try {
+      return readdirSync(outputDir).some((entry) => entry.endsWith(extension));
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * Detect the project type from files present in the output directory.
    */
   static detectProjectType(outputDir: string): ProjectType {
+    if (BuildVerifier.hasAnyFile(outputDir, ['project.godot'])) return 'godot';
+    if (BuildVerifier.hasAnyFile(outputDir, ['Assets', 'ProjectSettings'])) return 'unity';
+    if (
+      BuildVerifier.hasRootFileWithExtension(outputDir, '.uproject') ||
+      BuildVerifier.hasAnyFile(outputDir, ['Config', 'Content'])
+    ) {
+      return 'unreal';
+    }
     if (existsSync(join(outputDir, 'package.json'))) return 'node';
     if (existsSync(join(outputDir, 'requirements.txt')) || existsSync(join(outputDir, 'pyproject.toml'))) return 'python';
     if (existsSync(join(outputDir, 'go.mod'))) return 'go';
@@ -42,7 +62,6 @@ export class BuildVerifier {
           if (existsSync(join(outputDir, 'requirements.txt'))) {
             installOutput = BuildVerifier.runCommand('pip install -r requirements.txt', outputDir);
           }
-          // Python doesn't have a standard "build" step — check syntax of all .py files
           buildOutput = BuildVerifier.runCommand('find . -name "*.py" -exec python -m py_compile {} +', outputDir);
           break;
 
@@ -56,8 +75,41 @@ export class BuildVerifier {
           buildOutput = 'Static files verified';
           break;
 
+        case 'godot':
+          installOutput = 'Godot project detected - no npm install required';
+          if (!existsSync(join(outputDir, 'project.godot'))) {
+            errors.push('Godot project is missing project.godot');
+          }
+          buildOutput = errors.length === 0
+            ? 'Godot project structure verified. Runtime requires the Godot editor or export toolchain.'
+            : 'Godot project structure check failed';
+          warnings.push('Live runtime verification for Godot requires a worker image with the Godot toolchain installed');
+          break;
+
+        case 'unity':
+          installOutput = 'Unity project detected - no npm install required';
+          if (!BuildVerifier.hasAnyFile(outputDir, ['Assets', 'ProjectSettings'])) {
+            errors.push('Unity project is missing Assets/ or ProjectSettings/');
+          }
+          buildOutput = errors.length === 0
+            ? 'Unity project structure verified. Runtime requires a Unity-capable build agent.'
+            : 'Unity project structure check failed';
+          warnings.push('Live runtime verification for Unity requires a worker image with Unity installed');
+          break;
+
+        case 'unreal':
+          installOutput = 'Unreal project detected - no npm install required';
+          if (!BuildVerifier.hasAnyFile(outputDir, ['Config', 'Content'])) {
+            errors.push('Unreal project is missing Config/ or Content/');
+          }
+          buildOutput = errors.length === 0
+            ? 'Unreal project structure verified. Runtime requires an Unreal-capable build agent.'
+            : 'Unreal project structure check failed';
+          warnings.push('Live runtime verification for Unreal requires a worker image with Unreal Engine installed');
+          break;
+
         case 'unknown':
-          warnings.push('Could not detect project type — skipping build verification');
+          warnings.push('Could not detect project type - skipping build verification');
           return {
             success: true,
             installOutput: 'Unknown project type',
@@ -70,21 +122,13 @@ export class BuildVerifier {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       errors.push(message);
-
-      // Extract specific error lines from build output
-      const errorLines = message.split('\n').filter(
-        (line) => line.match(/error|Error|ERROR|failed|Failed|FAILED/) && !line.includes('npm warn')
-      );
-      if (errorLines.length > 0 && errorLines.length < errors.length) {
-        // Replace the full output with just the error lines for cleaner display
-      }
     }
 
     const durationMs = Date.now() - start;
     const success = errors.length === 0;
 
     console.log(
-      `[BuildVerifier] ${success ? 'PASS' : 'FAIL'} — ${projectType} project in ${durationMs}ms` +
+      `[BuildVerifier] ${success ? 'PASS' : 'FAIL'} - ${projectType} project in ${durationMs}ms` +
       (errors.length > 0 ? ` (${errors.length} errors)` : '')
     );
 
@@ -112,7 +156,7 @@ export class BuildVerifier {
       });
       return output || '';
     } catch (err: unknown) {
-      const execError = err as { stdout?: string; stderr?: string; message?: string };
+      const execError = err as { stdout?: string; stderr?: string };
       const stderr = execError.stderr || '';
       const stdout = execError.stdout || '';
       throw new Error(`Command failed: ${command}\n\n${stderr}\n${stdout}`);
@@ -124,21 +168,18 @@ export class BuildVerifier {
    * Tries npm run build first, falls back to tsc --noEmit.
    */
   private static runBuildCommand(outputDir: string): string {
-    // Read package.json to check for build script
     try {
-      const { readFileSync } = require('fs');
       const pkg = JSON.parse(readFileSync(join(outputDir, 'package.json'), 'utf-8'));
 
       if (pkg.scripts?.build) {
         return BuildVerifier.runCommand('npm run build', outputDir);
       }
 
-      // No build script — try TypeScript check
       if (existsSync(join(outputDir, 'tsconfig.json'))) {
         return BuildVerifier.runCommand('npx tsc --noEmit', outputDir);
       }
 
-      return 'No build script or tsconfig found — skipping build step';
+      return 'No build script or tsconfig found - skipping build step';
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(`Build verification failed: ${message}`);

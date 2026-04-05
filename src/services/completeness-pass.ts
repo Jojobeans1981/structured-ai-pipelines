@@ -123,6 +123,84 @@ export class CompletenessPass {
     return { files, report };
   }
 
+  private static normalizeNodePackageJson(
+    pkg: Record<string, unknown>,
+    projectFiles: Array<{ filePath: string; content: string }>
+  ): { pkg: Record<string, unknown>; changed: boolean; reasons: string[] } {
+    const dependencies = { ...((pkg.dependencies || {}) as Record<string, string>) };
+    const devDependencies = { ...((pkg.devDependencies || {}) as Record<string, string>) };
+    const scripts = { ...((pkg.scripts || {}) as Record<string, string>) };
+    const reasons: string[] = [];
+    let changed = false;
+
+    const hasReactFiles = projectFiles.some(
+      (f) => f.filePath.endsWith('.tsx') || f.content.includes("from 'react'") || f.content.includes('from "react"')
+    );
+    const hasViteConfig = projectFiles.some((f) => /^vite\.config\.(ts|js|mjs)$/.test(f.filePath));
+    const hasNextConfig = projectFiles.some((f) => /^next\.config\.(ts|js|mjs)$/.test(f.filePath));
+    const isViteProject = !hasNextConfig && (hasViteConfig || !!dependencies.react || !!devDependencies.vite || scripts.dev === 'vite');
+
+    const setDep = (
+      bucket: Record<string, string>,
+      packageName: string,
+      version: string,
+      reason: string
+    ) => {
+      if (bucket[packageName] !== version) {
+        bucket[packageName] = version;
+        changed = true;
+        if (!reasons.includes(reason)) reasons.push(reason);
+      }
+    };
+
+    if (hasReactFiles || dependencies.react || dependencies['react-dom']) {
+      setDep(dependencies, 'react', '^18.3.1', 'aligned React runtime versions');
+      setDep(dependencies, 'react-dom', '^18.3.1', 'aligned React runtime versions');
+      setDep(devDependencies, '@types/react', '^18.3.12', 'aligned React type packages');
+      setDep(devDependencies, '@types/react-dom', '^18.3.1', 'aligned React type packages');
+    }
+
+    if (isViteProject) {
+      setDep(devDependencies, 'vite', '^5.4.14', 'aligned Vite toolchain versions');
+      setDep(devDependencies, '@vitejs/plugin-react', '^4.3.4', 'aligned Vite toolchain versions');
+
+      if (!scripts.dev || scripts.dev.includes('--hostname')) {
+        scripts.dev = 'vite';
+        changed = true;
+        if (!reasons.includes('normalized Vite scripts')) reasons.push('normalized Vite scripts');
+      }
+      if (!scripts.build) {
+        scripts.build = 'vite build';
+        changed = true;
+        if (!reasons.includes('added missing Vite scripts')) reasons.push('added missing Vite scripts');
+      }
+      if (!scripts.preview) {
+        scripts.preview = 'vite preview';
+        changed = true;
+        if (!reasons.includes('added missing Vite scripts')) reasons.push('added missing Vite scripts');
+      }
+    }
+
+    if (devDependencies['@testing-library/react']) {
+      setDep(devDependencies, '@testing-library/react', '^16.3.0', 'aligned React testing packages');
+      setDep(devDependencies, '@testing-library/jest-dom', '^6.6.3', 'aligned React testing packages');
+      setDep(devDependencies, 'jsdom', '^25.0.1', 'aligned React testing packages');
+      setDep(devDependencies, 'vitest', '^2.1.8', 'aligned React testing packages');
+    }
+
+    if (!(pkg as { type?: string }).type) {
+      pkg.type = 'module';
+      changed = true;
+      if (!reasons.includes('set package type to module')) reasons.push('set package type to module');
+    }
+
+    pkg.dependencies = Object.fromEntries(Object.entries(dependencies).sort(([a], [b]) => a.localeCompare(b)));
+    pkg.devDependencies = Object.fromEntries(Object.entries(devDependencies).sort(([a], [b]) => a.localeCompare(b)));
+    pkg.scripts = scripts;
+
+    return { pkg, changed, reasons };
+  }
+
   /**
    * If package.json exists but is invalid JSON, attempt to repair it.
    * Tries to extract what it can, then regenerates from imports.
@@ -164,16 +242,16 @@ export class CompletenessPass {
       scripts = { dev: 'next dev', build: 'next build', start: 'next start' };
     } else if (hasVite || hasReact) {
       scripts = { dev: 'vite', build: 'vite build', preview: 'vite preview' };
-      if (!devDeps['vite']) devDeps['vite'] = '^6.0.0';
-      if (!devDeps['@vitejs/plugin-react']) devDeps['@vitejs/plugin-react'] = '^4.3.0';
+      if (!devDeps['vite']) devDeps['vite'] = '^5.4.14';
+      if (!devDeps['@vitejs/plugin-react']) devDeps['@vitejs/plugin-react'] = '^4.3.4';
     } else if (hasExpress) {
       scripts = { dev: 'tsx watch src/index.ts', build: 'tsc', start: 'node dist/index.js' };
     } else {
       scripts = { dev: 'vite', build: 'vite build', preview: 'vite preview' };
-      if (!devDeps['vite']) devDeps['vite'] = '^6.0.0';
+      if (!devDeps['vite']) devDeps['vite'] = '^5.4.14';
     }
 
-    const pkg = {
+    let pkg: Record<string, unknown> = {
       name: projectName,
       private: true,
       version: '0.0.1',
@@ -182,6 +260,8 @@ export class CompletenessPass {
       dependencies: deps,
       devDependencies: devDeps,
     };
+    const normalized = CompletenessPass.normalizeNodePackageJson(pkg, projectFiles);
+    pkg = normalized.pkg;
 
     return {
       filePath: 'package.json',
@@ -218,16 +298,16 @@ export class CompletenessPass {
     } else if (hasVite || hasReact) {
       scripts = { dev: 'vite', build: 'vite build', preview: 'vite preview' };
       // Ensure vite is in devDeps
-      if (!devDeps['vite']) devDeps['vite'] = '^6.0.0';
-      if (!devDeps['@vitejs/plugin-react']) devDeps['@vitejs/plugin-react'] = '^4.3.0';
+      if (!devDeps['vite']) devDeps['vite'] = '^5.4.14';
+      if (!devDeps['@vitejs/plugin-react']) devDeps['@vitejs/plugin-react'] = '^4.3.4';
     } else if (hasExpress) {
       scripts = { dev: 'tsx watch src/index.ts', build: 'tsc', start: 'node dist/index.js' };
     } else {
       scripts = { dev: 'vite', build: 'vite build', preview: 'vite preview' };
-      if (!devDeps['vite']) devDeps['vite'] = '^6.0.0';
+      if (!devDeps['vite']) devDeps['vite'] = '^5.4.14';
     }
 
-    const pkg = {
+    let pkg: Record<string, unknown> = {
       name: 'generated-project',
       private: true,
       version: '0.0.1',
@@ -236,6 +316,8 @@ export class CompletenessPass {
       dependencies: deps,
       devDependencies: devDeps,
     };
+    const normalized = CompletenessPass.normalizeNodePackageJson(pkg, projectFiles);
+    pkg = normalized.pkg;
 
     return {
       filePath: 'package.json',
@@ -284,12 +366,15 @@ export class CompletenessPass {
 
     if (added === 0) return null;
 
+    const normalized = CompletenessPass.normalizeNodePackageJson(pkg, projectFiles);
+    pkg = normalized.pkg;
+
     // Sort keys
     const sortObj = (obj: Record<string, string>) =>
       Object.fromEntries(Object.entries(obj).sort(([a], [b]) => a.localeCompare(b)));
 
-    pkg.dependencies = sortObj(currentDeps);
-    pkg.devDependencies = sortObj(currentDevDeps);
+    pkg.dependencies = sortObj((pkg.dependencies || {}) as Record<string, string>);
+    pkg.devDependencies = sortObj((pkg.devDependencies || {}) as Record<string, string>);
 
     // Ensure scripts exist
     const scripts = (pkg.scripts || {}) as Record<string, string>;
@@ -310,7 +395,9 @@ export class CompletenessPass {
       filePath: 'package.json',
       content: JSON.stringify(pkg, null, 2),
       language: 'json',
-      reason: `added ${added} missing dependencies`,
+      reason: normalized.changed
+        ? `added ${added} missing dependencies and normalized framework versions`
+        : `added ${added} missing dependencies`,
     };
   }
 

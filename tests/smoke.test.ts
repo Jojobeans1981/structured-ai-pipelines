@@ -198,6 +198,50 @@ describe('Completeness Pass', () => {
     const twConfig = result.files.find((f) => f.filePath === 'tailwind.config.js');
     expect(twConfig).toBeTruthy();
   });
+
+  it('normalizes incompatible React and Vite package versions', () => {
+    const files = [
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          name: 'broken-app',
+          private: true,
+          scripts: { dev: 'vite --hostname 0.0.0.0', build: 'vite build' },
+          dependencies: {
+            react: '^17.0.2',
+            'react-dom': '^18.3.1',
+          },
+          devDependencies: {
+            vite: '^4.5.14',
+            '@vitejs/plugin-react': '^2.2.0',
+            '@testing-library/react': 'latest',
+          },
+        }),
+      },
+      {
+        filePath: 'vite.config.ts',
+        content: `import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+export default defineConfig({ plugins: [react()] });`,
+      },
+      {
+        filePath: 'src/App.tsx',
+        content: `export default function App() { return <div>Hello</div>; }`,
+      },
+    ];
+
+    const result = CompletenessPass.run(files, 'node');
+    const pkgUpdate = result.files.find((f) => f.filePath === 'package.json');
+    expect(pkgUpdate).toBeTruthy();
+
+    const pkg = JSON.parse(pkgUpdate!.content);
+    expect(pkg.dependencies.react).toBe('^18.3.1');
+    expect(pkg.dependencies['react-dom']).toBe('^18.3.1');
+    expect(pkg.devDependencies.vite).toBe('^5.4.14');
+    expect(pkg.devDependencies['@vitejs/plugin-react']).toBe('^4.3.4');
+    expect(pkg.devDependencies['@testing-library/react']).toBe('^16.3.0');
+    expect(pkg.scripts.dev).toBe('vite');
+  });
 });
 
 describe('Dependency Resolver', () => {
@@ -253,6 +297,21 @@ describe('Test Generator', () => {
     const result = TestGenerator.scaffold([], 'unknown');
     expect(result.files.length).toBe(0);
     expect(result.framework).toBe('none');
+  });
+
+  it('pins compatible test dependency versions instead of latest', () => {
+    const updated = TestGenerator.mergeTestDeps(JSON.stringify({
+      name: 'app',
+      devDependencies: {
+        '@testing-library/react': 'latest',
+      },
+    }), 'node');
+
+    const pkg = JSON.parse(updated);
+    expect(pkg.devDependencies.vitest).toBe('^2.1.8');
+    expect(pkg.devDependencies['@testing-library/react']).toBe('^16.3.0');
+    expect(pkg.devDependencies['@testing-library/jest-dom']).toBe('^6.6.3');
+    expect(pkg.devDependencies.jsdom).toBe('^25.0.1');
   });
 });
 

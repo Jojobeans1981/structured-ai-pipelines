@@ -21,6 +21,13 @@ const TEST_FRAMEWORKS: Record<ProjectType, { framework: string; devDeps: string[
   unknown: { framework: 'none', devDeps: [] },
 };
 
+const PINNED_NODE_TEST_DEPS: Record<string, string> = {
+  vitest: '^2.1.8',
+  '@testing-library/react': '^16.3.0',
+  '@testing-library/jest-dom': '^6.6.3',
+  jsdom: '^25.0.1',
+};
+
 export class TestGenerator {
   /**
    * Analyze generated project files and scaffold a test suite.
@@ -312,8 +319,8 @@ addopts = -v --tb=short
 
       if (!pkg.devDependencies) pkg.devDependencies = {};
       for (const dep of testDeps) {
-        if (!pkg.devDependencies[dep]) {
-          pkg.devDependencies[dep] = 'latest';
+        if (!pkg.devDependencies[dep] || pkg.devDependencies[dep] === 'latest') {
+          pkg.devDependencies[dep] = PINNED_NODE_TEST_DEPS[dep];
         }
       }
 

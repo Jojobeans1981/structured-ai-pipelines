@@ -81,6 +81,13 @@ const NON_NPM_RUNTIME_PACKAGES = new Set([
   'unreal-engine',
   'gamemaker',
   'game-maker',
+  'localstorage',
+  'localStorage',
+  'sessionstorage',
+  'sessionStorage',
+  'window',
+  'document',
+  'navigator',
 ]);
 
 export class DependencyResolver {

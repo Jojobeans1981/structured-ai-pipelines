@@ -22,7 +22,7 @@ import { BuildVerifier } from '../src/services/build-verifier';
 import { normalizeImplementationManifest } from '../src/services/forge/agents/prompt-agent';
 import { finalizePreviewAssessment } from '../src/services/forge/agents/preview-agent';
 import { evaluateUsability } from '../src/services/forge/agents/usability-agent';
-import { runPreviewPreflight } from '../src/services/preview-preflight';
+import { preparePreviewFiles, runPreviewPreflight } from '../src/services/preview-preflight';
 
 // Simulate a realistic LLM output for a React + TypeScript project
 const MOCK_LLM_OUTPUT = `
@@ -295,6 +295,42 @@ export default defineConfig({ plugins: [react()] });`,
 
     const pkg = JSON.parse(pkgUpdate!.content);
     expect(pkg.dependencies.godot).toBeUndefined();
+  });
+
+  it('removes browser globals that were incorrectly turned into npm dependencies', () => {
+    const files = [
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          name: 'broken-browser-app',
+          private: true,
+          scripts: { dev: 'vite' },
+          dependencies: {
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+            localStorage: '^2.0.1',
+          },
+          devDependencies: {
+            vite: '^5.4.14',
+            '@vitejs/plugin-react': '^4.3.4',
+          },
+        }),
+      },
+      {
+        filePath: 'src/App.tsx',
+        content: `export default function App() {
+  const saved = window.localStorage.getItem('foo');
+  return <div>{saved}</div>;
+}`,
+      },
+    ];
+
+    const result = CompletenessPass.run(files, 'node');
+    const pkgUpdate = result.files.find((f) => f.filePath === 'package.json');
+    expect(pkgUpdate).toBeTruthy();
+
+    const pkg = JSON.parse(pkgUpdate!.content);
+    expect(pkg.dependencies.localStorage).toBeUndefined();
   });
 
   it('repairs broken TypeScript Node server scripts that point at stale js entrypoints', () => {
@@ -818,6 +854,46 @@ describe('Forge Guardrails', () => {
     expect(result.ok).toBe(false);
     expect(result.projectType).toBe('node');
     expect(result.blockers.some((blocker) => blocker.includes('package.json'))).toBe(true);
+  });
+
+  it('auto-scaffolds a missing main client entrypoint before preview preflight', () => {
+    const prepared = preparePreviewFiles([
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          scripts: {
+            dev: 'vite',
+            build: 'vite build',
+          },
+          dependencies: {
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+          },
+          devDependencies: {
+            vite: '^5.4.14',
+            '@vitejs/plugin-react': '^4.3.4',
+          },
+        }),
+      },
+      {
+        filePath: 'index.html',
+        content: '<!doctype html><html><body><div id="root"></div></body></html>',
+      },
+      {
+        filePath: 'src/App.tsx',
+        content: 'export default function App() { return <div>Hello</div>; }',
+      },
+      {
+        filePath: 'vite.config.ts',
+        content: 'export default {}',
+      },
+    ]);
+
+    expect(prepared.files.some((file) => file.filePath === 'src/main.tsx')).toBe(true);
+    expect(prepared.warnings.some((warning) => warning.includes('src/main.tsx'))).toBe(true);
+
+    const result = runPreviewPreflight(prepared.files);
+    expect(result.ok).toBe(true);
   });
 
   it('allows preview preflight for a minimal usable vite app', () => {

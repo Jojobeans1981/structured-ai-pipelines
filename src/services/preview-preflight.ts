@@ -1,4 +1,4 @@
-import { detectProjectType } from '@/src/services/completeness-pass'
+import { CompletenessPass, detectProjectType } from '@/src/services/completeness-pass'
 import { evaluateUsability } from '@/src/services/forge/agents/usability-agent'
 import type { LaunchAssessment } from '@/src/services/forge/agents/launcher-agent'
 import type { ProjectType } from '@/src/types/dag'
@@ -12,6 +12,12 @@ export interface PreviewPreflightResult {
   ok: boolean
   projectType: ProjectType
   blockers: string[]
+  warnings: string[]
+}
+
+export interface PreparedPreviewFilesResult {
+  projectType: ProjectType
+  files: PreviewFile[]
   warnings: string[]
 }
 
@@ -85,5 +91,24 @@ export function runPreviewPreflight(files: PreviewFile[]): PreviewPreflightResul
     projectType,
     blockers: usability.blockers,
     warnings: usability.warnings,
+  }
+}
+
+export function preparePreviewFiles(files: PreviewFile[]): PreparedPreviewFilesResult {
+  const projectType = detectPreviewProjectType(files)
+  const completeness = CompletenessPass.run(files, projectType)
+  const existingPaths = new Set(files.map((file) => file.filePath))
+  const generatedFiles = completeness.files
+    .filter((file) => !existingPaths.has(file.filePath))
+    .map((file) => ({ filePath: file.filePath, content: file.content }))
+
+  const warnings = generatedFiles.length > 0
+    ? [`Preview auto-scaffolded ${generatedFiles.length} missing file(s): ${generatedFiles.map((file) => file.filePath).join(', ')}`]
+    : []
+
+  return {
+    projectType,
+    files: [...files, ...generatedFiles],
+    warnings,
   }
 }

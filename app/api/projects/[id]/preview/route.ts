@@ -4,7 +4,7 @@ import { prisma } from '@/src/lib/prisma';
 import { DockerSandbox } from '@/src/services/docker-sandbox';
 import { PreviewWorkerClient } from '@/src/services/preview-worker-client';
 import { PreviewSessionService } from '@/src/services/preview-session-service';
-import { runPreviewPreflight } from '@/src/services/preview-preflight';
+import { preparePreviewFiles, runPreviewPreflight } from '@/src/services/preview-preflight';
 
 interface Props {
   params: { id: string };
@@ -126,13 +126,14 @@ export async function POST(_request: Request, { params }: Props) {
     return NextResponse.json({ error: 'No files to preview' }, { status: 404 });
   }
 
-  const preflight = runPreviewPreflight(projectFiles);
+  const preparedPreview = preparePreviewFiles(projectFiles);
+  const preflight = runPreviewPreflight(preparedPreview.files);
   if (!preflight.ok) {
     return NextResponse.json(
       {
         error: `Preview blocked before launch: ${preflight.blockers[0] || 'Stored project files are not usable yet.'}`,
         blockers: preflight.blockers,
-        warnings: preflight.warnings,
+        warnings: [...preparedPreview.warnings, ...preflight.warnings],
         projectType: preflight.projectType,
       },
       { status: 422 }
@@ -154,8 +155,8 @@ export async function POST(_request: Request, { params }: Props) {
   let result;
   try {
     result = dockerAvailability.available
-      ? await DockerSandbox.launchPreview(projectFiles, ttlSeconds)
-      : await PreviewWorkerClient.launchPreview(projectFiles, ttlSeconds, params.id);
+      ? await DockerSandbox.launchPreview(preparedPreview.files, ttlSeconds)
+      : await PreviewWorkerClient.launchPreview(preparedPreview.files, ttlSeconds, params.id);
   } catch (error) {
     await PreviewSessionService.markFailed(
       sessionId,

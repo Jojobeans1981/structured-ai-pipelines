@@ -62,6 +62,13 @@ export class CompletenessPass {
     'unreal-engine',
     'gamemaker',
     'game-maker',
+    'localstorage',
+    'localStorage',
+    'sessionstorage',
+    'sessionStorage',
+    'window',
+    'document',
+    'navigator',
   ]);
 
   /**

@@ -97,6 +97,43 @@ describe('MetricsService.getPromptHealth', () => {
 });
 
 // ---------------------------------------------------------------------------
+// getAgentBreakdown
+// ---------------------------------------------------------------------------
+describe('MetricsService.getAgentBreakdown', () => {
+  it('scopes guardian and socratic event counts to the authenticated user', async () => {
+    prisma.learningEntry.groupBy.mockResolvedValue([]);
+    prisma.pipelineStage.groupBy.mockResolvedValue([]);
+    prisma.confidenceScore.findMany.mockResolvedValue([]);
+    prisma.traceEvent.count
+      .mockResolvedValueOnce(10)
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(4);
+
+    const breakdown = await MetricsService.getAgentBreakdown('user-1');
+
+    expect(prisma.traceEvent.count).toHaveBeenNthCalledWith(1, {
+      where: { source: 'guardian', run: { project: { userId: 'user-1' } } },
+    });
+    expect(prisma.traceEvent.count).toHaveBeenNthCalledWith(2, {
+      where: { source: 'guardian', eventType: 'gate_rejected', run: { project: { userId: 'user-1' } } },
+    });
+    expect(prisma.traceEvent.count).toHaveBeenNthCalledWith(3, {
+      where: { source: 'socratic', run: { project: { userId: 'user-1' } } },
+    });
+
+    expect(breakdown.guardianStats).toEqual({
+      totalChecks: 10,
+      driftDetected: 3,
+      passRate: 70,
+    });
+    expect(breakdown.socraticStats).toEqual({
+      interventions: 4,
+      autoResolved: 4,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // collectMetrics
 // ---------------------------------------------------------------------------
 describe('MetricsService.collectMetrics', () => {

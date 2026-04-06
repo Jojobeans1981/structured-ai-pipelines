@@ -1,0 +1,143 @@
+{
+  "totalCases": 7,
+  "passedCases": 7,
+  "failedCases": 0,
+  "passRate": 100,
+  "avgScore": 100,
+  "byCategory": [
+    {
+      "category": "artifact-quality",
+      "total": 1,
+      "passed": 1,
+      "passRate": 100,
+      "avgScore": 100
+    },
+    {
+      "category": "artifact-recovery",
+      "total": 1,
+      "passed": 1,
+      "passRate": 100,
+      "avgScore": 100
+    },
+    {
+      "category": "engine-compatibility",
+      "total": 1,
+      "passed": 1,
+      "passRate": 100,
+      "avgScore": 100
+    },
+    {
+      "category": "launch-correctness",
+      "total": 2,
+      "passed": 2,
+      "passRate": 100,
+      "avgScore": 100
+    },
+    {
+      "category": "planning",
+      "total": 1,
+      "passed": 1,
+      "passRate": 100,
+      "avgScore": 100
+    },
+    {
+      "category": "preview-readiness",
+      "total": 1,
+      "passed": 1,
+      "passRate": 100,
+      "avgScore": 100
+    }
+  ],
+  "cases": [
+    {
+      "id": "greenfield-incomplete-react",
+      "category": "artifact-recovery",
+      "name": "Completeness pass recovers an incomplete React app into a previewable scaffold",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: Project type inferred as node from TSX files",
+        "PASS: package.json exists after completeness pass",
+        "PASS: main entrypoint exists after completeness pass",
+        "PASS: index.html exists after completeness pass",
+        "PASS: Dev script normalized to vite"
+      ]
+    },
+    {
+      "id": "node-script-normalization",
+      "category": "launch-correctness",
+      "name": "Node server package scripts are repaired away from stale nodemon JS entrypoints",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: Dev script points at tsx watch src/index.ts",
+        "PASS: Build script points at tsc",
+        "PASS: Start script points at dist output",
+        "PASS: tsx dependency added for TypeScript server runtime"
+      ]
+    },
+    {
+      "id": "manifest-contract-ordering",
+      "category": "planning",
+      "name": "Manifest normalization preserves dependency integrity and topological order",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: Types file sorted ahead of dependent files",
+        "PASS: Service file sorted between types and app",
+        "PASS: Entry file sorted last"
+      ]
+    },
+    {
+      "id": "preview-false-ready-guard",
+      "category": "preview-readiness",
+      "name": "Preview readiness blocks false-positive launch claims when startup fails",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: Preview marked not ready when sandbox startup fails",
+        "PASS: Preview blockers mention sandbox startup failure",
+        "PASS: Preview assessment preserves launch command context"
+      ]
+    },
+    {
+      "id": "vite-package-normalization",
+      "category": "launch-correctness",
+      "name": "Existing Vite projects are normalized into compatible React and tooling versions",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: React version aligned to supported runtime",
+        "PASS: Vite version aligned to supported toolchain",
+        "PASS: Vite React plugin aligned to supported toolchain",
+        "PASS: Dev script normalized to vite"
+      ]
+    },
+    {
+      "id": "artifact-tooling-health",
+      "category": "artifact-quality",
+      "name": "Recovered project can derive dependencies, tests, docker config, and stays secret-clean",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: Dependency resolver finds at least one runtime dependency",
+        "PASS: Test scaffold chooses vitest for node case",
+        "PASS: Dockerfile generated for recovered project",
+        "PASS: Recovered files do not trip the secret scanner"
+      ]
+    },
+    {
+      "id": "engine-project-preservation",
+      "category": "engine-compatibility",
+      "name": "Engine projects keep engine structure and do not get forced into node scaffolding",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: Godot project detected before node inference",
+        "PASS: No package.json scaffolded for engine-only project",
+        "PASS: No Vite config scaffolded for engine-only project",
+        "PASS: General repo hygiene file can still be generated"
+      ]
+    }
+  ]
+}

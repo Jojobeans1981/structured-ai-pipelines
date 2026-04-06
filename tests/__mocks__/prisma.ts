@@ -24,7 +24,9 @@ export const prisma = {
   learningEntry: mockModel(),
   pipelineMetric: mockModel(),
   pipelineRun: mockModel(),
+  pipelineStage: mockModel(),
   confidenceScore: mockModel(),
+  traceEvent: mockModel(),
   project: mockModel(),
 };
 

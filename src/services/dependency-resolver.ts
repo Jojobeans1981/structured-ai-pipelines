@@ -38,7 +38,7 @@ const KNOWN_VERSIONS: Record<string, string> = {
   typescript: '^5.6.0',
   postcss: '^8.4.0',
   autoprefixer: '^10.4.0',
-  vitest: '^2.1.0',
+  vitest: '^4.1.0',
   jsdom: '^25.0.0',
   '@testing-library/react': '^16.3.0',
   '@testing-library/jest-dom': '^6.6.0',

@@ -101,27 +101,27 @@ export const forgeBuyerPersonas = [
 
 export const forgeBetaPlans = [
   {
-    name: 'Beta Tester',
-    price: 'Free during beta',
-    audience: 'Solo evaluators and early design partners',
-    highlight: 'Best for fast product trials and feedback collection',
+    name: 'Starter',
+    price: 'Launch Access',
+    audience: 'Solo builders and evaluation runs',
+    highlight: 'Prompt library, guided runs, and baseline exports',
   },
   {
     name: 'Studio',
-    price: '$99-$249/mo target',
+    price: 'Studio Range',
     audience: 'Founders, agencies, and operators shipping multiple projects',
-    highlight: 'Positioned around guided builds, exports, and launch readiness',
+    highlight: 'Guided builds, exports, and launch-readiness workflows',
   },
   {
     name: 'Team Workspace',
-    price: '$399+/mo target',
+    price: 'Workspace Range',
     audience: 'Product and engineering teams that need collaboration and controls',
-    highlight: 'Planned for shared projects, approvals, usage controls, and deploy flows',
+    highlight: 'Shared projects, approvals, usage controls, and deploy flows',
   },
 ]
 
 export const forgeBetaPromises = [
-  'No login friction for testers while beta mode is active',
-  'Guided templates and saved prompts to shorten time-to-first-success',
-  'Run outputs framed for handoff, review, and launch readiness',
+  'Access',
+  'Templates',
+  'Delivery',
 ]

@@ -259,14 +259,14 @@ export function BuildStartDialog({ projectId, open, onOpenChange }: BuildStartDi
             </div>
             <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">Saved beta templates</div>
+                <div className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">Prompt Library</div>
                 <Button type="button" variant="outline" size="sm" onClick={handleSaveTemplate} disabled={!input.trim()}>
                   <Save className="mr-2 h-3.5 w-3.5" />
                   Save Current
                 </Button>
               </div>
               {savedTemplates.length === 0 ? (
-                <p className="mt-2 text-xs text-zinc-500">Save your favorite run prompt here for repeat testing in this browser.</p>
+                <p className="mt-2 text-xs text-zinc-500">Saved Prompts</p>
               ) : (
                 <div className="mt-3 space-y-2">
                   {savedTemplates.map((template) => (

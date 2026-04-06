@@ -170,6 +170,7 @@ export class SkillLoader {
       'guardian-agent', 'sentinel-agent', 'inspector-agent', 'socratic-agent',
       'setup-analyzer',
       'forge-analyzer', 'forge-prd', 'forge-prompt', 'forge-scaffolder', 'forge-validator',
+      'forge-launcher', 'forge-finisher', 'forge-preview',
       'forge-archaeologist', 'forge-root-cause', 'forge-fix-planner', 'forge-fix-scaffolder',
     ];
 

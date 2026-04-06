@@ -375,7 +375,7 @@ export function ProjectForm() {
                 </Button>
               </div>
               {savedTemplates.length === 0 ? (
-                <p className="mt-2 text-xs text-zinc-500">Save a good prompt here so beta testers can reuse it quickly in this browser.</p>
+                <p className="mt-2 text-xs text-zinc-500">Prompt Library</p>
               ) : (
                 <div className="mt-3 space-y-2">
                   {savedTemplates.map((template) => (

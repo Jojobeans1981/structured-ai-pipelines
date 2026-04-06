@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "benchmark:forge": "vitest run tests/forge-benchmark.test.ts tests/forge-contracts.test.ts tests/smoke.test.ts",
+    "benchmark:forge:report": "node scripts/generate-forge-benchmark-report.cjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.79.0",

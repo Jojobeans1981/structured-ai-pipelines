@@ -265,10 +265,10 @@ export class MetricsService {
 
     // Guardian stats from trace events
     const guardianEvents = await prisma.traceEvent.count({
-      where: { source: 'guardian' },
+      where: { source: 'guardian', run: { project: { userId } } },
     });
     const guardianDrift = await prisma.traceEvent.count({
-      where: { source: 'guardian', eventType: 'gate_rejected' },
+      where: { source: 'guardian', eventType: 'gate_rejected', run: { project: { userId } } },
     });
 
     const guardianStats = {
@@ -279,7 +279,7 @@ export class MetricsService {
 
     // Socratic stats
     const socraticEvents = await prisma.traceEvent.count({
-      where: { source: 'socratic' },
+      where: { source: 'socratic', run: { project: { userId } } },
     });
 
     const socraticStats = {

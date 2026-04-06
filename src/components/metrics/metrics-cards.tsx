@@ -101,8 +101,8 @@ export function MetricsCards({ summary }: MetricsCardsProps) {
       )
     : 0;
 
-  let planFit = 'Beta Tester';
-  let planHint = 'Best for quick trials, demos, and finding the best prompt patterns.';
+  let planFit = 'Starter';
+  let planHint = 'Quick evaluations, demos, and prompt iteration.';
   if (totalRuns >= 15 || totalCost >= 10) {
     planFit = 'Studio';
     planHint = 'You are using Forge like a repeatable delivery tool. Shared templates and deploy flows are the next value unlock.';
@@ -120,7 +120,7 @@ export function MetricsCards({ summary }: MetricsCardsProps) {
             <div className="flex items-center gap-3">
               <Gauge className="h-5 w-5 text-cyan-400" />
               <div>
-                <p className="text-xs text-muted-foreground">Beta Readiness Signal</p>
+                <p className="text-xs text-muted-foreground">Readiness Signal</p>
                 <p className="text-lg font-semibold">{avgSuccessSignal}%</p>
                 <p className="text-xs text-muted-foreground">Weighted by completed run volume</p>
               </div>

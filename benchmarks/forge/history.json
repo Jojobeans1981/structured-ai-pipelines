@@ -1,0 +1,334 @@
+{
+  "runs": [
+    {
+      "generatedAt": "2026-04-06T16:11:34.186Z",
+      "status": "PASS",
+      "totalSuites": 16,
+      "passedSuites": 16,
+      "totalTests": 51,
+      "passedTests": 51,
+      "failedTests": 0,
+      "latestJson": "latest-report.json",
+      "latestMarkdown": "latest-report.md",
+      "snapshotJson": "snapshots/forge-benchmark-20260406T161134Z.json",
+      "snapshotMarkdown": "snapshots/forge-benchmark-20260406T161134Z.md",
+      "trend": {
+        "statusChanged": "No change",
+        "suitesDelta": "0",
+        "testsDelta": "0",
+        "failedTestsDelta": "0"
+      },
+      "categories": [
+        {
+          "category": "artifact-quality",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "artifact-recovery",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "engine-compatibility",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "launch-correctness",
+          "total": 2,
+          "passed": 2,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "planning",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "preview-readiness",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        }
+      ],
+      "categoryTrend": [
+        {
+          "category": "artifact-quality",
+          "statusChanged": "No change",
+          "passedDelta": "0",
+          "totalDelta": "0",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "artifact-recovery",
+          "statusChanged": "No change",
+          "passedDelta": "0",
+          "totalDelta": "0",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "engine-compatibility",
+          "statusChanged": "No change",
+          "passedDelta": "0",
+          "totalDelta": "0",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "launch-correctness",
+          "statusChanged": "No change",
+          "passedDelta": "0",
+          "totalDelta": "0",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 2,
+            "total": 2,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "planning",
+          "statusChanged": "No change",
+          "passedDelta": "0",
+          "totalDelta": "0",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "preview-readiness",
+          "statusChanged": "No change",
+          "passedDelta": "0",
+          "totalDelta": "0",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        }
+      ]
+    },
+    {
+      "generatedAt": "2026-04-06T16:11:05.576Z",
+      "status": "PASS",
+      "totalSuites": 16,
+      "passedSuites": 16,
+      "totalTests": 51,
+      "passedTests": 51,
+      "failedTests": 0,
+      "latestJson": "latest-report.json",
+      "latestMarkdown": "latest-report.md",
+      "snapshotJson": "snapshots/forge-benchmark-20260406T161105Z.json",
+      "snapshotMarkdown": "snapshots/forge-benchmark-20260406T161105Z.md",
+      "trend": {
+        "statusChanged": "No change",
+        "suitesDelta": "0",
+        "testsDelta": "+1",
+        "failedTestsDelta": "0"
+      },
+      "categories": [
+        {
+          "category": "artifact-quality",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "artifact-recovery",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "engine-compatibility",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "launch-correctness",
+          "total": 2,
+          "passed": 2,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "planning",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "preview-readiness",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        }
+      ],
+      "categoryTrend": [
+        {
+          "category": "artifact-quality",
+          "statusChanged": "New",
+          "passedDelta": "n/a",
+          "totalDelta": "n/a",
+          "passRateDelta": "n/a",
+          "avgScoreDelta": "n/a",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "artifact-recovery",
+          "statusChanged": "New",
+          "passedDelta": "n/a",
+          "totalDelta": "n/a",
+          "passRateDelta": "n/a",
+          "avgScoreDelta": "n/a",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "engine-compatibility",
+          "statusChanged": "New",
+          "passedDelta": "n/a",
+          "totalDelta": "n/a",
+          "passRateDelta": "n/a",
+          "avgScoreDelta": "n/a",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "launch-correctness",
+          "statusChanged": "New",
+          "passedDelta": "n/a",
+          "totalDelta": "n/a",
+          "passRateDelta": "n/a",
+          "avgScoreDelta": "n/a",
+          "current": {
+            "passed": 2,
+            "total": 2,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "planning",
+          "statusChanged": "New",
+          "passedDelta": "n/a",
+          "totalDelta": "n/a",
+          "passRateDelta": "n/a",
+          "avgScoreDelta": "n/a",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "preview-readiness",
+          "statusChanged": "New",
+          "passedDelta": "n/a",
+          "totalDelta": "n/a",
+          "passRateDelta": "n/a",
+          "avgScoreDelta": "n/a",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        }
+      ]
+    },
+    {
+      "generatedAt": "2026-04-06T16:07:18.249Z",
+      "status": "PASS",
+      "totalSuites": 16,
+      "passedSuites": 16,
+      "totalTests": 50,
+      "passedTests": 50,
+      "failedTests": 0,
+      "latestJson": "latest-report.json",
+      "latestMarkdown": "latest-report.md",
+      "snapshotJson": "snapshots/forge-benchmark-20260406T160718Z.json",
+      "snapshotMarkdown": "snapshots/forge-benchmark-20260406T160718Z.md",
+      "trend": {
+        "statusChanged": "No change",
+        "suitesDelta": "0",
+        "testsDelta": "0",
+        "failedTestsDelta": "0"
+      }
+    },
+    {
+      "generatedAt": "2026-04-06T15:29:54.633Z",
+      "status": "PASS",
+      "totalSuites": 16,
+      "passedSuites": 16,
+      "totalTests": 50,
+      "passedTests": 50,
+      "failedTests": 0,
+      "latestJson": "latest-report.json",
+      "latestMarkdown": "latest-report.md",
+      "snapshotJson": "snapshots/forge-benchmark-20260406T152954Z.json",
+      "snapshotMarkdown": "snapshots/forge-benchmark-20260406T152954Z.md"
+    }
+  ]
+}

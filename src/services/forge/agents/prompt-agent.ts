@@ -1,5 +1,6 @@
 import { getAnthropicClient, createWithFallback, callWithRetry } from '@/src/lib/anthropic'
 import type { ImplementationManifest } from '../types/manifest'
+import type { ManifestFile } from '../types/manifest'
 import type { ConventionsProfile } from '../types/conventions'
 import { SkillLoader } from '@/src/services/skill-loader'
 
@@ -23,6 +24,63 @@ Return ONLY valid JSON matching this shape:
 }
 
 No markdown fences, no explanation. Just the JSON object.`
+
+function normalizeManifestEntry(file: ManifestFile): ManifestFile {
+  return {
+    path: String(file.path || '').trim(),
+    description: String(file.description || '').trim(),
+    dependencies: Array.isArray(file.dependencies)
+      ? Array.from(new Set(file.dependencies.map((dep) => String(dep).trim()).filter(Boolean)))
+      : [],
+  }
+}
+
+export function normalizeImplementationManifest(manifest: ImplementationManifest): ImplementationManifest {
+  if (!manifest.files || !Array.isArray(manifest.files)) {
+    throw new Error('Prompt agent returned invalid manifest: missing files array')
+  }
+
+  const normalizedFiles = manifest.files.map(normalizeManifestEntry)
+  const fileMap = new Map<string, ManifestFile>()
+
+  for (const file of normalizedFiles) {
+    if (!file.path || !file.description) {
+      throw new Error(`Invalid manifest entry: ${JSON.stringify(file)}`)
+    }
+    if (fileMap.has(file.path)) {
+      throw new Error(`Prompt agent returned duplicate manifest path: ${file.path}`)
+    }
+    fileMap.set(file.path, file)
+  }
+
+  const visitState = new Map<string, 'visiting' | 'visited'>()
+  const ordered: ManifestFile[] = []
+
+  const visit = (file: ManifestFile): void => {
+    const state = visitState.get(file.path)
+    if (state === 'visited') return
+    if (state === 'visiting') {
+      throw new Error(`Prompt agent returned cyclic manifest dependencies involving ${file.path}`)
+    }
+
+    visitState.set(file.path, 'visiting')
+    for (const dep of file.dependencies) {
+      const depFile = fileMap.get(dep)
+      if (!depFile) {
+        throw new Error(`Prompt agent returned manifest dependency "${dep}" for "${file.path}" that is not present in the manifest`)
+      }
+      visit(depFile)
+    }
+    visitState.set(file.path, 'visited')
+    ordered.push(file)
+  }
+
+  for (const file of normalizedFiles) {
+    visit(file)
+  }
+
+  return { files: ordered }
+}
 
 export async function generateManifest(opts: {
   userId: string
@@ -62,21 +120,6 @@ export async function generateManifest(opts: {
   const jsonMatch = text.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error('Prompt agent returned no JSON')
 
-  const parsed = JSON.parse(jsonMatch[0])
-
-  // Validate basic shape
-  if (!parsed.files || !Array.isArray(parsed.files)) {
-    throw new Error('Prompt agent returned invalid manifest: missing files array')
-  }
-
-  for (const file of parsed.files) {
-    if (!file.path || !file.description) {
-      throw new Error(`Invalid manifest entry: ${JSON.stringify(file)}`)
-    }
-    if (!Array.isArray(file.dependencies)) {
-      file.dependencies = []
-    }
-  }
-
-  return parsed as ImplementationManifest
+  const parsed = JSON.parse(jsonMatch[0]) as ImplementationManifest
+  return normalizeImplementationManifest(parsed)
 }

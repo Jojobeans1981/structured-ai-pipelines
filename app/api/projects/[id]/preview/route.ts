@@ -4,6 +4,7 @@ import { prisma } from '@/src/lib/prisma';
 import { DockerSandbox } from '@/src/services/docker-sandbox';
 import { PreviewWorkerClient } from '@/src/services/preview-worker-client';
 import { PreviewSessionService } from '@/src/services/preview-session-service';
+import { runPreviewPreflight } from '@/src/services/preview-preflight';
 
 interface Props {
   params: { id: string };
@@ -123,6 +124,19 @@ export async function POST(_request: Request, { params }: Props) {
 
   if (projectFiles.length === 0) {
     return NextResponse.json({ error: 'No files to preview' }, { status: 404 });
+  }
+
+  const preflight = runPreviewPreflight(projectFiles);
+  if (!preflight.ok) {
+    return NextResponse.json(
+      {
+        error: `Preview blocked before launch: ${preflight.blockers[0] || 'Stored project files are not usable yet.'}`,
+        blockers: preflight.blockers,
+        warnings: preflight.warnings,
+        projectType: preflight.projectType,
+      },
+      { status: 422 }
+    );
   }
 
   // Parse TTL from request body (default 30 min)

@@ -15,6 +15,7 @@ import { scaffoldFile } from './agents/scaffolder-agent'
 import { validateFiles } from './agents/validator-agent'
 import { evaluateLaunchReadiness } from './agents/launcher-agent'
 import { finishLaunchReadiness } from './agents/finisher-agent'
+import { evaluatePreviewReadiness, type PreviewAssessment } from './agents/preview-agent'
 import { buildForgeLessonsSection } from './lessons-context'
 import { CompletenessPass, detectProjectType } from '@/src/services/completeness-pass'
 import { BuildVerifier } from '@/src/services/build-verifier'
@@ -22,6 +23,7 @@ import { TestGenerator } from '@/src/services/test-generator'
 import { DockerfileGenerator } from '@/src/services/dockerfile-generator'
 import { CIGenerator } from '@/src/services/ci-generator'
 import { SBOMScanner } from '@/src/services/sbom-scanner'
+import { DockerSandbox } from '@/src/services/docker-sandbox'
 import type { ProjectType } from '@/src/types/dag'
 import type { BugReport, CodeMap } from './types/bug'
 import type { RootCause } from './types/fix'
@@ -44,6 +46,20 @@ interface BuildStageData {
 interface RepoFile {
   filePath: string
   content: string
+}
+
+function mergePreviewIntoLaunchAssessment(
+  launchAssessment: Awaited<ReturnType<typeof evaluateLaunchReadiness>>,
+  previewAssessment: PreviewAssessment,
+): Awaited<ReturnType<typeof evaluateLaunchReadiness>> {
+  return {
+    ...launchAssessment,
+    ready: previewAssessment.ready,
+    startCommand: previewAssessment.startCommand || launchAssessment.startCommand,
+    expectedPort: previewAssessment.expectedPort ?? launchAssessment.expectedPort,
+    blockers: Array.from(new Set([...launchAssessment.blockers, ...previewAssessment.blockers])),
+    summary: previewAssessment.summary || launchAssessment.summary,
+  }
 }
 
 function emitLog(
@@ -407,9 +423,13 @@ export async function runBuildPipelineStage2(opts: {
 
   // 5. Validation loop
   let currentFiles = [...scaffoldedFiles]
+  let validationPassed = false
+  let validationIssues: string[] = []
   for (let cycle = 1; cycle <= MAX_VALIDATION_CYCLES; cycle++) {
     emitLog(emit, runId, 'Validate', `Running validation cycle ${cycle}/${MAX_VALIDATION_CYCLES}...`)
     const result = await validateFiles(userId, currentFiles)
+    validationPassed = result.passed
+    validationIssues = result.issues.map((issue) => `${issue.phase}: ${issue.description}`)
 
     if (result.passed) {
       emitLog(emit, runId, 'Validate', 'All validations passed', 'success')
@@ -442,6 +462,9 @@ export async function runBuildPipelineStage2(opts: {
     }
 
     if (cycle === MAX_VALIDATION_CYCLES) {
+      for (const issue of validationIssues) {
+        emitLog(emit, runId, 'Validate', issue, 'warn')
+      }
       emitLog(emit, runId, 'Validate', 'Max validation cycles reached — proceeding with best effort', 'warn')
     }
   }
@@ -515,9 +538,24 @@ export async function runBuildPipelineStage2(opts: {
 
     repoFiles = readRepoFiles(workDir)
     projectType = detectProjectType(repoFiles.map((file) => ({ filePath: file.filePath })))
-    errors = []
+    const cycleValidation = await validateFiles(
+      userId,
+      repoFiles.map((file) => ({ path: file.filePath, content: file.content })),
+    )
+    validationPassed = cycleValidation.passed
+    validationIssues = cycleValidation.issues.map((issue) => `${issue.phase}: ${issue.description}`)
+    errors = validationPassed
+      ? []
+      : validationIssues.map((issue) => `Validation: ${issue.slice(0, 500)}`)
     lintPassed = true
     testsPassed = true
+
+    if (!validationPassed) {
+      emitLog(emit, runId, 'Validate', `Preview gate found ${validationIssues.length} remaining validation issue(s)`, 'warn')
+      for (const issue of validationIssues) {
+        emitLog(emit, runId, 'Validate', issue, 'warn')
+      }
+    }
 
     emitLog(emit, runId, 'Launcher', `Evaluating launch readiness for ${projectType} project...`)
     const launchAssessment = await evaluateLaunchReadiness({
@@ -610,6 +648,75 @@ export async function runBuildPipelineStage2(opts: {
       emitLog(emit, runId, 'Verify', 'No test command detected in the final artifact', 'warn')
     }
 
+    const shouldVerifyPreview = projectType === 'node' || projectType === 'static'
+    if (shouldVerifyPreview) {
+      const dockerAvailability = DockerSandbox.getAvailability()
+      let sandboxResult: Awaited<ReturnType<typeof DockerSandbox.verify>> | null = null
+
+      if (dockerAvailability.available && buildResult.success && lintPassed && testsPassed) {
+        emitLog(emit, runId, 'Preview', 'Running Docker sandbox preview verification...', 'info')
+        const sandboxFiles = readRepoFiles(workDir).map((file) => ({ filePath: file.filePath, content: file.content }))
+        sandboxResult = await DockerSandbox.verify(sandboxFiles)
+        emitLog(
+          emit,
+          runId,
+          'Preview',
+          sandboxResult.success ? 'Sandbox install/build/startup check passed' : `Sandbox ${sandboxResult.phase} check failed`,
+          sandboxResult.success ? 'success' : 'warn',
+        )
+      } else if (!dockerAvailability.available) {
+        emitLog(emit, runId, 'Preview', dockerAvailability.reason || 'Docker sandbox unavailable', 'warn')
+      }
+
+      const previewAssessment = await evaluatePreviewReadiness({
+        userId,
+        files: readRepoFiles(workDir),
+        projectType,
+        launchAssessment,
+        validationIssues,
+        buildResult,
+        lintPassed,
+        testsPassed,
+        sandboxAvailable: dockerAvailability.available,
+        sandboxReason: dockerAvailability.reason,
+        sandboxResult,
+      })
+
+      if (previewAssessment.ready) {
+        emitLog(emit, runId, 'Preview', previewAssessment.summary, 'success')
+      } else {
+        emitLog(emit, runId, 'Preview', previewAssessment.summary || 'Preview readiness failed', 'warn')
+        for (const blocker of previewAssessment.blockers) {
+          emitLog(emit, runId, 'Preview', blocker, 'warn')
+        }
+
+        if (cycle < MAX_BUILD_FIX_CYCLES) {
+          const finished = await runLaunchFinisherCycle({
+            userId,
+            runId,
+            workDir,
+            modifiedFiles,
+            repoFiles: readRepoFiles(workDir),
+            launchAssessment: mergePreviewIntoLaunchAssessment(launchAssessment, previewAssessment),
+            emit,
+            cycle: cycle + 1,
+            language: conventions.language,
+            framework: conventions.framework ?? undefined,
+          })
+
+          if (finished) {
+            continue
+          }
+        }
+
+        errors.push(...previewAssessment.blockers.map((blocker) => `Preview: ${blocker.slice(0, 500)}`))
+      }
+
+      for (const warning of previewAssessment.warnings) {
+        emitLog(emit, runId, 'Preview', warning, 'warn')
+      }
+    }
+
     finalFiles = Array.from(modifiedFiles.entries())
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([path, content]) => ({ path, content }))
@@ -658,5 +765,9 @@ export async function runBuildPipelineStage2(opts: {
     errors,
   })
 
-  emit({ type: 'status', status: 'awaiting_approval', stage: 'code' })
+  emit({
+    type: 'status',
+    status: errors.length === 0 ? 'awaiting_approval' : 'failed',
+    stage: 'code',
+  })
 }

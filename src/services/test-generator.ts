@@ -25,10 +25,11 @@ const TEST_FRAMEWORKS: Record<ProjectType, { framework: string; devDeps: string[
 };
 
 const PINNED_NODE_TEST_DEPS: Record<string, string> = {
-  vitest: '^2.1.8',
+  vitest: '^4.1.0',
   '@testing-library/react': '^16.3.0',
   '@testing-library/jest-dom': '^6.6.3',
   jsdom: '^25.0.1',
+  '@types/node': '^20.19.37',
 };
 
 export class TestGenerator {
@@ -318,7 +319,7 @@ addopts = -v --tb=short
 
     try {
       const pkg = JSON.parse(packageJsonContent);
-      const testDeps = ['vitest', '@testing-library/react', '@testing-library/jest-dom', 'jsdom'];
+      const testDeps = ['vitest', '@testing-library/react', '@testing-library/jest-dom', 'jsdom', '@types/node'];
 
       if (!pkg.devDependencies) pkg.devDependencies = {};
       for (const dep of testDeps) {

@@ -6,6 +6,9 @@
  * resolution → test scaffolding → Docker config → CI generation → ZIP output
  * all produce valid, runnable project structure.
  */
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import { describe, it, expect } from 'vitest';
 import { extractFilesFromArtifact } from '../src/services/file-manager';
 import { CompletenessPass, detectProjectType } from '../src/services/completeness-pass';
@@ -15,6 +18,11 @@ import { DockerfileGenerator } from '../src/services/dockerfile-generator';
 import { CIGenerator } from '../src/services/ci-generator';
 import { SBOMScanner } from '../src/services/sbom-scanner';
 import { SecretScanner } from '../src/services/secret-scanner';
+import { BuildVerifier } from '../src/services/build-verifier';
+import { normalizeImplementationManifest } from '../src/services/forge/agents/prompt-agent';
+import { finalizePreviewAssessment } from '../src/services/forge/agents/preview-agent';
+import { evaluateUsability } from '../src/services/forge/agents/usability-agent';
+import { runPreviewPreflight } from '../src/services/preview-preflight';
 
 // Simulate a realistic LLM output for a React + TypeScript project
 const MOCK_LLM_OUTPUT = `
@@ -289,6 +297,46 @@ export default defineConfig({ plugins: [react()] });`,
     expect(pkg.dependencies.godot).toBeUndefined();
   });
 
+  it('repairs broken TypeScript Node server scripts that point at stale js entrypoints', () => {
+    const files = [
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          name: 'api-app',
+          private: true,
+          scripts: {
+            dev: 'nodemon src/index.js --hostname 0.0.0.0',
+            start: 'node src/index.js',
+          },
+          dependencies: {
+            express: '^4.21.0',
+          },
+          devDependencies: {
+            '@types/node': '^14.18.63',
+          },
+        }),
+      },
+      {
+        filePath: 'src/index.ts',
+        content: `import express from 'express';
+const app = express();
+app.get('/', (_req, res) => res.json({ ok: true }));
+app.listen(3000);`,
+      },
+    ];
+
+    const result = CompletenessPass.run(files, 'node');
+    const pkgUpdate = result.files.find((f) => f.filePath === 'package.json');
+    expect(pkgUpdate).toBeTruthy();
+
+    const pkg = JSON.parse(pkgUpdate!.content);
+    expect(pkg.scripts.dev).toBe('tsx watch src/index.ts');
+    expect(pkg.scripts.build).toBe('tsc');
+    expect(pkg.scripts.start).toBe('node dist/index.js');
+    expect(pkg.devDependencies.tsx).toBe('^4.19.2');
+    expect(pkg.devDependencies.typescript).toBe('^5.6.0');
+  });
+
   it('does not scaffold node files for godot projects', () => {
     const files = [
       {
@@ -378,10 +426,11 @@ describe('Test Generator', () => {
     }), 'node');
 
     const pkg = JSON.parse(updated);
-    expect(pkg.devDependencies.vitest).toBe('^2.1.8');
+    expect(pkg.devDependencies.vitest).toBe('^4.1.0');
     expect(pkg.devDependencies['@testing-library/react']).toBe('^16.3.0');
     expect(pkg.devDependencies['@testing-library/jest-dom']).toBe('^6.6.3');
     expect(pkg.devDependencies.jsdom).toBe('^25.0.1');
+    expect(pkg.devDependencies['@types/node']).toBe('^20.19.37');
   });
 });
 
@@ -560,5 +609,255 @@ describe('Full Pipeline Smoke Test', () => {
     const parsed = JSON.parse(pkg!.content);
     expect(parsed.dependencies.react).toBeTruthy();
     expect(parsed.scripts.dev).toBeTruthy();
+  });
+});
+
+describe('Forge Guardrails', () => {
+  it('topologically sorts implementation manifest entries before scaffolding', () => {
+    const manifest = normalizeImplementationManifest({
+      files: [
+        { path: 'src/app.ts', description: 'app entry', dependencies: ['src/service.ts'] },
+        { path: 'src/service.ts', description: 'service', dependencies: ['src/types.ts'] },
+        { path: 'src/types.ts', description: 'types', dependencies: [] },
+      ],
+    });
+
+    expect(manifest.files.map((file) => file.path)).toEqual([
+      'src/types.ts',
+      'src/service.ts',
+      'src/app.ts',
+    ]);
+  });
+
+  it('marks preview as not ready when sandbox startup fails even if launcher was optimistic', () => {
+    const assessment = finalizePreviewAssessment({
+      files: [
+        {
+          filePath: 'package.json',
+          content: JSON.stringify({
+            scripts: {
+              dev: 'vite',
+            },
+            dependencies: {
+              react: '^18.3.1',
+              'react-dom': '^18.3.1',
+            },
+            devDependencies: {
+              vite: '^5.4.14',
+              '@vitejs/plugin-react': '^4.3.4',
+            },
+          }),
+        },
+        {
+          filePath: 'index.html',
+          content: '<!doctype html><html><body><div id="root"></div></body></html>',
+        },
+        {
+          filePath: 'src/main.tsx',
+          content: 'import React from "react";',
+        },
+        {
+          filePath: 'vite.config.ts',
+          content: 'export default {}',
+        },
+      ],
+      projectType: 'node',
+      launchAssessment: {
+        projectType: 'node',
+        framework: 'vite-react',
+        installCommand: 'npm install',
+        startCommand: 'npm run dev',
+        expectedPort: 5173,
+        ready: true,
+        blockers: [],
+        missingPackages: [],
+        summary: 'Looks good on static analysis',
+      },
+      validationIssues: [],
+      buildResult: {
+        success: true,
+        installOutput: '',
+        buildOutput: '',
+        errors: [],
+        warnings: [],
+        durationMs: 10,
+      },
+      lintPassed: true,
+      testsPassed: true,
+      sandboxAvailable: true,
+      sandboxResult: {
+        success: false,
+        phase: 'start',
+        stdout: '',
+        stderr: 'app crashed immediately',
+        exitCode: 1,
+      },
+    });
+
+    expect(assessment.ready).toBe(false);
+    expect(assessment.blockers.some((blocker) => blocker.includes('Preview sandbox start failed'))).toBe(true);
+  });
+
+  it('blocks preview when a vite app is missing the files needed to actually open it', () => {
+    const assessment = finalizePreviewAssessment({
+      files: [
+        {
+          filePath: 'package.json',
+          content: JSON.stringify({
+            scripts: {
+              dev: 'vite',
+            },
+            dependencies: {
+              react: '^18.3.1',
+              'react-dom': '^18.3.1',
+            },
+            devDependencies: {
+              vite: '^5.4.14',
+            },
+          }),
+        },
+      ],
+      projectType: 'node',
+      launchAssessment: {
+        projectType: 'node',
+        framework: 'vite-react',
+        installCommand: 'npm install',
+        startCommand: 'npm run dev',
+        expectedPort: 5173,
+        ready: true,
+        blockers: [],
+        missingPackages: [],
+        summary: 'Looks runnable',
+      },
+      validationIssues: [],
+      buildResult: {
+        success: true,
+        installOutput: '',
+        buildOutput: '',
+        errors: [],
+        warnings: [],
+        durationMs: 10,
+      },
+      lintPassed: true,
+      testsPassed: true,
+      sandboxAvailable: false,
+      sandboxReason: 'Docker unavailable in test',
+      sandboxResult: null,
+    });
+
+    expect(assessment.ready).toBe(false);
+    expect(assessment.blockers.some((blocker) => blocker.includes('index.html'))).toBe(true);
+    expect(assessment.blockers.some((blocker) => blocker.includes('main client entrypoint'))).toBe(true);
+  });
+
+  it('reports deterministic usability blockers for malformed node projects', () => {
+    const assessment = evaluateUsability({
+      files: [
+        {
+          filePath: 'package.json',
+          content: JSON.stringify({
+            scripts: {},
+            dependencies: {},
+            devDependencies: {},
+          }),
+        },
+        {
+          filePath: 'vite.config.ts',
+          content: 'export default {}',
+        },
+      ],
+      projectType: 'node',
+      launchAssessment: {
+        projectType: 'node',
+        framework: 'vite-react',
+        installCommand: 'npm install',
+        startCommand: null,
+        expectedPort: 5173,
+        ready: false,
+        blockers: ['Missing startup command'],
+        missingPackages: [],
+        summary: 'Launch blocked',
+      },
+    });
+
+    expect(assessment.usable).toBe(false);
+    expect(assessment.blockers.some((blocker) => blocker.includes('dev or start script'))).toBe(true);
+    expect(assessment.blockers.some((blocker) => blocker.includes('startup command'))).toBe(true);
+  });
+
+  it('fails closed when build verification cannot classify the generated project', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'forge-build-verifier-'));
+
+    try {
+      writeFileSync(join(tempDir, 'README.md'), '# Unknown project\n', 'utf-8');
+      const result = await BuildVerifier.verify(tempDir);
+
+      expect(result.success).toBe(false);
+      expect(result.errors.some((error) => error.includes('Could not detect project type'))).toBe(true);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('blocks preview preflight for node-like projects with no package.json', () => {
+    const result = runPreviewPreflight([
+      {
+        filePath: 'src/App.tsx',
+        content: 'export default function App() { return <div>Hello</div>; }',
+      },
+      {
+        filePath: 'src/main.tsx',
+        content: 'import App from "./App";',
+      },
+      {
+        filePath: 'index.html',
+        content: '<!doctype html><html><body><div id="root"></div></body></html>',
+      },
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.projectType).toBe('node');
+    expect(result.blockers.some((blocker) => blocker.includes('package.json'))).toBe(true);
+  });
+
+  it('allows preview preflight for a minimal usable vite app', () => {
+    const result = runPreviewPreflight([
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          scripts: {
+            dev: 'vite',
+            build: 'vite build',
+          },
+          dependencies: {
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+          },
+          devDependencies: {
+            vite: '^5.4.14',
+            '@vitejs/plugin-react': '^4.3.4',
+          },
+        }),
+      },
+      {
+        filePath: 'index.html',
+        content: '<!doctype html><html><body><div id="root"></div></body></html>',
+      },
+      {
+        filePath: 'src/main.tsx',
+        content: 'import App from "./App";',
+      },
+      {
+        filePath: 'src/App.tsx',
+        content: 'export default function App() { return <div>Hello</div>; }',
+      },
+      {
+        filePath: 'vite.config.ts',
+        content: 'export default {}',
+      },
+    ]);
+
+    expect(result.ok).toBe(true);
+    expect(result.blockers).toHaveLength(0);
   });
 });

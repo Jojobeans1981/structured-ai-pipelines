@@ -1,0 +1,670 @@
+{
+  "numTotalTestSuites": 16,
+  "numPassedTestSuites": 16,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 51,
+  "numPassedTests": 51,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1775491863426,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Forge benchmark suite"
+          ],
+          "fullName": "Forge benchmark suite produces a stable benchmark summary with all baseline cases passing",
+          "status": "passed",
+          "title": "produces a stable benchmark summary with all baseline cases passing",
+          "duration": 53.392500000000155,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Forge benchmark suite"
+          ],
+          "fullName": "Forge benchmark suite includes preview-readiness and planning categories in the benchmark mix",
+          "status": "passed",
+          "title": "includes preview-readiness and planning categories in the benchmark mix",
+          "duration": 4.460399999999936,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Forge benchmark suite"
+          ],
+          "fullName": "Forge benchmark suite renders a shareable markdown summary",
+          "status": "passed",
+          "title": "renders a shareable markdown summary",
+          "duration": 4.679000000000087,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Forge benchmark suite"
+          ],
+          "fullName": "Forge benchmark suite writes a structured summary artifact for report generation",
+          "status": "passed",
+          "title": "writes a structured summary artifact for report generation",
+          "duration": 5.098500000000058,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1775491865422,
+      "endTime": 1775491865490.0984,
+      "status": "passed",
+      "message": "",
+      "name": "C:/Users/beame/Desktop/structured-ai-pipelines/tests/forge-benchmark.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Forge step contracts"
+          ],
+          "fullName": "Forge step contracts defines a valid contract record for every tracked Forge step",
+          "status": "passed",
+          "title": "defines a valid contract record for every tracked Forge step",
+          "duration": 7.3759000000000015,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Forge step contracts"
+          ],
+          "fullName": "Forge step contracts accepts a valid harness snapshot spanning the critical preview path",
+          "status": "passed",
+          "title": "accepts a valid harness snapshot spanning the critical preview path",
+          "duration": 7.858999999999924,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Forge step contracts"
+          ],
+          "fullName": "Forge step contracts rejects a manifest with missing dependency targets",
+          "status": "passed",
+          "title": "rejects a manifest with missing dependency targets",
+          "duration": 3.3333999999999833,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Forge step contracts"
+          ],
+          "fullName": "Forge step contracts rejects a passing validation payload that still contains issues",
+          "status": "passed",
+          "title": "rejects a passing validation payload that still contains issues",
+          "duration": 2.6014999999999873,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Forge step contracts"
+          ],
+          "fullName": "Forge step contracts rejects a non-ready launch assessment with no blockers",
+          "status": "passed",
+          "title": "rejects a non-ready launch assessment with no blockers",
+          "duration": 1.0830000000000837,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Forge step contracts"
+          ],
+          "fullName": "Forge step contracts rejects a non-ready preview assessment with no blockers",
+          "status": "passed",
+          "title": "rejects a non-ready preview assessment with no blockers",
+          "duration": 1.1120999999998276,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1775491864704,
+      "endTime": 1775491864727.112,
+      "status": "passed",
+      "message": "",
+      "name": "C:/Users/beame/Desktop/structured-ai-pipelines/tests/forge-contracts.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "File Extraction"
+          ],
+          "fullName": "File Extraction extracts files from LLM output with code fences",
+          "status": "passed",
+          "title": "extracts files from LLM output with code fences",
+          "duration": 5.818699999999808,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "File Extraction"
+          ],
+          "fullName": "File Extraction deduplicates ALL-CAPS paths",
+          "status": "passed",
+          "title": "deduplicates ALL-CAPS paths",
+          "duration": 1.4003000000000156,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "File Extraction"
+          ],
+          "fullName": "File Extraction handles empty input",
+          "status": "passed",
+          "title": "handles empty input",
+          "duration": 0.6107999999999265,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Project Type Detection"
+          ],
+          "fullName": "Project Type Detection detects node from package.json",
+          "status": "passed",
+          "title": "detects node from package.json",
+          "duration": 0.7182999999999993,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Project Type Detection"
+          ],
+          "fullName": "Project Type Detection detects node from .tsx files even without package.json",
+          "status": "passed",
+          "title": "detects node from .tsx files even without package.json",
+          "duration": 0.6780999999998585,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Project Type Detection"
+          ],
+          "fullName": "Project Type Detection detects python from requirements.txt",
+          "status": "passed",
+          "title": "detects python from requirements.txt",
+          "duration": 0.45519999999987704,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Project Type Detection"
+          ],
+          "fullName": "Project Type Detection detects go from go.mod",
+          "status": "passed",
+          "title": "detects go from go.mod",
+          "duration": 0.4898000000000593,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Project Type Detection"
+          ],
+          "fullName": "Project Type Detection detects godot from engine files before treating it like node",
+          "status": "passed",
+          "title": "detects godot from engine files before treating it like node",
+          "duration": 0.5169000000000779,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Project Type Detection"
+          ],
+          "fullName": "Project Type Detection detects unity from project folders",
+          "status": "passed",
+          "title": "detects unity from project folders",
+          "duration": 0.49890000000004875,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Project Type Detection"
+          ],
+          "fullName": "Project Type Detection detects unreal from .uproject files",
+          "status": "passed",
+          "title": "detects unreal from .uproject files",
+          "duration": 0.6403999999999996,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Project Type Detection"
+          ],
+          "fullName": "Project Type Detection returns unknown for unrecognized files",
+          "status": "passed",
+          "title": "returns unknown for unrecognized files",
+          "duration": 0.4904999999998836,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Completeness Pass"
+          ],
+          "fullName": "Completeness Pass generates missing scaffolding for incomplete projects",
+          "status": "passed",
+          "title": "generates missing scaffolding for incomplete projects",
+          "duration": 33.88279999999986,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Completeness Pass"
+          ],
+          "fullName": "Completeness Pass does not overwrite existing files",
+          "status": "passed",
+          "title": "does not overwrite existing files",
+          "duration": 1.6345000000001164,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Completeness Pass"
+          ],
+          "fullName": "Completeness Pass generates .env.example from env var references",
+          "status": "passed",
+          "title": "generates .env.example from env var references",
+          "duration": 0.9809999999999945,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Completeness Pass"
+          ],
+          "fullName": "Completeness Pass generates tailwind config when @tailwind directives found",
+          "status": "passed",
+          "title": "generates tailwind config when @tailwind directives found",
+          "duration": 1.0622000000000753,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Completeness Pass"
+          ],
+          "fullName": "Completeness Pass normalizes incompatible React and Vite package versions",
+          "status": "passed",
+          "title": "normalizes incompatible React and Vite package versions",
+          "duration": 1.6186999999999898,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Completeness Pass"
+          ],
+          "fullName": "Completeness Pass removes unsupported non-npm runtime packages from package.json",
+          "status": "passed",
+          "title": "removes unsupported non-npm runtime packages from package.json",
+          "duration": 1.3972000000001117,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Completeness Pass"
+          ],
+          "fullName": "Completeness Pass repairs broken TypeScript Node server scripts that point at stale js entrypoints",
+          "status": "passed",
+          "title": "repairs broken TypeScript Node server scripts that point at stale js entrypoints",
+          "duration": 1.6701000000000477,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Completeness Pass"
+          ],
+          "fullName": "Completeness Pass does not scaffold node files for godot projects",
+          "status": "passed",
+          "title": "does not scaffold node files for godot projects",
+          "duration": 1.15949999999998,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Dependency Resolver"
+          ],
+          "fullName": "Dependency Resolver extracts npm packages from import statements",
+          "status": "passed",
+          "title": "extracts npm packages from import statements",
+          "duration": 1.248199999999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Dependency Resolver"
+          ],
+          "fullName": "Dependency Resolver infers react-dom from react",
+          "status": "passed",
+          "title": "infers react-dom from react",
+          "duration": 0.9492999999999938,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Dependency Resolver"
+          ],
+          "fullName": "Dependency Resolver classifies @types packages as devDependencies",
+          "status": "passed",
+          "title": "classifies @types packages as devDependencies",
+          "duration": 2.13169999999991,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Dependency Resolver"
+          ],
+          "fullName": "Dependency Resolver ignores local imports",
+          "status": "passed",
+          "title": "ignores local imports",
+          "duration": 0.481899999999996,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Dependency Resolver"
+          ],
+          "fullName": "Dependency Resolver handles scoped packages",
+          "status": "passed",
+          "title": "handles scoped packages",
+          "duration": 0.5582000000001699,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Test Generator"
+          ],
+          "fullName": "Test Generator scaffolds vitest tests for React components",
+          "status": "passed",
+          "title": "scaffolds vitest tests for React components",
+          "duration": 2.1944999999998345,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Test Generator"
+          ],
+          "fullName": "Test Generator returns empty for non-node projects",
+          "status": "passed",
+          "title": "returns empty for non-node projects",
+          "duration": 0.41079999999988104,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Test Generator"
+          ],
+          "fullName": "Test Generator returns no test scaffolding for engine projects",
+          "status": "passed",
+          "title": "returns no test scaffolding for engine projects",
+          "duration": 0.28089999999997417,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Test Generator"
+          ],
+          "fullName": "Test Generator pins compatible test dependency versions instead of latest",
+          "status": "passed",
+          "title": "pins compatible test dependency versions instead of latest",
+          "duration": 0.6802999999999884,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Dockerfile Generator"
+          ],
+          "fullName": "Dockerfile Generator generates Dockerfile for Vite/React project",
+          "status": "passed",
+          "title": "generates Dockerfile for Vite/React project",
+          "duration": 2.1386999999999716,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Dockerfile Generator"
+          ],
+          "fullName": "Dockerfile Generator skips docker scaffolding for engine projects without engine worker support",
+          "status": "passed",
+          "title": "skips docker scaffolding for engine projects without engine worker support",
+          "duration": 0.3183999999998832,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Dockerfile Generator"
+          ],
+          "fullName": "Dockerfile Generator detects correct port",
+          "status": "passed",
+          "title": "detects correct port",
+          "duration": 0.5536999999999352,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "CI Generator"
+          ],
+          "fullName": "CI Generator generates GitHub Actions workflow for Node project",
+          "status": "passed",
+          "title": "generates GitHub Actions workflow for Node project",
+          "duration": 0.9028000000000702,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "SBOM Scanner"
+          ],
+          "fullName": "SBOM Scanner generates SBOM from package.json",
+          "status": "passed",
+          "title": "generates SBOM from package.json",
+          "duration": 1.4332999999999174,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "SBOM Scanner"
+          ],
+          "fullName": "SBOM Scanner generates valid CycloneDX JSON",
+          "status": "passed",
+          "title": "generates valid CycloneDX JSON",
+          "duration": 3.558300000000145,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "SBOM Scanner"
+          ],
+          "fullName": "SBOM Scanner flags known vulnerable packages",
+          "status": "passed",
+          "title": "flags known vulnerable packages",
+          "duration": 0.9105000000001837,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Secret Scanner"
+          ],
+          "fullName": "Secret Scanner detects hardcoded API keys",
+          "status": "passed",
+          "title": "detects hardcoded API keys",
+          "duration": 1.2627999999999702,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Secret Scanner"
+          ],
+          "fullName": "Secret Scanner passes clean code",
+          "status": "passed",
+          "title": "passes clean code",
+          "duration": 1.066000000000031,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Full Pipeline Smoke Test"
+          ],
+          "fullName": "Full Pipeline Smoke Test produces a complete, downloadable project from LLM output",
+          "status": "passed",
+          "title": "produces a complete, downloadable project from LLM output",
+          "duration": 7.000700000000052,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Full Pipeline Smoke Test"
+          ],
+          "fullName": "Full Pipeline Smoke Test recovers from incomplete LLM output",
+          "status": "passed",
+          "title": "recovers from incomplete LLM output",
+          "duration": 1.735400000000027,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Forge Guardrails"
+          ],
+          "fullName": "Forge Guardrails topologically sorts implementation manifest entries before scaffolding",
+          "status": "passed",
+          "title": "topologically sorts implementation manifest entries before scaffolding",
+          "duration": 3.4660999999998694,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Forge Guardrails"
+          ],
+          "fullName": "Forge Guardrails marks preview as not ready when sandbox startup fails even if launcher was optimistic",
+          "status": "passed",
+          "title": "marks preview as not ready when sandbox startup fails even if launcher was optimistic",
+          "duration": 0.8444000000001779,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1775491865160,
+      "endTime": 1775491865252.8445,
+      "status": "passed",
+      "message": "",
+      "name": "C:/Users/beame/Desktop/structured-ai-pipelines/tests/smoke.test.ts"
+    }
+  ]
+}

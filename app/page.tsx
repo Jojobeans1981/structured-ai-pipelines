@@ -103,7 +103,7 @@ export default async function DashboardPage() {
               <CardHeader className="space-y-3">
                 <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-cyan-200">
                   <Rocket className="h-3.5 w-3.5" />
-                  Beta Product Mode
+                  Product Overview
                 </div>
                 <CardTitle className="text-3xl tracking-tight text-zinc-50">
                   Generate, verify, and package software work that feels ready to hand off.
@@ -353,14 +353,12 @@ export default async function DashboardPage() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Beta Readiness Snapshot</CardTitle>
+                    <CardTitle className="text-lg">Workspace Snapshot</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4">
-                      <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Current posture</div>
-                      <p className="mt-2 text-sm leading-6 text-zinc-300">
-                        This beta is strongest for founder demos, agency starter delivery, and engineering backlog relief. Auth is intentionally off so testers can move quickly.
-                      </p>
+                      <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Core Use Cases</div>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">Founder demos, agency delivery, and backlog relief.</p>
                     </div>
                     <div className="space-y-3">
                       {forgeTrustSignals.map((signal) => (
@@ -370,9 +368,7 @@ export default async function DashboardPage() {
                         </div>
                       ))}
                     </div>
-                    <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-4 text-sm text-zinc-300">
-                      Best next monetization layer: workspace collaboration, deploy targets, and hosted billing after beta feedback stabilizes.
-                    </div>
+                    <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-4 text-sm text-zinc-300">Growth Priorities</div>
                   </CardContent>
                 </Card>
               </div>

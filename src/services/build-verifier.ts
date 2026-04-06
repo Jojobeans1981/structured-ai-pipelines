@@ -109,12 +109,12 @@ export class BuildVerifier {
           break;
 
         case 'unknown':
-          warnings.push('Could not detect project type - skipping build verification');
+          errors.push('Could not detect project type - build verification cannot prove this output is usable');
           return {
-            success: true,
+            success: false,
             installOutput: 'Unknown project type',
-            buildOutput: 'Skipped',
-            errors: [],
+            buildOutput: 'Blocked',
+            errors,
             warnings,
             durationMs: Date.now() - start,
           };

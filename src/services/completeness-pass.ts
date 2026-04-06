@@ -180,6 +180,9 @@ export class CompletenessPass {
     const hasReactFiles = projectFiles.some(
       (f) => f.filePath.endsWith('.tsx') || f.content.includes("from 'react'") || f.content.includes('from "react"')
     );
+    const hasTsServerEntry = projectFiles.some((f) => /(^|\/)(src\/)?(index|main|app)\.ts$/.test(f.filePath));
+    const hasJsServerEntry = projectFiles.some((f) => /(^|\/)(src\/)?(index|main|app)\.js$/.test(f.filePath));
+    const hasExpressLikeDeps = !!dependencies.express || !!dependencies.fastify;
     const hasViteConfig = projectFiles.some((f) => /^vite\.config\.(ts|js|mjs)$/.test(f.filePath));
     const hasNextConfig = projectFiles.some((f) => /^next\.config\.(ts|js|mjs)$/.test(f.filePath));
     const isViteProject = !hasNextConfig && (hasViteConfig || !!dependencies.react || !!devDependencies.vite || scripts.dev === 'vite');
@@ -240,11 +243,55 @@ export class CompletenessPass {
       }
     }
 
+    const devScript = scripts.dev || '';
+    const startScript = scripts.start || '';
+    const looksLikeBrokenNodeDevScript =
+      devScript.includes('nodemon') ||
+      devScript.includes('src/index.js') ||
+      devScript.includes('--hostname');
+    const looksLikeBrokenNodeStartScript =
+      startScript.includes('src/index.js') && hasTsServerEntry;
+
+    if (!isViteProject && (hasExpressLikeDeps || hasTsServerEntry || hasJsServerEntry)) {
+      if (hasTsServerEntry) {
+        setDep(devDependencies, 'tsx', '^4.19.2', 'aligned Node server scripts');
+        setDep(devDependencies, 'typescript', '^5.6.0', 'aligned Node server scripts');
+
+        if (!scripts.dev || looksLikeBrokenNodeDevScript) {
+          scripts.dev = 'tsx watch src/index.ts';
+          changed = true;
+          if (!reasons.includes('normalized Node server scripts')) reasons.push('normalized Node server scripts');
+        }
+        if (!scripts.build) {
+          scripts.build = 'tsc';
+          changed = true;
+          if (!reasons.includes('added missing Node server scripts')) reasons.push('added missing Node server scripts');
+        }
+        if (!scripts.start || looksLikeBrokenNodeStartScript) {
+          scripts.start = 'node dist/index.js';
+          changed = true;
+          if (!reasons.includes('normalized Node server scripts')) reasons.push('normalized Node server scripts');
+        }
+      } else if (hasJsServerEntry) {
+        if (!scripts.dev || looksLikeBrokenNodeDevScript) {
+          scripts.dev = 'node src/index.js';
+          changed = true;
+          if (!reasons.includes('normalized Node server scripts')) reasons.push('normalized Node server scripts');
+        }
+        if (!scripts.start) {
+          scripts.start = 'node src/index.js';
+          changed = true;
+          if (!reasons.includes('added missing Node server scripts')) reasons.push('added missing Node server scripts');
+        }
+      }
+    }
+
     if (devDependencies['@testing-library/react']) {
       setDep(devDependencies, '@testing-library/react', '^16.3.0', 'aligned React testing packages');
       setDep(devDependencies, '@testing-library/jest-dom', '^6.6.3', 'aligned React testing packages');
       setDep(devDependencies, 'jsdom', '^25.0.1', 'aligned React testing packages');
-      setDep(devDependencies, 'vitest', '^2.1.8', 'aligned React testing packages');
+      setDep(devDependencies, 'vitest', '^4.1.0', 'aligned React testing packages');
+      setDep(devDependencies, '@types/node', '^20.19.37', 'aligned React testing packages');
     }
 
     if (!(pkg as { type?: string }).type) {

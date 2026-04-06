@@ -40,8 +40,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
         <div className="border-b border-cyan-500/20 bg-cyan-500/5 px-4 py-2 text-xs text-cyan-100 md:px-6">
           <div className="mx-auto flex max-w-7xl items-center gap-2">
             <Beaker className="h-3.5 w-3.5 text-cyan-300" />
-            <span className="font-medium">Beta mode active.</span>
-            <span className="text-cyan-100/80">Login is intentionally turned off so testers can use the product quickly. We can switch auth back on when you are ready to launch.</span>
+            <span className="font-medium">Workspace Access</span>
+            <span className="text-cyan-100/80">Authentication settings</span>
           </div>
         </div>
         {children}

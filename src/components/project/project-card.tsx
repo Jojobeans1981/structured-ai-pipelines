@@ -20,6 +20,9 @@ import { type ProjectSummary } from '@/src/types/project';
 
 interface ProjectCardProps {
   project: ProjectSummary;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onSelectionChange?: () => void;
 }
 
 const statusColors: Record<string, string> = {
@@ -51,7 +54,12 @@ const typeLabels: Record<string, { label: string; color: string }> = {
   deploy: { label: 'Deploy', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
 };
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({
+  project,
+  selectionMode = false,
+  selected = false,
+  onSelectionChange,
+}: ProjectCardProps) {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const router = useRouter();
@@ -82,8 +90,8 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const isCompleted = project.lastRunStatus === 'completed';
   const isFailed = project.lastRunStatus === 'failed';
 
-  return (
-    <Link href={`/projects/${project.id}`}>
+  const cardContent = (
+    <>
       <Card className={cn(
         'cursor-pointer group relative overflow-hidden transition-all duration-300',
         'border-zinc-800/80 hover:border-orange-500/40',
@@ -91,6 +99,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
         isRunning && 'border-orange-500/30 shadow-md shadow-orange-500/5',
         isCompleted && 'border-emerald-500/20',
         isFailed && 'border-red-500/20',
+        selectionMode && selected && 'border-orange-400 ring-1 ring-orange-400/50',
       )}>
         {/* Top accent bar */}
         <div className={cn(
@@ -126,20 +135,41 @@ export function ProjectCard({ project }: ProjectCardProps) {
             </span>
           </CardTitle>
           <div className="flex items-center gap-2">
+            {selectionMode && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSelectionChange?.();
+                }}
+                className={cn(
+                  'flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
+                  selected
+                    ? 'border-orange-400 bg-orange-500/15 text-orange-300'
+                    : 'border-zinc-700 bg-zinc-900/80 text-zinc-500 hover:border-orange-500/40 hover:text-orange-300'
+                )}
+                aria-label={selected ? 'Deselect project' : 'Select project'}
+              >
+                {selected ? <CheckCircle2 className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
+              </button>
+            )}
             <Badge variant="outline" className={cn('text-[10px] font-medium', statusColors[project.status] || '')}>
               {project.status}
             </Badge>
-            <button
-              onClick={openDeleteDialog}
-              disabled={deleting}
-              className={cn(
-                'p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100',
-                'text-zinc-600 hover:text-red-400 hover:bg-red-500/10'
-              )}
-              title="Delete project"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            {!selectionMode && (
+              <button
+                onClick={openDeleteDialog}
+                disabled={deleting}
+                className={cn(
+                  'p-1.5 rounded-md transition-all opacity-100',
+                  'text-zinc-500 hover:text-red-400 hover:bg-red-500/10'
+                )}
+                title="Delete project"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="relative">
@@ -173,6 +203,25 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </div>
         </CardContent>
       </Card>
+    </>
+  );
+
+  return (
+    <>
+      {selectionMode ? (
+        <div role="button" tabIndex={0} onClick={onSelectionChange} onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelectionChange?.();
+          }
+        }}>
+          {cardContent}
+        </div>
+      ) : (
+        <Link href={`/projects/${project.id}`}>
+          {cardContent}
+        </Link>
+      )}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
@@ -192,7 +241,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Link>
+    </>
   );
 }
 

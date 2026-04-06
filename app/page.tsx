@@ -4,7 +4,7 @@ import { getSessionOrDemo } from '@/src/lib/auth-helpers';
 import { prisma } from '@/src/lib/prisma';
 import { Header } from '@/src/components/layout/header';
 import { PageContainer } from '@/src/components/layout/page-container';
-import { ProjectCard } from '@/src/components/project/project-card';
+import { DashboardProjectGrid } from '@/src/components/project/dashboard-project-grid';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import {
@@ -344,11 +344,7 @@ export default async function DashboardPage() {
                     </p>
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {projectSummaries.map((project) => (
-                      <ProjectCard key={project.id} project={project} />
-                    ))}
-                  </div>
+                  <DashboardProjectGrid projects={projectSummaries} />
                 </div>
 
                 <Card>

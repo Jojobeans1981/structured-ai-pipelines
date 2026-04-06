@@ -13,6 +13,7 @@ import { SBOMScanner } from '@/src/services/sbom-scanner';
 import { CostGuard } from '@/src/services/cost-guard';
 import { LearningStore } from '@/src/services/learning-store';
 import { ValidationAgent } from '@/src/services/validation-agent';
+import { buildVerificationFailureArtifact } from '@/src/services/verification-gate';
 
 // Vercel serverless: max execution time (hobby=60s, pro=300s)
 export const maxDuration = 60;
@@ -315,6 +316,23 @@ async function handleVerifyNode(
               controller.close();
               return;
             }
+
+            const blockedArtifact = buildVerificationFailureArtifact(
+              output,
+              'Docker verification failed and the run could not be safely auto-repaired.',
+              errorForFix
+            );
+            await prisma.pipelineStage.update({
+              where: { id: stageId },
+              data: {
+                status: 'awaiting_approval',
+                artifactContent: blockedArtifact,
+                streamContent: output,
+              },
+            });
+            send({ type: 'checkpoint', data: { stageId, artifact: blockedArtifact } });
+            controller.close();
+            return;
           }
 
           // Scaffold tests + Docker after build verification
@@ -361,6 +379,23 @@ async function handleVerifyNode(
               controller.close();
               return;
             }
+
+            const blockedArtifact = buildVerificationFailureArtifact(
+              output,
+              'Install/build verification failed on the generated project and repair did not recover it.',
+              [result.installOutput, result.buildOutput, result.errors.join('\n')].filter(Boolean).join('\n')
+            );
+            await prisma.pipelineStage.update({
+              where: { id: stageId },
+              data: {
+                status: 'awaiting_approval',
+                artifactContent: blockedArtifact,
+                streamContent: output,
+              },
+            });
+            send({ type: 'checkpoint', data: { stageId, artifact: blockedArtifact } });
+            controller.close();
+            return;
           }
 
           // Scaffold tests + Docker after filesystem verification
@@ -562,6 +597,23 @@ async function handleVerifyNode(
               controller.close();
               return;
             }
+
+            const blockedArtifact = buildVerificationFailureArtifact(
+              artifact,
+              'Static verification found blocking issues and the run could not be auto-repaired.',
+              errorForFix
+            );
+            await prisma.pipelineStage.update({
+              where: { id: stageId },
+              data: {
+                status: 'awaiting_approval',
+                artifactContent: blockedArtifact,
+                streamContent: artifact,
+              },
+            });
+            send({ type: 'checkpoint', data: { stageId, artifact: blockedArtifact } });
+            controller.close();
+            return;
           }
 
           // Scaffold tests + Docker after static analysis

@@ -73,6 +73,8 @@ export class CompletenessPass {
 
   private static readonly LEGACY_REACT_TOOLING_PACKAGES = new Set([
     'react-scripts',
+    'parcel',
+    'parcel-bundler',
   ]);
 
   /**
@@ -247,26 +249,29 @@ export class CompletenessPass {
       setDep(devDependencies, '@types/react-dom', '^18.3.1', 'aligned React type packages');
     }
 
+    const isLegacyFrontendScript = (script: string | undefined) =>
+      !!script && (script.includes('react-scripts') || script.includes('parcel '));
+
     if (isViteProject) {
       setDep(devDependencies, 'vite', '^5.4.14', 'aligned Vite toolchain versions');
       setDep(devDependencies, '@vitejs/plugin-react', '^4.3.4', 'aligned Vite toolchain versions');
 
-      if (!scripts.dev || scripts.dev.includes('--hostname') || scripts.dev.includes('react-scripts')) {
+      if (!scripts.dev || scripts.dev.includes('--hostname') || isLegacyFrontendScript(scripts.dev)) {
         scripts.dev = 'vite';
         changed = true;
         if (!reasons.includes('normalized Vite scripts')) reasons.push('normalized Vite scripts');
       }
-      if (!scripts.build || scripts.build.includes('react-scripts')) {
+      if (!scripts.build || isLegacyFrontendScript(scripts.build)) {
         scripts.build = 'vite build';
         changed = true;
         if (!reasons.includes('added missing Vite scripts')) reasons.push('added missing Vite scripts');
       }
-      if (!scripts.preview || scripts.preview.includes('react-scripts')) {
+      if (!scripts.preview || isLegacyFrontendScript(scripts.preview)) {
         scripts.preview = 'vite preview';
         changed = true;
         if (!reasons.includes('added missing Vite scripts')) reasons.push('added missing Vite scripts');
       }
-      if (scripts.start && scripts.start.includes('react-scripts')) {
+      if (scripts.start && isLegacyFrontendScript(scripts.start)) {
         scripts.start = 'vite';
         changed = true;
         if (!reasons.includes('normalized Vite scripts')) reasons.push('normalized Vite scripts');

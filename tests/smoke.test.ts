@@ -311,6 +311,48 @@ export default defineConfig({ plugins: [react()] });`,
     expect(pkg.devDependencies.vite).toBe('^5.4.14');
   });
 
+  it('removes stale parcel tooling from vite-style projects', () => {
+    const files = [
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          name: 'legacy-parcel-app',
+          private: true,
+          scripts: {
+            dev: 'parcel src/index.html --hostname 0.0.0.0',
+            start: 'parcel src/index.html',
+            build: 'parcel build src/index.html',
+          },
+          dependencies: {
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+            parcel: '^2.12.0',
+          },
+        }),
+      },
+      {
+        filePath: 'vite.config.ts',
+        content: `export default {};`,
+      },
+      {
+        filePath: 'src/App.tsx',
+        content: `export default function App() { return <div>Hello</div>; }`,
+      },
+    ];
+
+    const result = CompletenessPass.run(files, 'node');
+    const pkgUpdate = result.files.find((f) => f.filePath === 'package.json');
+    expect(pkgUpdate).toBeTruthy();
+
+    const pkg = JSON.parse(pkgUpdate!.content);
+    expect(pkg.dependencies.parcel).toBeUndefined();
+    expect(pkg.scripts.dev).toBe('vite');
+    expect(pkg.scripts.start).toBe('vite');
+    expect(pkg.scripts.build).toBe('vite build');
+    expect(pkg.scripts.preview).toBe('vite preview');
+    expect(pkg.devDependencies.vite).toBe('^5.4.14');
+  });
+
   it('removes unsupported non-npm runtime packages from package.json', () => {
     const files = [
       {

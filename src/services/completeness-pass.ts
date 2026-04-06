@@ -649,7 +649,7 @@ export default defineConfig({
     if (!hasReact) return results;
 
     // Check for main.tsx / main.ts
-    const mainFiles = ['src/main.tsx', 'src/main.ts', 'src/main.jsx', 'src/main.js', 'src/index.tsx', 'src/index.ts'];
+    const mainFiles = ['src/main.tsx', 'src/main.ts', 'src/main.jsx', 'src/main.js', 'src/index.tsx', 'src/index.ts', 'src/index.jsx', 'src/index.js'];
     const hasMain = mainFiles.some((f) => existing.has(f));
 
     if (!hasMain) {

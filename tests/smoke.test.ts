@@ -1073,6 +1073,50 @@ describe('Forge Guardrails', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('accepts src/index.jsx as a valid vite client entrypoint after preview repair', () => {
+    const prepared = preparePreviewFiles([
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          scripts: {
+            dev: 'vite',
+            build: 'vite build',
+          },
+          dependencies: {
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+          },
+          devDependencies: {
+            vite: '^5.4.14',
+            '@vitejs/plugin-react': '^4.3.4',
+          },
+        }),
+      },
+      {
+        filePath: 'index.html',
+        content: '<!doctype html><html><body><div id="root"></div></body></html>',
+      },
+      {
+        filePath: 'src/index.js',
+        content: 'import { createRoot } from "react-dom/client"; import App from "./App.js"; createRoot(document.getElementById("root")).render(<App />);',
+      },
+      {
+        filePath: 'src/App.js',
+        content: 'export default function App() { return (<div>Hello</div>); }',
+      },
+      {
+        filePath: 'vite.config.ts',
+        content: 'export default {}',
+      },
+    ]);
+
+    expect(prepared.files.some((file) => file.filePath === 'src/index.jsx')).toBe(true);
+
+    const result = runPreviewPreflight(prepared.files);
+    expect(result.ok).toBe(true);
+    expect(result.blockers.some((blocker) => blocker.includes('main client entrypoint'))).toBe(false);
+  });
+
   it('delivery guard repairs preview-ready file issues before runtime checks', () => {
     const result = runDeliveryGuard([
       {

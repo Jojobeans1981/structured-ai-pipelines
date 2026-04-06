@@ -69,7 +69,7 @@ function detectNodeAppShape(
   }
 
   const hasViteConfig = hasAnyFile(files, ['vite.config.ts', 'vite.config.js', 'vite.config.mjs'])
-  const hasReactEntry = hasAnyFile(files, ['src/main.tsx', 'src/main.jsx', 'src/App.tsx', 'src/App.jsx'])
+  const hasReactEntry = hasAnyFile(files, ['src/main.tsx', 'src/main.jsx', 'src/index.tsx', 'src/index.jsx', 'src/main.js', 'src/index.js', 'src/App.tsx', 'src/App.jsx', 'src/App.js'])
   if (hasViteConfig || hasReactEntry) {
     return 'vite-react'
   }
@@ -123,7 +123,7 @@ export function evaluateUsability(opts: {
         if (!hasFile(opts.files, 'index.html')) {
           blockers.push('Vite/React project is missing index.html')
         }
-        if (!hasAnyFile(opts.files, ['src/main.tsx', 'src/main.jsx'])) {
+        if (!hasAnyFile(opts.files, ['src/main.tsx', 'src/main.jsx', 'src/index.tsx', 'src/index.jsx', 'src/main.js', 'src/index.js'])) {
           blockers.push('Vite/React project is missing a main client entrypoint')
         }
 
@@ -157,7 +157,7 @@ export function evaluateUsability(opts: {
         }
       }
 
-      if (hasAnyFile(opts.files, ['src/index.ts', 'src/main.tsx', 'src/main.ts', 'src/server.ts']) && !hasFile(opts.files, 'tsconfig.json')) {
+      if (hasAnyFile(opts.files, ['src/index.ts', 'src/index.tsx', 'src/index.jsx', 'src/index.js', 'src/main.tsx', 'src/main.ts', 'src/main.jsx', 'src/main.js', 'src/server.ts']) && !hasFile(opts.files, 'tsconfig.json')) {
         warnings.push('TypeScript source exists without tsconfig.json; startup may still be fragile')
       }
     }

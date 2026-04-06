@@ -97,18 +97,24 @@ export function runPreviewPreflight(files: PreviewFile[]): PreviewPreflightResul
 export function preparePreviewFiles(files: PreviewFile[]): PreparedPreviewFilesResult {
   const projectType = detectPreviewProjectType(files)
   const completeness = CompletenessPass.run(files, projectType)
-  const existingPaths = new Set(files.map((file) => file.filePath))
-  const generatedFiles = completeness.files
-    .filter((file) => !existingPaths.has(file.filePath))
-    .map((file) => ({ filePath: file.filePath, content: file.content }))
+  const mergedFiles = new Map(files.map((file) => [file.filePath, file.content]))
+  const changedPaths: string[] = []
 
-  const warnings = generatedFiles.length > 0
-    ? [`Preview auto-scaffolded ${generatedFiles.length} missing file(s): ${generatedFiles.map((file) => file.filePath).join(', ')}`]
+  for (const file of completeness.files) {
+    const previous = mergedFiles.get(file.filePath)
+    if (previous !== file.content) {
+      changedPaths.push(file.filePath)
+      mergedFiles.set(file.filePath, file.content)
+    }
+  }
+
+  const warnings = changedPaths.length > 0
+    ? [`Preview auto-scaffolded or repaired ${changedPaths.length} file(s): ${changedPaths.join(', ')}`]
     : []
 
   return {
     projectType,
-    files: [...files, ...generatedFiles],
+    files: Array.from(mergedFiles.entries()).map(([filePath, content]) => ({ filePath, content })),
     warnings,
   }
 }

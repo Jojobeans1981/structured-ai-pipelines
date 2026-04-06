@@ -896,6 +896,53 @@ describe('Forge Guardrails', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('repairs package.json during preview prep when a vite app is missing vite dependency', () => {
+    const prepared = preparePreviewFiles([
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          scripts: {
+            dev: 'vite',
+            build: 'vite build',
+          },
+          dependencies: {
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+          },
+          devDependencies: {
+            '@vitejs/plugin-react': '^4.3.4',
+          },
+        }),
+      },
+      {
+        filePath: 'index.html',
+        content: '<!doctype html><html><body><div id="root"></div></body></html>',
+      },
+      {
+        filePath: 'src/main.tsx',
+        content: 'import App from "./App";',
+      },
+      {
+        filePath: 'src/App.tsx',
+        content: 'export default function App() { return <div>Hello</div>; }',
+      },
+      {
+        filePath: 'vite.config.ts',
+        content: 'export default {}',
+      },
+    ]);
+
+    const packageJson = prepared.files.find((file) => file.filePath === 'package.json');
+    expect(packageJson).toBeTruthy();
+
+    const pkg = JSON.parse(packageJson!.content);
+    expect(pkg.devDependencies.vite).toBe('^5.4.14');
+    expect(prepared.warnings.some((warning) => warning.includes('package.json'))).toBe(true);
+
+    const result = runPreviewPreflight(prepared.files);
+    expect(result.ok).toBe(true);
+  });
+
   it('allows preview preflight for a minimal usable vite app', () => {
     const result = runPreviewPreflight([
       {

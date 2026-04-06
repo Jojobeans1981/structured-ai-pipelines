@@ -37,6 +37,16 @@ interface PreviewLaunchErrorPayload {
   warnings?: string[];
 }
 
+interface PreviewLaunchSuccessPayload {
+  sessionId: string;
+  url: string | null;
+  containerId: string | null;
+  port: number | null;
+  expiresAt: string | null;
+  ttlSeconds: number;
+  provider: string;
+}
+
 function summarizePreviewError(message: string): string {
   const lower = message.toLowerCase();
 
@@ -182,7 +192,7 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
         body: JSON.stringify({ ttlMinutes: 30 }),
       });
 
-      const data = await res.json().catch(() => ({})) as PreviewLaunchErrorPayload & Record<string, unknown>;
+      const data = await res.json().catch(() => ({})) as PreviewLaunchErrorPayload & Partial<PreviewLaunchSuccessPayload>;
       if (!res.ok) {
         const details = [
           ...((Array.isArray(data.blockers) ? data.blockers : []).map((item) => `Blocker: ${item}`)),
@@ -194,26 +204,28 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
         throw error;
       }
 
-      setPreviewUrl(data.url || null);
-      setPreviewExpiresAt(data.expiresAt || null);
+      const successData = data as PreviewLaunchSuccessPayload;
+
+      setPreviewUrl(successData.url || null);
+      setPreviewExpiresAt(successData.expiresAt || null);
       setCapabilities((current) => current ? {
         ...current,
         activePreview: {
-          id: data.sessionId,
-          provider: data.provider,
+          id: successData.sessionId,
+          provider: successData.provider,
           status: 'running',
-          previewUrl: data.url || null,
-          containerId: data.containerId || null,
-          port: data.port || null,
-          expiresAt: data.expiresAt || null,
+          previewUrl: successData.url || null,
+          containerId: successData.containerId || null,
+          port: successData.port || null,
+          expiresAt: successData.expiresAt || null,
           startedAt: new Date().toISOString(),
           stoppedAt: null,
           error: null,
         },
       } : current);
 
-      if (data.url) {
-        window.open(data.url, '_blank', 'noopener,noreferrer');
+      if (successData.url) {
+        window.open(successData.url, '_blank', 'noopener,noreferrer');
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to launch preview';

@@ -610,7 +610,11 @@ export default defineConfig({
     const results: GeneratedFile[] = [];
 
     const hasReact = projectFiles.some(
-      (f) => f.content.includes("from 'react'") || f.content.includes('from "react"') || f.filePath.endsWith('.tsx')
+      (f) =>
+        f.content.includes("from 'react'") ||
+        f.content.includes('from "react"') ||
+        /\.(tsx|jsx)$/.test(f.filePath) ||
+        /src\/(App|app)\.(tsx?|jsx?)$/.test(f.filePath)
     );
     const hasNext = projectFiles.some(
       (f) => f.filePath.startsWith('app/') || f.filePath.startsWith('pages/')

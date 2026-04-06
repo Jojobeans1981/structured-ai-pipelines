@@ -896,6 +896,45 @@ describe('Forge Guardrails', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('auto-scaffolds a main client entrypoint for jsx app shapes without explicit react imports', () => {
+    const prepared = preparePreviewFiles([
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          scripts: {
+            dev: 'vite',
+            build: 'vite build',
+          },
+          dependencies: {
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+          },
+          devDependencies: {
+            vite: '^5.4.14',
+            '@vitejs/plugin-react': '^4.3.4',
+          },
+        }),
+      },
+      {
+        filePath: 'index.html',
+        content: '<!doctype html><html><body><div id="root"></div></body></html>',
+      },
+      {
+        filePath: 'src/App.jsx',
+        content: 'export default function App() { return <div>Hello</div>; }',
+      },
+      {
+        filePath: 'vite.config.ts',
+        content: 'export default {}',
+      },
+    ]);
+
+    expect(prepared.files.some((file) => file.filePath === 'src/main.tsx')).toBe(true);
+
+    const result = runPreviewPreflight(prepared.files);
+    expect(result.ok).toBe(true);
+  });
+
   it('repairs package.json during preview prep when a vite app is missing vite dependency', () => {
     const prepared = preparePreviewFiles([
       {

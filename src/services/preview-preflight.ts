@@ -2,6 +2,7 @@ import { CompletenessPass, detectProjectType } from '@/src/services/completeness
 import { evaluateUsability } from '@/src/services/forge/agents/usability-agent'
 import type { LaunchAssessment } from '@/src/services/forge/agents/launcher-agent'
 import type { ProjectType } from '@/src/types/dag'
+import { posix as pathPosix } from 'path'
 
 interface PreviewFile {
   filePath: string
@@ -27,6 +28,56 @@ function detectPreviewProjectType(files: PreviewFile[]): ProjectType {
     return 'node'
   }
   return inferred
+}
+
+function looksLikeJsx(content: string): boolean {
+  return /return\s*\(\s*</.test(content)
+    || /<([A-Z][A-Za-z0-9]*|div|span|main|section|article|header|footer|button|form|input|label|ul|li|p|h1|h2|h3)\b/.test(content)
+}
+
+function replaceImportSpecifier(content: string, fromPath: string, toPath: string): string {
+  return content
+    .replaceAll(`'${fromPath}'`, `'${toPath}'`)
+    .replaceAll(`"${fromPath}"`, `"${toPath}"`)
+}
+
+function repairJsxExtensions(files: PreviewFile[]): { files: PreviewFile[]; warnings: string[] } {
+  const renameMap = new Map<string, string>()
+
+  for (const file of files) {
+    if (!file.filePath.endsWith('.js')) continue
+    if (!looksLikeJsx(file.content)) continue
+    renameMap.set(file.filePath, file.filePath.replace(/\.js$/, '.jsx'))
+  }
+
+  if (renameMap.size === 0) {
+    return { files, warnings: [] }
+  }
+
+  const repairedFiles = files.map((file) => {
+    let nextPath = renameMap.get(file.filePath) || file.filePath
+    let nextContent = file.content
+
+    for (const [fromPath, toPath] of renameMap.entries()) {
+      const relativeFrom = pathPosix.relative(pathPosix.dirname(file.filePath), fromPath)
+      const relativeTo = pathPosix.relative(pathPosix.dirname(nextPath), toPath)
+      const normalizedFrom = relativeFrom.startsWith('.') ? relativeFrom : `./${relativeFrom}`
+      const normalizedTo = relativeTo.startsWith('.') ? relativeTo : `./${relativeTo}`
+      const fromWithoutExt = normalizedFrom.replace(/\.js$/, '')
+      const toWithoutExt = normalizedTo.replace(/\.jsx$/, '')
+
+      nextContent = replaceImportSpecifier(nextContent, fromPath, toPath)
+      nextContent = replaceImportSpecifier(nextContent, normalizedFrom, normalizedTo)
+      nextContent = replaceImportSpecifier(nextContent, fromWithoutExt, toWithoutExt)
+    }
+
+    return { filePath: nextPath, content: nextContent }
+  })
+
+  return {
+    files: repairedFiles,
+    warnings: [`Preview renamed JSX-in-.js files: ${Array.from(renameMap.entries()).map(([fromPath, toPath]) => `${fromPath} -> ${toPath}`).join(', ')}`],
+  }
 }
 
 function inferLaunchAssessment(files: PreviewFile[], projectType: ProjectType): LaunchAssessment {
@@ -95,9 +146,10 @@ export function runPreviewPreflight(files: PreviewFile[]): PreviewPreflightResul
 }
 
 export function preparePreviewFiles(files: PreviewFile[]): PreparedPreviewFilesResult {
-  const projectType = detectPreviewProjectType(files)
-  const completeness = CompletenessPass.run(files, projectType)
-  const mergedFiles = new Map(files.map((file) => [file.filePath, file.content]))
+  const jsxRepair = repairJsxExtensions(files)
+  const projectType = detectPreviewProjectType(jsxRepair.files)
+  const completeness = CompletenessPass.run(jsxRepair.files, projectType)
+  const mergedFiles = new Map(jsxRepair.files.map((file) => [file.filePath, file.content]))
   const changedPaths: string[] = []
 
   for (const file of completeness.files) {
@@ -108,9 +160,12 @@ export function preparePreviewFiles(files: PreviewFile[]): PreparedPreviewFilesR
     }
   }
 
-  const warnings = changedPaths.length > 0
-    ? [`Preview auto-scaffolded or repaired ${changedPaths.length} file(s): ${changedPaths.join(', ')}`]
-    : []
+  const warnings = [
+    ...jsxRepair.warnings,
+    ...(changedPaths.length > 0
+      ? [`Preview auto-scaffolded or repaired ${changedPaths.length} file(s): ${changedPaths.join(', ')}`]
+      : []),
+  ]
 
   return {
     projectType,

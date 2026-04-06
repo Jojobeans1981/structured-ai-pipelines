@@ -982,6 +982,52 @@ describe('Forge Guardrails', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('renames JSX-bearing .js files before preview so Vite can parse them', () => {
+    const prepared = preparePreviewFiles([
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          scripts: {
+            dev: 'vite',
+            build: 'vite build',
+          },
+          dependencies: {
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+          },
+          devDependencies: {
+            vite: '^5.4.14',
+            '@vitejs/plugin-react': '^4.3.4',
+          },
+        }),
+      },
+      {
+        filePath: 'index.html',
+        content: '<!doctype html><html><body><div id="root"></div></body></html>',
+      },
+      {
+        filePath: 'src/main.jsx',
+        content: 'import App from "./App.js";',
+      },
+      {
+        filePath: 'src/App.js',
+        content: 'export default function App() { return (<div>Hello</div>); }',
+      },
+      {
+        filePath: 'vite.config.ts',
+        content: 'export default {}',
+      },
+    ]);
+
+    expect(prepared.files.some((file) => file.filePath === 'src/App.jsx')).toBe(true);
+    expect(prepared.files.some((file) => file.filePath === 'src/App.js')).toBe(false);
+    expect(prepared.files.find((file) => file.filePath === 'src/main.jsx')?.content).toContain('./App.jsx');
+    expect(prepared.warnings.some((warning) => warning.includes('src/App.js -> src/App.jsx'))).toBe(true);
+
+    const result = runPreviewPreflight(prepared.files);
+    expect(result.ok).toBe(true);
+  });
+
   it('allows preview preflight for a minimal usable vite app', () => {
     const result = runPreviewPreflight([
       {

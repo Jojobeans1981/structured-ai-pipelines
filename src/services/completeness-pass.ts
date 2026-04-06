@@ -71,6 +71,10 @@ export class CompletenessPass {
     'navigator',
   ]);
 
+  private static readonly LEGACY_REACT_TOOLING_PACKAGES = new Set([
+    'react-scripts',
+  ]);
+
   /**
    * Scan project files and generate any missing critical scaffolding.
    */
@@ -219,8 +223,22 @@ export class CompletenessPass {
       }
     };
 
+    const removeLegacyReactTooling = (bucket: Record<string, string>) => {
+      for (const packageName of Object.keys(bucket)) {
+        if (CompletenessPass.LEGACY_REACT_TOOLING_PACKAGES.has(packageName)) {
+          delete bucket[packageName];
+          changed = true;
+          if (!reasons.includes('removed legacy CRA tooling')) {
+            reasons.push('removed legacy CRA tooling');
+          }
+        }
+      }
+    };
+
     removeUnsupportedPackages(dependencies);
     removeUnsupportedPackages(devDependencies);
+    removeLegacyReactTooling(dependencies);
+    removeLegacyReactTooling(devDependencies);
 
     if (hasReactFiles || dependencies.react || dependencies['react-dom']) {
       setDep(dependencies, 'react', '^18.3.1', 'aligned React runtime versions');
@@ -233,20 +251,25 @@ export class CompletenessPass {
       setDep(devDependencies, 'vite', '^5.4.14', 'aligned Vite toolchain versions');
       setDep(devDependencies, '@vitejs/plugin-react', '^4.3.4', 'aligned Vite toolchain versions');
 
-      if (!scripts.dev || scripts.dev.includes('--hostname')) {
+      if (!scripts.dev || scripts.dev.includes('--hostname') || scripts.dev.includes('react-scripts')) {
         scripts.dev = 'vite';
         changed = true;
         if (!reasons.includes('normalized Vite scripts')) reasons.push('normalized Vite scripts');
       }
-      if (!scripts.build) {
+      if (!scripts.build || scripts.build.includes('react-scripts')) {
         scripts.build = 'vite build';
         changed = true;
         if (!reasons.includes('added missing Vite scripts')) reasons.push('added missing Vite scripts');
       }
-      if (!scripts.preview) {
+      if (!scripts.preview || scripts.preview.includes('react-scripts')) {
         scripts.preview = 'vite preview';
         changed = true;
         if (!reasons.includes('added missing Vite scripts')) reasons.push('added missing Vite scripts');
+      }
+      if (scripts.start && scripts.start.includes('react-scripts')) {
+        scripts.start = 'vite';
+        changed = true;
+        if (!reasons.includes('normalized Vite scripts')) reasons.push('normalized Vite scripts');
       }
     }
 

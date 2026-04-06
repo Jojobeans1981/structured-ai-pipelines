@@ -267,6 +267,50 @@ export default defineConfig({ plugins: [react()] });`,
     expect(pkg.scripts.dev).toBe('vite');
   });
 
+  it('removes legacy react-scripts tooling from vite-style projects', () => {
+    const files = [
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          name: 'legacy-cra-app',
+          private: true,
+          scripts: {
+            start: 'react-scripts start',
+            build: 'react-scripts build',
+            test: 'react-scripts test',
+          },
+          dependencies: {
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+            'react-scripts': '5.0.1',
+          },
+          devDependencies: {
+            typescript: '^5.6.0',
+          },
+        }),
+      },
+      {
+        filePath: 'vite.config.ts',
+        content: `export default {};`,
+      },
+      {
+        filePath: 'src/App.tsx',
+        content: `export default function App() { return <div>Hello</div>; }`,
+      },
+    ];
+
+    const result = CompletenessPass.run(files, 'node');
+    const pkgUpdate = result.files.find((f) => f.filePath === 'package.json');
+    expect(pkgUpdate).toBeTruthy();
+
+    const pkg = JSON.parse(pkgUpdate!.content);
+    expect(pkg.dependencies['react-scripts']).toBeUndefined();
+    expect(pkg.scripts.dev).toBe('vite');
+    expect(pkg.scripts.build).toBe('vite build');
+    expect(pkg.scripts.start).toBe('vite');
+    expect(pkg.devDependencies.vite).toBe('^5.4.14');
+  });
+
   it('removes unsupported non-npm runtime packages from package.json', () => {
     const files = [
       {

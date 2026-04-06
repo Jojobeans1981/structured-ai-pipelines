@@ -41,6 +41,104 @@ function replaceImportSpecifier(content: string, fromPath: string, toPath: strin
     .replaceAll(`"${fromPath}"`, `"${toPath}"`)
 }
 
+function findPreferredAppEntry(files: PreviewFile[]): string | null {
+  const priorityPatterns = [
+    /^src\/App\.(tsx|jsx|ts|js)$/,
+    /^src\/app\.(tsx|jsx|ts|js)$/,
+    /^src\/components\/App\.(tsx|jsx|ts|js)$/,
+    /^src\/pages\/App\.(tsx|jsx|ts|js)$/,
+  ]
+
+  for (const pattern of priorityPatterns) {
+    const match = files.find((file) => pattern.test(file.filePath))
+    if (match) {
+      return match.filePath
+    }
+  }
+
+  const fallback = files.find((file) =>
+    file.filePath.startsWith('src/')
+    && /\.(tsx|jsx|ts|js)$/.test(file.filePath)
+    && !/(^|\/)(main|index)\.(tsx|jsx|ts|js)$/.test(file.filePath)
+    && /export\s+default/.test(file.content)
+  )
+
+  return fallback?.filePath || null
+}
+
+function repairMainEntryImports(files: PreviewFile[]): { files: PreviewFile[]; warnings: string[] } {
+  const preferredAppEntry = findPreferredAppEntry(files)
+  if (!preferredAppEntry) {
+    return { files, warnings: [] }
+  }
+
+  const existingPaths = new Set(files.map((file) => file.filePath))
+  const entryFiles = new Set([
+    'src/main.tsx',
+    'src/main.ts',
+    'src/main.jsx',
+    'src/main.js',
+    'src/index.tsx',
+    'src/index.ts',
+    'src/index.jsx',
+    'src/index.js',
+  ])
+
+  const repairedEntries: string[] = []
+  const nextFiles = files.map((file) => {
+    if (!entryFiles.has(file.filePath)) return file
+    if (!/import\s+App\s+from\s+['"][^'"]+['"]/.test(file.content)) return file
+
+    const currentImportMatch = file.content.match(/import\s+App\s+from\s+['"]([^'"]+)['"]/)
+    if (!currentImportMatch) return file
+
+    const currentSpecifier = currentImportMatch[1]
+    const baseDir = pathPosix.dirname(file.filePath)
+    const normalizedCurrentPath = currentSpecifier.startsWith('.')
+      ? pathPosix.normalize(pathPosix.join(baseDir, currentSpecifier))
+      : currentSpecifier
+
+    const currentCandidates = [
+      normalizedCurrentPath,
+      `${normalizedCurrentPath}.ts`,
+      `${normalizedCurrentPath}.tsx`,
+      `${normalizedCurrentPath}.js`,
+      `${normalizedCurrentPath}.jsx`,
+      pathPosix.join(normalizedCurrentPath, 'index.tsx'),
+      pathPosix.join(normalizedCurrentPath, 'index.jsx'),
+      pathPosix.join(normalizedCurrentPath, 'index.ts'),
+      pathPosix.join(normalizedCurrentPath, 'index.js'),
+    ]
+
+    if (currentCandidates.some((candidate) => existingPaths.has(candidate))) {
+      return file
+    }
+
+    const relativeTarget = pathPosix.relative(baseDir, preferredAppEntry)
+    const nextSpecifier = (relativeTarget.startsWith('.') ? relativeTarget : `./${relativeTarget}`)
+      .replace(/\.(tsx|jsx|ts|js)$/, '')
+
+    if (nextSpecifier === currentSpecifier) {
+      return file
+    }
+
+    repairedEntries.push(`${file.filePath} -> ${nextSpecifier}`)
+    return {
+      ...file,
+      content: replaceImportSpecifier(file.content, currentSpecifier, nextSpecifier),
+    }
+  })
+
+  if (repairedEntries.length === 0) {
+    return { files, warnings: [] }
+  }
+
+  return {
+    files: nextFiles,
+    warnings: [`Preview repaired main entry imports: ${repairedEntries.join(', ')}`],
+  }
+}
+
 function repairJsxExtensions(files: PreviewFile[]): { files: PreviewFile[]; warnings: string[] } {
   const renameMap = new Map<string, string>()
 
@@ -147,9 +245,10 @@ export function runPreviewPreflight(files: PreviewFile[]): PreviewPreflightResul
 
 export function preparePreviewFiles(files: PreviewFile[]): PreparedPreviewFilesResult {
   const jsxRepair = repairJsxExtensions(files)
-  const projectType = detectPreviewProjectType(jsxRepair.files)
-  const completeness = CompletenessPass.run(jsxRepair.files, projectType)
-  const mergedFiles = new Map(jsxRepair.files.map((file) => [file.filePath, file.content]))
+  const importRepair = repairMainEntryImports(jsxRepair.files)
+  const projectType = detectPreviewProjectType(importRepair.files)
+  const completeness = CompletenessPass.run(importRepair.files, projectType)
+  const mergedFiles = new Map(importRepair.files.map((file) => [file.filePath, file.content]))
   const changedPaths: string[] = []
 
   for (const file of completeness.files) {
@@ -162,6 +261,7 @@ export function preparePreviewFiles(files: PreviewFile[]): PreparedPreviewFilesR
 
   const warnings = [
     ...jsxRepair.warnings,
+    ...importRepair.warnings,
     ...(changedPaths.length > 0
       ? [`Preview auto-scaffolded or repaired ${changedPaths.length} file(s): ${changedPaths.join(', ')}`]
       : []),

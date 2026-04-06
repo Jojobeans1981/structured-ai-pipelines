@@ -1117,6 +1117,50 @@ describe('Forge Guardrails', () => {
     expect(result.blockers.some((blocker) => blocker.includes('main client entrypoint'))).toBe(false);
   });
 
+  it('repairs broken main entry imports when the app component file exists under a different name', () => {
+    const prepared = preparePreviewFiles([
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          scripts: {
+            dev: 'vite',
+            build: 'vite build',
+          },
+          dependencies: {
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+          },
+          devDependencies: {
+            vite: '^5.4.14',
+            '@vitejs/plugin-react': '^4.3.4',
+          },
+        }),
+      },
+      {
+        filePath: 'index.html',
+        content: '<!doctype html><html><body><div id="root"></div></body></html>',
+      },
+      {
+        filePath: 'src/main.tsx',
+        content: 'import { StrictMode } from "react";\nimport { createRoot } from "react-dom/client";\nimport App from "./App";\ncreateRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);',
+      },
+      {
+        filePath: 'src/app.jsx',
+        content: 'export default function WeeklyCommitModule() { return <div>Weekly Commit Module</div>; }',
+      },
+      {
+        filePath: 'vite.config.ts',
+        content: 'export default {}',
+      },
+    ]);
+
+    expect(prepared.files.find((file) => file.filePath === 'src/main.tsx')?.content).toContain('./app');
+    expect(prepared.warnings.some((warning) => warning.includes('Preview repaired main entry imports'))).toBe(true);
+
+    const result = runPreviewPreflight(prepared.files);
+    expect(result.ok).toBe(true);
+  });
+
   it('delivery guard repairs preview-ready file issues before runtime checks', () => {
     const result = runDeliveryGuard([
       {

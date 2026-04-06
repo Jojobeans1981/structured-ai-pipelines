@@ -5,6 +5,7 @@ import { DockerSandbox } from '@/src/services/docker-sandbox';
 import { PreviewWorkerClient } from '@/src/services/preview-worker-client';
 import { PreviewSessionService } from '@/src/services/preview-session-service';
 import { preparePreviewFiles, runPreviewPreflight } from '@/src/services/preview-preflight';
+import { detectPreviewRuntimeBlocker, summarizePreviewRuntimeLogs } from '@/src/services/preview-runtime-guard';
 
 interface Props {
   params: { id: string };
@@ -60,6 +61,15 @@ export async function GET(_request: Request, { params }: Props) {
             ...latestSession,
             previewUrl: workerStatus.previewUrl,
             expiresAt: workerStatus.expiresAt || latestSession.expiresAt,
+          };
+        }
+
+        const runtimeBlocker = detectPreviewRuntimeBlocker(workerStatus);
+        if (activePreview && (runtimeBlocker || workerStatus.logs)) {
+          activePreview = {
+            ...activePreview,
+            error: runtimeBlocker || activePreview.error,
+            logs: summarizePreviewRuntimeLogs(workerStatus.logs),
           };
         }
       }
@@ -176,6 +186,26 @@ export async function POST(_request: Request, { params }: Props) {
       { error: result.error || 'Failed to launch preview' },
       { status: 500 }
     );
+  }
+
+  if (provider === 'preview-worker' && result.containerId) {
+    try {
+      const workerStatus = await PreviewWorkerClient.getStatus(result.containerId);
+      const runtimeBlocker = detectPreviewRuntimeBlocker(workerStatus);
+
+      if (runtimeBlocker) {
+        await PreviewSessionService.markFailed(sessionId, runtimeBlocker);
+        return NextResponse.json(
+          {
+            error: runtimeBlocker,
+            warnings: summarizePreviewRuntimeLogs(workerStatus.logs),
+          },
+          { status: 500 }
+        );
+      }
+    } catch {
+      // If the worker status check fails once, keep the launched session and let polling surface follow-up errors.
+    }
   }
 
   await PreviewSessionService.markRunning(sessionId, {

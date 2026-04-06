@@ -28,6 +28,7 @@ interface PreviewCapabilities {
     startedAt: string | null;
     stoppedAt: string | null;
     error: string | null;
+    logs?: string[] | null;
   } | null;
 }
 
@@ -415,6 +416,18 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
             {activePreview?.provider && (
               <div className="mt-1 text-xs text-zinc-500">
                 Provider: {activePreview.provider === 'preview-worker' ? 'Remote preview worker' : 'Local Docker'}
+              </div>
+            )}
+            {activePreview?.error && (
+              <div className="mt-3 rounded-md border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
+                <p>{activePreview.error}</p>
+                {Array.isArray(activePreview.logs) && activePreview.logs.length > 0 && (
+                  <div className="mt-2 space-y-1 text-red-100/90">
+                    {activePreview.logs.map((line) => (
+                      <p key={line}>{line}</p>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

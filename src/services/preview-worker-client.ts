@@ -23,7 +23,7 @@ interface WorkerAvailability {
   reason: string | null;
 }
 
-interface WorkerStatusResponse {
+export interface WorkerStatusResponse {
   found: boolean;
   status: string;
   running: boolean;

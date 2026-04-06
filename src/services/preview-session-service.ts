@@ -14,6 +14,7 @@ export interface PreviewSessionSnapshot {
   startedAt: string | null;
   stoppedAt: string | null;
   error: string | null;
+  logs?: string[] | null;
 }
 
 function toSnapshot(session: {

@@ -47,6 +47,44 @@
       "content": "export default function App() { return <div>Hello</div>; }"
     }
   ],
+  "parcelNormalizationFiles": [
+    {
+      "filePath": "package.json",
+      "content": "{\n  \"name\": \"legacy-parcel-app\",\n  \"private\": true,\n  \"scripts\": {\n    \"dev\": \"parcel src/index.html --hostname 0.0.0.0\",\n    \"start\": \"parcel src/index.html\",\n    \"build\": \"parcel build src/index.html\"\n  },\n  \"dependencies\": {\n    \"react\": \"^18.3.1\",\n    \"react-dom\": \"^18.3.1\",\n    \"parcel\": \"^2.12.0\"\n  }\n}"
+    },
+    {
+      "filePath": "vite.config.ts",
+      "content": "export default {};"
+    },
+    {
+      "filePath": "src/App.tsx",
+      "content": "export default function App() { return <div>Hello</div>; }"
+    }
+  ],
+  "previewImportRepairFiles": [
+    {
+      "filePath": "package.json",
+      "content": "{\n  \"name\": \"weekly-commit-module\",\n  \"private\": true,\n  \"scripts\": {\n    \"dev\": \"vite\",\n    \"build\": \"vite build\"\n  },\n  \"dependencies\": {\n    \"react\": \"^18.3.1\",\n    \"react-dom\": \"^18.3.1\"\n  },\n  \"devDependencies\": {\n    \"vite\": \"^5.4.14\",\n    \"@vitejs/plugin-react\": \"^4.3.4\"\n  }\n}"
+    },
+    {
+      "filePath": "index.html",
+      "content": "<!doctype html><html><body><div id=\"root\"></div></body></html>"
+    },
+    {
+      "filePath": "src/main.tsx",
+      "content": "import { StrictMode } from 'react';\nimport { createRoot } from 'react-dom/client';\nimport App from './App';\ncreateRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);"
+    },
+    {
+      "filePath": "src/app.jsx",
+      "content": "export default function WeeklyCommitModule() { return <div>Weekly Commit Module</div>; }"
+    },
+    {
+      "filePath": "vite.config.ts",
+      "content": "export default {};"
+    }
+  ],
+  "previewRuntimeLog": "[plugin:vite:import-analysis] Failed to resolve import \"./App\" from \"src/main.tsx\". Does the file exist?\n/app/src/main.tsx:3:16",
+  "verificationDependencyConflictLog": "npm error code ERESOLVE\nnpm error Could not resolve dependency:\nnpm error peerOptional typescript@\"^3.2.1 || ^4\" from react-scripts@5.0.1",
   "godotProjectFiles": [
     {
       "filePath": "project.godot",

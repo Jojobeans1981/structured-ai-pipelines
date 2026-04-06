@@ -1,6 +1,6 @@
 {
-  "totalCases": 7,
-  "passedCases": 7,
+  "totalCases": 11,
+  "passedCases": 11,
   "failedCases": 0,
   "passRate": 100,
   "avgScore": 100,
@@ -28,8 +28,8 @@
     },
     {
       "category": "launch-correctness",
-      "total": 2,
-      "passed": 2,
+      "total": 3,
+      "passed": 3,
       "passRate": 100,
       "avgScore": 100
     },
@@ -42,6 +42,13 @@
     },
     {
       "category": "preview-readiness",
+      "total": 3,
+      "passed": 3,
+      "passRate": 100,
+      "avgScore": 100
+    },
+    {
+      "category": "verification-gating",
       "total": 1,
       "passed": 1,
       "passRate": 100,
@@ -114,6 +121,19 @@
       ]
     },
     {
+      "id": "parcel-script-normalization",
+      "category": "launch-correctness",
+      "name": "Legacy Parcel launch scripts are normalized into the supported Vite toolchain",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: Legacy parcel dependency removed from runtime dependencies",
+        "PASS: Dev script rewritten to vite",
+        "PASS: Build script rewritten to vite build",
+        "PASS: Preview script rewritten to vite preview"
+      ]
+    },
+    {
       "id": "artifact-tooling-health",
       "category": "artifact-quality",
       "name": "Recovered project can derive dependencies, tests, docker config, and stays secret-clean",
@@ -124,6 +144,40 @@
         "PASS: Test scaffold chooses vitest for node case",
         "PASS: Dockerfile generated for recovered project",
         "PASS: Recovered files do not trip the secret scanner"
+      ]
+    },
+    {
+      "id": "preview-entry-import-repair",
+      "category": "preview-readiness",
+      "name": "Preview prep repairs broken main-entry imports before runtime launch",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: Main entry import rewritten toward the real app component",
+        "PASS: Repair warning emitted for rewritten main entry imports",
+        "PASS: Preview preflight passes after import repair"
+      ]
+    },
+    {
+      "id": "preview-runtime-log-guard",
+      "category": "preview-readiness",
+      "name": "Runtime log guard turns preview white-screen failures into explicit blockers",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: Runtime blocker detected from preview worker logs",
+        "PASS: Runtime blocker explains the import/runtime failure clearly"
+      ]
+    },
+    {
+      "id": "verification-dependency-conflict-gate",
+      "category": "verification-gating",
+      "name": "Verification gate classifies dependency conflicts before broken apps are promoted",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: Dependency conflict classified from verifier output",
+        "PASS: Dependency conflict explanation is explicit enough to route back through repair"
       ]
     },
     {

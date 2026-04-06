@@ -7,6 +7,9 @@ import { SecretScanner } from '../secret-scanner'
 import { normalizeImplementationManifest } from './agents/prompt-agent'
 import { finalizePreviewAssessment } from './agents/preview-agent'
 import { validateImplementationManifestContract } from './types/contracts'
+import { preparePreviewFiles, runPreviewPreflight } from '../preview-preflight'
+import { detectPreviewRuntimeBlocker } from '../preview-runtime-guard'
+import { detectDependencyConflict } from '../verification-gate'
 import benchmarkFixtures from '../../../benchmarks/forge/cases.json'
 
 export interface ForgeBenchmarkCaseResult {
@@ -239,6 +242,33 @@ const BENCHMARK_CASES: ForgeBenchmarkCase[] = [
     },
   },
   {
+    id: 'parcel-script-normalization',
+    category: 'launch-correctness',
+    name: 'Legacy Parcel launch scripts are normalized into the supported Vite toolchain',
+    run: () => {
+      const files = benchmarkFixtures.parcelNormalizationFiles
+      const result = CompletenessPass.run(files, 'node')
+      const pkgUpdate = result.files.find((file) => file.filePath === 'package.json')
+      const pkg = pkgUpdate ? JSON.parse(pkgUpdate.content) as {
+        dependencies?: Record<string, string>
+        devDependencies?: Record<string, string>
+        scripts?: Record<string, string>
+      } : null
+
+      return buildResult(
+        'parcel-script-normalization',
+        'launch-correctness',
+        'Legacy Parcel launch scripts are normalized into the supported Vite toolchain',
+        [
+          { ok: pkg?.dependencies?.parcel === undefined, detail: 'Legacy parcel dependency removed from runtime dependencies' },
+          { ok: pkg?.scripts?.dev === 'vite', detail: 'Dev script rewritten to vite' },
+          { ok: pkg?.scripts?.build === 'vite build', detail: 'Build script rewritten to vite build' },
+          { ok: pkg?.scripts?.preview === 'vite preview', detail: 'Preview script rewritten to vite preview' },
+        ],
+      )
+    },
+  },
+  {
     id: 'artifact-tooling-health',
     category: 'artifact-quality',
     name: 'Recovered project can derive dependencies, tests, docker config, and stays secret-clean',
@@ -261,6 +291,66 @@ const BENCHMARK_CASES: ForgeBenchmarkCase[] = [
           { ok: tests.framework === 'vitest', detail: 'Test scaffold chooses vitest for node case' },
           { ok: docker.files.some((file) => file.filePath === 'Dockerfile'), detail: 'Dockerfile generated for recovered project' },
           { ok: secrets.clean === true, detail: 'Recovered files do not trip the secret scanner' },
+        ],
+      )
+    },
+  },
+  {
+    id: 'preview-entry-import-repair',
+    category: 'preview-readiness',
+    name: 'Preview prep repairs broken main-entry imports before runtime launch',
+    run: () => {
+      const prepared = preparePreviewFiles(benchmarkFixtures.previewImportRepairFiles)
+      const mainEntry = prepared.files.find((file) => file.filePath === 'src/main.tsx')
+      const preflight = runPreviewPreflight(prepared.files)
+
+      return buildResult(
+        'preview-entry-import-repair',
+        'preview-readiness',
+        'Preview prep repairs broken main-entry imports before runtime launch',
+        [
+          { ok: (mainEntry?.content || '').includes("./app"), detail: 'Main entry import rewritten toward the real app component' },
+          { ok: prepared.warnings.some((warning) => warning.includes('Preview repaired main entry imports')), detail: 'Repair warning emitted for rewritten main entry imports' },
+          { ok: preflight.ok === true, detail: 'Preview preflight passes after import repair' },
+        ],
+      )
+    },
+  },
+  {
+    id: 'preview-runtime-log-guard',
+    category: 'preview-readiness',
+    name: 'Runtime log guard turns preview white-screen failures into explicit blockers',
+    run: () => {
+      const blocker = detectPreviewRuntimeBlocker({
+        error: null,
+        logs: benchmarkFixtures.previewRuntimeLog,
+      })
+
+      return buildResult(
+        'preview-runtime-log-guard',
+        'preview-readiness',
+        'Runtime log guard turns preview white-screen failures into explicit blockers',
+        [
+          { ok: blocker !== null, detail: 'Runtime blocker detected from preview worker logs' },
+          { ok: (blocker || '').includes('broken import') || (blocker || '').includes('missing'), detail: 'Runtime blocker explains the import/runtime failure clearly' },
+        ],
+      )
+    },
+  },
+  {
+    id: 'verification-dependency-conflict-gate',
+    category: 'verification-gating',
+    name: 'Verification gate classifies dependency conflicts before broken apps are promoted',
+    run: () => {
+      const blocker = detectDependencyConflict(benchmarkFixtures.verificationDependencyConflictLog)
+
+      return buildResult(
+        'verification-dependency-conflict-gate',
+        'verification-gating',
+        'Verification gate classifies dependency conflicts before broken apps are promoted',
+        [
+          { ok: blocker !== null, detail: 'Dependency conflict classified from verifier output' },
+          { ok: (blocker || '').includes('compatible dependency versions') || (blocker || '').includes('peer dependency conflict'), detail: 'Dependency conflict explanation is explicit enough to route back through repair' },
         ],
       )
     },

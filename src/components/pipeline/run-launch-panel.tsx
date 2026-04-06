@@ -31,6 +31,12 @@ interface PreviewCapabilities {
   } | null;
 }
 
+interface PreviewLaunchErrorPayload {
+  error?: string;
+  blockers?: string[];
+  warnings?: string[];
+}
+
 function summarizePreviewError(message: string): string {
   const lower = message.toLowerCase();
 
@@ -98,6 +104,7 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
   const [previewCopyState, setPreviewCopyState] = useState<'idle' | 'copied'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [errorHint, setErrorHint] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string[]>([]);
   const [capabilities, setCapabilities] = useState<PreviewCapabilities | null>(null);
 
   useEffect(() => {
@@ -160,12 +167,14 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
     if (capabilities && !capabilities.livePreviewAvailable) {
       setError(summarizePreviewError(capabilities.livePreviewReason || 'Live preview requires Docker.'));
       setErrorHint(formatPreviewHint(capabilities.livePreviewReason || 'Live preview requires Docker.'));
+      setErrorDetails([]);
       return;
     }
 
     setLoadingPreview(true);
     setError(null);
     setErrorHint(null);
+    setErrorDetails([]);
     try {
       const res = await fetch(`/api/projects/${projectId}/preview`, {
         method: 'POST',
@@ -173,8 +182,17 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
         body: JSON.stringify({ ttlMinutes: 30 }),
       });
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Failed to launch preview');
+      const data = await res.json().catch(() => ({})) as PreviewLaunchErrorPayload & Record<string, unknown>;
+      if (!res.ok) {
+        const details = [
+          ...((Array.isArray(data.blockers) ? data.blockers : []).map((item) => `Blocker: ${item}`)),
+          ...((Array.isArray(data.warnings) ? data.warnings : []).map((item) => `Warning: ${item}`)),
+        ];
+
+        const error = new Error(data.error || 'Failed to launch preview') as Error & { details?: string[] };
+        error.details = details;
+        throw error;
+      }
 
       setPreviewUrl(data.url || null);
       setPreviewExpiresAt(data.expiresAt || null);
@@ -199,9 +217,13 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to launch preview';
+      const details = err instanceof Error && 'details' in err && Array.isArray((err as Error & { details?: string[] }).details)
+        ? (err as Error & { details?: string[] }).details ?? []
+        : [];
       const summary = summarizePreviewError(message);
       setError(summary);
       setErrorHint(formatPreviewHint(message) || (summary !== message ? 'Full launch logs are available from the preview worker if you need deeper debugging.' : null));
+      setErrorDetails(details);
     } finally {
       setLoadingPreview(false);
     }
@@ -218,6 +240,7 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
     setStoppingPreview(true);
     setError(null);
     setErrorHint(null);
+    setErrorDetails([]);
 
     try {
       await fetch(`/api/projects/${projectId}/preview`, {
@@ -270,6 +293,7 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
     setDownloading(true);
     setError(null);
     setErrorHint(null);
+    setErrorDetails([]);
     try {
       const res = await fetch(`/api/projects/${projectId}/download`);
       if (!res.ok) {
@@ -392,6 +416,13 @@ export function RunLaunchPanel({ projectId, runId }: RunLaunchPanelProps) {
           <div className="space-y-1">
             <p className="text-sm text-red-400">{error}</p>
             {errorHint && <p className="text-xs text-zinc-500">{errorHint}</p>}
+            {errorDetails.length > 0 && (
+              <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 text-xs text-zinc-300">
+                {errorDetails.map((detail) => (
+                  <p key={detail}>{detail}</p>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </CardContent>

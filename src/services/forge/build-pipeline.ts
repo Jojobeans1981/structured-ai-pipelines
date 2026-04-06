@@ -16,6 +16,7 @@ import { validateFiles } from './agents/validator-agent'
 import { evaluateLaunchReadiness } from './agents/launcher-agent'
 import { finishLaunchReadiness } from './agents/finisher-agent'
 import { evaluatePreviewReadiness, type PreviewAssessment } from './agents/preview-agent'
+import { runDeliveryGuard } from './agents/delivery-guard-agent'
 import { buildForgeLessonsSection } from './lessons-context'
 import { CompletenessPass, detectProjectType } from '@/src/services/completeness-pass'
 import { BuildVerifier } from '@/src/services/build-verifier'
@@ -538,6 +539,27 @@ export async function runBuildPipelineStage2(opts: {
 
     repoFiles = readRepoFiles(workDir)
     projectType = detectProjectType(repoFiles.map((file) => ({ filePath: file.filePath })))
+    emitLog(emit, runId, 'DeliveryGuard', `Running final delivery guard for ${projectType} project...`)
+    const deliveryGuard = runDeliveryGuard(repoFiles)
+    if (deliveryGuard.fixes.length > 0) {
+      updateModifiedFiles(modifiedFiles, deliveryGuard.fixes, workDir)
+      emitLog(emit, runId, 'DeliveryGuard', `Applied ${deliveryGuard.fixes.length} deterministic delivery repair${deliveryGuard.fixes.length === 1 ? '' : 's'}`, 'success')
+      repoFiles = readRepoFiles(workDir)
+      projectType = detectProjectType(repoFiles.map((file) => ({ filePath: file.filePath })))
+    }
+
+    if (deliveryGuard.ready) {
+      emitLog(emit, runId, 'DeliveryGuard', deliveryGuard.summary, 'success')
+    } else {
+      emitLog(emit, runId, 'DeliveryGuard', deliveryGuard.summary, 'warn')
+      for (const blocker of deliveryGuard.blockers) {
+        emitLog(emit, runId, 'DeliveryGuard', blocker, 'warn')
+      }
+    }
+    for (const warning of deliveryGuard.warnings) {
+      emitLog(emit, runId, 'DeliveryGuard', warning, 'warn')
+    }
+
     const cycleValidation = await validateFiles(
       userId,
       repoFiles.map((file) => ({ path: file.filePath, content: file.content })),
@@ -547,6 +569,9 @@ export async function runBuildPipelineStage2(opts: {
     errors = validationPassed
       ? []
       : validationIssues.map((issue) => `Validation: ${issue.slice(0, 500)}`)
+    if (!deliveryGuard.ready) {
+      errors.push(...deliveryGuard.blockers.map((blocker) => `Delivery Guard: ${blocker.slice(0, 500)}`))
+    }
     lintPassed = true
     testsPassed = true
 

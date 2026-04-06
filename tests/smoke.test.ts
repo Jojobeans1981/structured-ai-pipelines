@@ -23,6 +23,7 @@ import { normalizeImplementationManifest } from '../src/services/forge/agents/pr
 import { finalizePreviewAssessment } from '../src/services/forge/agents/preview-agent';
 import { evaluateUsability } from '../src/services/forge/agents/usability-agent';
 import { preparePreviewFiles, runPreviewPreflight } from '../src/services/preview-preflight';
+import { runDeliveryGuard } from '../src/services/forge/agents/delivery-guard-agent';
 
 // Simulate a realistic LLM output for a React + TypeScript project
 const MOCK_LLM_OUTPUT = `
@@ -1026,6 +1027,100 @@ describe('Forge Guardrails', () => {
 
     const result = runPreviewPreflight(prepared.files);
     expect(result.ok).toBe(true);
+  });
+
+  it('delivery guard repairs preview-ready file issues before runtime checks', () => {
+    const result = runDeliveryGuard([
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          scripts: {
+            dev: 'vite',
+            build: 'vite build',
+          },
+          dependencies: {
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+          },
+          devDependencies: {
+            '@vitejs/plugin-react': '^4.3.4',
+          },
+        }),
+      },
+      {
+        filePath: 'index.html',
+        content: '<!doctype html><html><body><div id="root"></div></body></html>',
+      },
+      {
+        filePath: 'src/main.jsx',
+        content: 'import App from "./App.js";',
+      },
+      {
+        filePath: 'src/App.js',
+        content: 'export default function App() { return (<div>Hello</div>); }',
+      },
+      {
+        filePath: 'vite.config.ts',
+        content: 'export default {}',
+      },
+    ]);
+
+    expect(result.ready).toBe(true);
+    expect(result.fixes.some((file) => file.filePath === 'package.json')).toBe(true);
+    expect(result.fixes.some((file) => file.filePath === 'src/App.jsx')).toBe(true);
+    expect(result.warnings.some((warning) => warning.includes('Preview renamed JSX-in-.js files'))).toBe(true);
+  });
+
+  it('delivery guard flags react-router v6 apps that still use Switch/component syntax', () => {
+    const result = runDeliveryGuard([
+      {
+        filePath: 'package.json',
+        content: JSON.stringify({
+          scripts: {
+            dev: 'vite',
+            build: 'vite build',
+          },
+          dependencies: {
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+            'react-router-dom': '^6.28.0',
+          },
+          devDependencies: {
+            vite: '^5.4.14',
+            '@vitejs/plugin-react': '^4.3.4',
+          },
+        }),
+      },
+      {
+        filePath: 'index.html',
+        content: '<!doctype html><html><body><div id="root"></div></body></html>',
+      },
+      {
+        filePath: 'src/main.jsx',
+        content: 'import App from "./App.jsx";',
+      },
+      {
+        filePath: 'src/App.jsx',
+        content: `import { BrowserRouter, Route, Switch } from 'react-router-dom';
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Switch>
+        <Route path="/" exact component={() => <div>Hello</div>} />
+      </Switch>
+    </BrowserRouter>
+  );
+}`,
+      },
+      {
+        filePath: 'vite.config.ts',
+        content: 'export default {}',
+      },
+    ]);
+
+    expect(result.ready).toBe(false);
+    expect(result.blockers.some((blocker) => blocker.includes('Switch'))).toBe(true);
+    expect(result.blockers.some((blocker) => blocker.includes('component='))).toBe(true);
   });
 
   it('allows preview preflight for a minimal usable vite app', () => {

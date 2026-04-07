@@ -24,6 +24,7 @@ export async function createForgeRun(userId: string, data: {
   specFilename?: string
   bugDescription?: string
   branchName?: string
+  continuous?: boolean
 }): Promise<ForgeRun> {
   return prisma.forgeRun.create({
     data: {
@@ -34,6 +35,7 @@ export async function createForgeRun(userId: string, data: {
       specFilename: data.specFilename,
       bugDescription: data.bugDescription,
       branchName: data.branchName,
+      continuous: data.continuous ?? false,
     },
   })
 }

@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "benchmark:forge": "vitest run tests/forge-benchmark.test.ts tests/forge-contracts.test.ts tests/smoke.test.ts",
-    "benchmark:forge:report": "node scripts/generate-forge-benchmark-report.cjs"
+    "benchmark:forge:report": "node scripts/generate-forge-benchmark-report.cjs",
+    "benchmark:forge:live-lite": "vitest run tests/forge-live-lite-benchmark.test.ts",
+    "benchmark:forge:live-lite:plan": "node scripts/generate-forge-live-lite-plan.cjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.79.0",
@@ -60,5 +62,8 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
     "vitest": "^4.1.0"
+  },
+  "overrides": {
+    "whatwg-encoding": "@exodus/bytes"
   }
 }

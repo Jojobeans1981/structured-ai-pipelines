@@ -128,8 +128,9 @@ export async function runDebugPipelineStage2(opts: {
   runId: string
   repoUrl: string
   emit: (event: SSEEvent) => void
+  continuous?: boolean
 }): Promise<void> {
-  const { userId, runId, emit } = opts
+  const { userId, runId, emit, continuous = false } = opts
   const workDir = join(tmpdir(), `forge-${runId}`)
 
   // 1. Load stage data
@@ -138,78 +139,125 @@ export async function runDebugPipelineStage2(opts: {
     throw new Error('Debug stage data not found — Stage 1 may not have completed')
   }
   const stageData: DebugStageData = JSON.parse(readFileSync(stageDataPath, 'utf-8'))
-  const { rootCause, fixPlan } = stageData
+  const { bugReport, codeMap, rootCause, fixPlan: initialFixPlan } = stageData
 
-  // 2. Scaffold fixes
-  const fixFiles: FixFile[] = []
-  for (const step of fixPlan.steps) {
-    emitLog(emit, runId, 'FixScaffold', `Generating fix for ${step.file}...`)
+  let currentFixPlan = initialFixPlan
+  let lintPassed = true
+  let testsPassed = true
+  let errors: string[] = []
+  let finalFiles: Array<{ path: string; content: string }> = []
 
-    // Read existing content if modifying
-    let existingContent: string | null = null
-    if (step.action !== 'create') {
-      const filePath = join(workDir, step.file)
-      if (existsSync(filePath)) {
-        existingContent = readFileSync(filePath, 'utf-8')
+  const cycleLimit = continuous ? 10 : 1
+
+  for (let cycle = 1; cycle <= cycleLimit; cycle++) {
+    emitLog(emit, runId, 'FixScaffold', cycle === 1 ? 'Generating initial fixes...' : `Auto-fix cycle ${cycle}/${cycleLimit}: repairing remaining issues...`)
+
+    // 2. Scaffold fixes
+    const fixFiles: FixFile[] = []
+    for (const step of currentFixPlan.steps) {
+      emitLog(emit, runId, 'FixScaffold', `Generating fix for ${step.file}...`)
+
+      // Read existing content if modifying
+      let existingContent: string | null = null
+      if (step.action !== 'create') {
+        const filePath = join(workDir, step.file)
+        if (existsSync(filePath)) {
+          existingContent = readFileSync(filePath, 'utf-8')
+        }
+      }
+
+      const fixFile = await scaffoldFix(userId, step, existingContent, rootCause)
+      fixFiles.push(fixFile)
+      emitLog(emit, runId, 'FixScaffold', `Generated fix for ${step.file}`, 'success')
+    }
+
+    // 3. Write files
+    for (const file of fixFiles) {
+      const fullPath = join(workDir, file.path)
+      mkdirSync(dirname(fullPath), { recursive: true })
+      writeFileSync(fullPath, file.content, 'utf-8')
+
+      // Record lesson
+      await addForgeLessonLearned({
+        runId,
+        phase: cycle,
+        phaseName: 'Debug Fix',
+        error: bugReport.description,
+        fix: `Updated ${file.path}`,
+        rootCause: rootCause.cause,
+        preventionRule: `Ensure fix for ${file.path} addresses root cause: ${rootCause.cause}`,
+      })
+    }
+
+    // 4. Run lint/test
+    const commands = detectCommands(workDir)
+    lintPassed = true
+    testsPassed = true
+    errors = []
+
+    if (commands.lint) {
+      try {
+        emitLog(emit, runId, 'Verify', `Running lint: ${commands.lint}`)
+        execSync(commands.lint, { cwd: workDir, timeout: 60000, stdio: 'pipe' })
+        emitLog(emit, runId, 'Verify', 'Lint passed', 'success')
+      } catch (err) {
+        lintPassed = false
+        const msg = err instanceof Error ? err.message : 'Lint failed'
+        errors.push(`Lint: ${msg.slice(0, 500)}`)
+        emitLog(emit, runId, 'Verify', 'Lint failed', 'warn')
       }
     }
 
-    const fixFile = await scaffoldFix(userId, step, existingContent, rootCause)
-    fixFiles.push(fixFile)
-    emitLog(emit, runId, 'FixScaffold', `Generated fix for ${step.file}`, 'success')
-  }
-
-  // 3. Write files
-  for (const file of fixFiles) {
-    const fullPath = join(workDir, file.path)
-    mkdirSync(dirname(fullPath), { recursive: true })
-    writeFileSync(fullPath, file.content, 'utf-8')
-  }
-
-  // 4. Run lint/test
-  const commands = detectCommands(workDir)
-  let lintPassed = true
-  let testsPassed = true
-  const errors: string[] = []
-
-  if (commands.lint) {
-    try {
-      emitLog(emit, runId, 'Verify', `Running lint: ${commands.lint}`)
-      execSync(commands.lint, { cwd: workDir, timeout: 60000, stdio: 'pipe' })
-      emitLog(emit, runId, 'Verify', 'Lint passed', 'success')
-    } catch (err) {
-      lintPassed = false
-      const msg = err instanceof Error ? err.message : 'Lint failed'
-      errors.push(`Lint: ${msg.slice(0, 500)}`)
-      emitLog(emit, runId, 'Verify', 'Lint failed', 'warn')
+    if (commands.test) {
+      try {
+        emitLog(emit, runId, 'Verify', `Running tests: ${commands.test}`)
+        execSync(commands.test, { cwd: workDir, timeout: 120000, stdio: 'pipe' })
+        emitLog(emit, runId, 'Verify', 'Tests passed', 'success')
+      } catch (err) {
+        testsPassed = false
+        const msg = err instanceof Error ? err.message : 'Tests failed'
+        errors.push(`Tests: ${msg.slice(0, 500)}`)
+        emitLog(emit, runId, 'Verify', 'Tests failed', 'warn')
+      }
     }
-  }
 
-  if (commands.test) {
-    try {
-      emitLog(emit, runId, 'Verify', `Running tests: ${commands.test}`)
-      execSync(commands.test, { cwd: workDir, timeout: 120000, stdio: 'pipe' })
-      emitLog(emit, runId, 'Verify', 'Tests passed', 'success')
-    } catch (err) {
-      testsPassed = false
-      const msg = err instanceof Error ? err.message : 'Tests failed'
-      errors.push(`Tests: ${msg.slice(0, 500)}`)
-      emitLog(emit, runId, 'Verify', 'Tests failed', 'warn')
+    finalFiles = fixFiles.map(f => ({ path: f.path, content: f.content }))
+
+    if (errors.length === 0) {
+      break
     }
+
+    if (cycle === cycleLimit) {
+      emitLog(emit, runId, 'AutoFix', `Auto-fix limit reached after ${cycleLimit} cycle(s)`, 'warn')
+      break
+    }
+
+    // 5. Plan next cycle fixes
+    emitLog(emit, runId, 'AutoFix', 'Planning follow-up repairs...')
+    const cycleBugReport: BugReport = {
+      ...bugReport,
+      errorLogs: errors.join('\n\n'),
+    }
+    const nextFixPlan = await planFix(userId, cycleBugReport, rootCause, codeMap)
+    if (nextFixPlan.steps.length === 0) {
+      emitLog(emit, runId, 'AutoFix', 'Planner returned no further repair steps', 'warn')
+      break
+    }
+    currentFixPlan = nextFixPlan
   }
 
-  // 5. Save diff
+  // 6. Save diff
   await saveForgeRunDiff(runId, {
-    files: fixFiles.map(f => ({ path: f.path, content: f.content })),
+    files: finalFiles,
     lintPassed,
     testsPassed,
     errors,
   })
 
-  // 6. Emit events
+  // 7. Emit events
   emit({
     type: 'diff',
-    files: fixFiles.map(f => ({ path: f.path, content: f.content })),
+    files: finalFiles,
     lintPassed,
     testsPassed,
     errors,

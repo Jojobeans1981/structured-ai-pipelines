@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Flame, Upload, FileText, Loader2, GitBranch, Link } from 'lucide-react'
+import { Flame, Upload, FileText, Loader2, GitBranch, Link, RotateCcw } from 'lucide-react'
 
 type InputMode = 'paste' | 'upload'
 
@@ -12,6 +12,7 @@ export default function BuildForm() {
   const [specText, setSpecText] = useState('')
   const [repoUrl, setRepoUrl] = useState('')
   const [branchName, setBranchName] = useState('')
+  const [continuous, setContinuous] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
@@ -37,6 +38,7 @@ export default function BuildForm() {
         fd.append('repoUrl', repoUrl)
         fd.append('specFile', file)
         if (branchName) fd.append('branchName', branchName)
+        fd.append('continuous', String(continuous))
         res = await fetch('/api/forge/runs', { method: 'POST', body: fd })
       } else {
         if (!specText.trim()) throw new Error('Spec text cannot be empty')
@@ -48,6 +50,7 @@ export default function BuildForm() {
             repoUrl,
             specContent: specText,
             branchName: branchName || undefined,
+            continuous,
           }),
         })
       }
@@ -158,6 +161,32 @@ export default function BuildForm() {
           placeholder="forge/my-feature"
           className="w-full bg-zinc-900/50 border border-zinc-700 rounded-lg p-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/30 text-sm"
         />
+      </div>
+
+      {/* Continuous Mode Toggle */}
+      <div className="flex items-center justify-between p-4 bg-zinc-900/30 border border-zinc-800 rounded-lg">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <RotateCcw className={`h-4 w-4 ${continuous ? 'text-amber-400' : 'text-zinc-500'}`} />
+            <span className="text-sm font-medium text-zinc-200">Continuous Mode</span>
+          </div>
+          <p className="text-xs text-zinc-500">
+            Keep retrying the build & verification loop until the project is ready (max 20 cycles).
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setContinuous(!continuous)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900 ${
+            continuous ? 'bg-amber-600' : 'bg-zinc-700'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              continuous ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
       </div>
 
       {/* Error */}

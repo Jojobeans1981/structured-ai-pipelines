@@ -1,0 +1,83 @@
+{
+  "scenarios": [
+    {
+      "id": "greenfield-focus-board",
+      "name": "Greenfield Focus Board",
+      "type": "greenfield",
+      "repoUrl": "benchmark://greenfield/focus-board",
+      "specFilename": "focus-board.md",
+      "specContent": "Build a previewable kanban-style task manager called Focus Board. It should let a user create tasks, edit them, delete them, and move them between Todo, Doing, and Done columns. Include a clean responsive layout, simple task filtering, and local persistence so the data stays after refresh. The output must be a complete runnable web app with all required files, valid startup scripts, correct dependencies, and a usable live preview.",
+      "repoFiles": [
+        {
+          "filePath": "README.md",
+          "content": "# Focus Board\n\nGreenfield benchmark repo for Forge live-lite execution.\n"
+        }
+      ],
+      "expectedSignals": [
+        "package.json",
+        "index.html",
+        "src/main",
+        "previewable",
+        "vite"
+      ]
+    },
+    {
+      "id": "repo-recovery-vite-import",
+      "name": "Repo Recovery Vite Import Repair",
+      "type": "repo-recovery",
+      "repoUrl": "benchmark://repo-recovery/vite-import",
+      "specFilename": "vite-import-repair.md",
+      "specContent": "Recover a broken Vite/React repo so it becomes previewable again. The current app has a main entry file that imports ./App, but the actual app component file was generated under a different path. Repair the project so startup scripts, imports, and preview boot all work without manual fixes.",
+      "repoFiles": [
+        {
+          "filePath": "package.json",
+          "content": "{\n  \"name\": \"repo-recovery-vite-import\",\n  \"private\": true,\n  \"scripts\": {\n    \"dev\": \"vite\",\n    \"build\": \"vite build\"\n  },\n  \"dependencies\": {\n    \"react\": \"^18.3.1\",\n    \"react-dom\": \"^18.3.1\"\n  },\n  \"devDependencies\": {\n    \"vite\": \"^5.4.14\",\n    \"@vitejs/plugin-react\": \"^4.3.4\"\n  }\n}"
+        },
+        {
+          "filePath": "index.html",
+          "content": "<!doctype html><html><body><div id=\"root\"></div></body></html>"
+        },
+        {
+          "filePath": "src/main.tsx",
+          "content": "import { StrictMode } from 'react';\nimport { createRoot } from 'react-dom/client';\nimport App from './App';\ncreateRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);"
+        },
+        {
+          "filePath": "src/app.jsx",
+          "content": "export default function RepoRecoveryApp() { return <div>Recovered app</div>; }"
+        },
+        {
+          "filePath": "vite.config.ts",
+          "content": "export default {};"
+        }
+      ],
+      "expectedSignals": [
+        "package.json",
+        "src/main",
+        "import-repair",
+        "previewable",
+        "delivery-guard-pass"
+      ]
+    },
+    {
+      "id": "weekly-commit-module-strategy",
+      "name": "Weekly Commit Module Strategy Build",
+      "type": "strategic-module",
+      "repoUrl": "benchmark://strategic/weekly-commit-module",
+      "specFilename": "weekly-commit-module.md",
+      "specContent": "Build a previewable weekly commit module that lets users create weekly commitments, link them to strategy, prioritize them, reconcile planned versus actual work, and give managers a team visibility view. The output must stay deployable or at least previewable, with complete config, startup scripts, and dependency integrity.",
+      "repoFiles": [
+        {
+          "filePath": "README.md",
+          "content": "# Weekly Commit Module\n\nStrategic module benchmark repo for Forge live-lite execution.\n"
+        }
+      ],
+      "expectedSignals": [
+        "package.json",
+        "index.html",
+        "src/main",
+        "manager-dashboard",
+        "previewable"
+      ]
+    }
+  ]
+}

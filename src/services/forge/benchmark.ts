@@ -10,6 +10,7 @@ import { validateImplementationManifestContract } from './types/contracts'
 import { preparePreviewFiles, runPreviewPreflight } from '../preview-preflight'
 import { detectPreviewRuntimeBlocker } from '../preview-runtime-guard'
 import { detectDependencyConflict } from '../verification-gate'
+import { runDeliveryGuard } from './agents/delivery-guard-agent'
 import benchmarkFixtures from '../../../benchmarks/forge/cases.json'
 
 export interface ForgeBenchmarkCaseResult {
@@ -351,6 +352,63 @@ const BENCHMARK_CASES: ForgeBenchmarkCase[] = [
         [
           { ok: blocker !== null, detail: 'Dependency conflict classified from verifier output' },
           { ok: (blocker || '').includes('compatible dependency versions') || (blocker || '').includes('peer dependency conflict'), detail: 'Dependency conflict explanation is explicit enough to route back through repair' },
+        ],
+      )
+    },
+  },
+  {
+    id: 'router-mismatch-delivery-guard',
+    category: 'preview-readiness',
+    name: 'Repo-backed router mismatches are blocked before preview launch',
+    run: () => {
+      const result = runDeliveryGuard(benchmarkFixtures.routerMismatchFiles)
+
+      return buildResult(
+        'router-mismatch-delivery-guard',
+        'preview-readiness',
+        'Repo-backed router mismatches are blocked before preview launch',
+        [
+          { ok: result.ready === false, detail: 'Delivery guard marks the repo-backed router mismatch as not ready' },
+          { ok: result.blockers.some((blocker) => blocker.includes('Switch')), detail: 'Delivery guard flags legacy Switch usage' },
+          { ok: result.blockers.some((blocker) => blocker.includes('component=')), detail: 'Delivery guard flags legacy component= route usage' },
+        ],
+      )
+    },
+  },
+  {
+    id: 'weekly-commit-module-end-to-end',
+    category: 'end-to-end',
+    name: 'End-to-end recovery turns a sparse weekly commit module artifact into a previewable project',
+    run: () => {
+      const extracted = extractFilesFromArtifact(benchmarkFixtures.weeklyCommitModuleOutput)
+      const detectedProjectType = detectProjectType(extracted)
+      const completeness = CompletenessPass.run(extracted, detectedProjectType)
+      const recoveredFiles = [...extracted, ...completeness.files].map((file) => ({
+        filePath: file.filePath,
+        content: file.content,
+      }))
+      const prepared = preparePreviewFiles(recoveredFiles)
+      const preflight = runPreviewPreflight(prepared.files)
+      const finalProjectType = detectProjectType(prepared.files)
+      const deps = DependencyResolver.resolve(prepared.files, finalProjectType)
+      const tests = TestGenerator.scaffold(prepared.files, finalProjectType)
+      const docker = DockerfileGenerator.generate(prepared.files, {
+        projectName: 'weekly-commit-module',
+        projectType: finalProjectType,
+      })
+
+      return buildResult(
+        'weekly-commit-module-end-to-end',
+        'end-to-end',
+        'End-to-end recovery turns a sparse weekly commit module artifact into a previewable project',
+        [
+          { ok: detectedProjectType === 'node', detail: 'Sparse artifact is classified as a node project' },
+          { ok: prepared.files.some((file) => file.filePath === 'package.json'), detail: 'Recovered project includes package.json' },
+          { ok: prepared.files.some((file) => file.filePath === 'src/main.tsx'), detail: 'Recovered project includes a browser entrypoint' },
+          { ok: preflight.ok === true, detail: 'Recovered project passes preview preflight' },
+          { ok: deps.dependencies.some((dep) => dep.packageName === 'react'), detail: 'Recovered project resolves runtime dependencies correctly' },
+          { ok: tests.framework === 'vitest', detail: 'Recovered project selects the expected test harness' },
+          { ok: docker.files.some((file) => file.filePath === 'Dockerfile'), detail: 'Recovered project can emit deployable Docker scaffolding' },
         ],
       )
     },

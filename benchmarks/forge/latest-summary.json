@@ -1,6 +1,6 @@
 {
-  "totalCases": 11,
-  "passedCases": 11,
+  "totalCases": 13,
+  "passedCases": 13,
   "failedCases": 0,
   "passRate": 100,
   "avgScore": 100,
@@ -14,6 +14,13 @@
     },
     {
       "category": "artifact-recovery",
+      "total": 1,
+      "passed": 1,
+      "passRate": 100,
+      "avgScore": 100
+    },
+    {
+      "category": "end-to-end",
       "total": 1,
       "passed": 1,
       "passRate": 100,
@@ -42,8 +49,8 @@
     },
     {
       "category": "preview-readiness",
-      "total": 3,
-      "passed": 3,
+      "total": 4,
+      "passed": 4,
       "passRate": 100,
       "avgScore": 100
     },
@@ -178,6 +185,34 @@
       "details": [
         "PASS: Dependency conflict classified from verifier output",
         "PASS: Dependency conflict explanation is explicit enough to route back through repair"
+      ]
+    },
+    {
+      "id": "router-mismatch-delivery-guard",
+      "category": "preview-readiness",
+      "name": "Repo-backed router mismatches are blocked before preview launch",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: Delivery guard marks the repo-backed router mismatch as not ready",
+        "PASS: Delivery guard flags legacy Switch usage",
+        "PASS: Delivery guard flags legacy component= route usage"
+      ]
+    },
+    {
+      "id": "weekly-commit-module-end-to-end",
+      "category": "end-to-end",
+      "name": "End-to-end recovery turns a sparse weekly commit module artifact into a previewable project",
+      "passed": true,
+      "score": 100,
+      "details": [
+        "PASS: Sparse artifact is classified as a node project",
+        "PASS: Recovered project includes package.json",
+        "PASS: Recovered project includes a browser entrypoint",
+        "PASS: Recovered project passes preview preflight",
+        "PASS: Recovered project resolves runtime dependencies correctly",
+        "PASS: Recovered project selects the expected test harness",
+        "PASS: Recovered project can emit deployable Docker scaffolding"
       ]
     },
     {

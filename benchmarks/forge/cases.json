@@ -83,6 +83,29 @@
       "content": "export default {};"
     }
   ],
+  "routerMismatchFiles": [
+    {
+      "filePath": "package.json",
+      "content": "{\n  \"name\": \"legacy-router-app\",\n  \"private\": true,\n  \"scripts\": {\n    \"dev\": \"vite\",\n    \"build\": \"vite build\"\n  },\n  \"dependencies\": {\n    \"react\": \"^18.3.1\",\n    \"react-dom\": \"^18.3.1\",\n    \"react-router-dom\": \"^6.28.0\"\n  },\n  \"devDependencies\": {\n    \"vite\": \"^5.4.14\",\n    \"@vitejs/plugin-react\": \"^4.3.4\"\n  }\n}"
+    },
+    {
+      "filePath": "index.html",
+      "content": "<!doctype html><html><body><div id=\"root\"></div></body></html>"
+    },
+    {
+      "filePath": "src/main.jsx",
+      "content": "import { createRoot } from 'react-dom/client';\nimport App from './App.jsx';\ncreateRoot(document.getElementById('root')).render(<App />);"
+    },
+    {
+      "filePath": "src/App.jsx",
+      "content": "import { BrowserRouter, Route, Switch } from 'react-router-dom';\nexport default function App() {\n  return (\n    <BrowserRouter>\n      <Switch>\n        <Route path='/' exact component={() => <div>Hello</div>} />\n      </Switch>\n    </BrowserRouter>\n  );\n}"
+    },
+    {
+      "filePath": "vite.config.ts",
+      "content": "export default {};"
+    }
+  ],
+  "weeklyCommitModuleOutput": "```tsx:src/components/CommitBoard.tsx\nimport { useState } from 'react';\n\nexport function CommitBoard() {\n  const [items, setItems] = useState<string[]>(['Draft weekly commit']);\n  return <button onClick={() => setItems([...items, 'New commit'])}>{items.length}</button>;\n}\n```\n\n```tsx:src/App.tsx\nimport { CommitBoard } from './components/CommitBoard';\n\nexport default function App() {\n  return <main><h1>Weekly Commit Module</h1><CommitBoard /></main>;\n}\n```",
   "previewRuntimeLog": "[plugin:vite:import-analysis] Failed to resolve import \"./App\" from \"src/main.tsx\". Does the file exist?\n/app/src/main.tsx:3:16",
   "verificationDependencyConflictLog": "npm error code ERESOLVE\nnpm error Could not resolve dependency:\nnpm error peerOptional typescript@\"^3.2.1 || ^4\" from react-scripts@5.0.1",
   "godotProjectFiles": [

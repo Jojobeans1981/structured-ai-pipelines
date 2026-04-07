@@ -194,15 +194,16 @@ async function runBuildAutoFixCycle(opts: {
   errors: string[]
   emit: (event: SSEEvent) => void
   cycle: number
+  cycleLimit: number
   language: string
   framework?: string
 }): Promise<boolean> {
-  const { userId, runId, workDir, modifiedFiles, errors, emit, cycle, language, framework } = opts
+  const { userId, runId, workDir, modifiedFiles, errors, emit, cycle, cycleLimit, language, framework } = opts
   const bugReport = buildBugReportFromErrors(runId, cycle, errors)
   const tree = buildTree(workDir, 3)
   const codeSamples = extractCodeSamples(workDir, 8, 120)
 
-  emitLog(emit, runId, 'AutoFix', `Auto-fix cycle ${cycle}/${MAX_BUILD_FIX_CYCLES}: mapping impacted code...`)
+  emitLog(emit, runId, 'AutoFix', `Auto-fix cycle ${cycle}/${cycleLimit}: mapping impacted code...`)
   const codeMap: CodeMap = await mapCodePaths(userId, bugReport, tree, codeSamples)
 
   emitLog(emit, runId, 'AutoFix', 'Analyzing root cause from verifier errors...')
@@ -262,12 +263,13 @@ async function runLaunchFinisherCycle(opts: {
   launchAssessment: Awaited<ReturnType<typeof evaluateLaunchReadiness>>
   emit: (event: SSEEvent) => void
   cycle: number
+  cycleLimit: number
   language: string
   framework?: string
 }): Promise<boolean> {
-  const { userId, runId, workDir, modifiedFiles, repoFiles, launchAssessment, emit, cycle, language, framework } = opts
+  const { userId, runId, workDir, modifiedFiles, repoFiles, launchAssessment, emit, cycle, cycleLimit, language, framework } = opts
 
-  emitLog(emit, runId, 'Launcher', `Finisher cycle ${cycle}/${MAX_BUILD_FIX_CYCLES}: repairing launch blockers...`)
+  emitLog(emit, runId, 'Launcher', `Finisher cycle ${cycle}/${cycleLimit}: repairing launch blockers...`)
   const finisherResult = await finishLaunchReadiness({
     userId,
     files: repoFiles,
@@ -370,8 +372,9 @@ export async function runBuildPipelineStage2(opts: {
   runId: string
   repoUrl: string
   emit: (event: SSEEvent) => void
+  continuous?: boolean
 }): Promise<void> {
-  const { userId, runId, repoUrl, emit } = opts
+  const { userId, runId, repoUrl, emit, continuous = false } = opts
   const workDir = join(tmpdir(), `forge-${runId}`)
 
   // 1. Load stage data
@@ -483,11 +486,13 @@ export async function runBuildPipelineStage2(opts: {
   let errors: string[] = []
   let finalFiles: Array<{ path: string; content: string }> = []
 
-  for (let cycle = 0; cycle <= MAX_BUILD_FIX_CYCLES; cycle++) {
+  const cycleLimit = continuous ? 20 : MAX_BUILD_FIX_CYCLES
+
+  for (let cycle = 0; cycle <= cycleLimit; cycle++) {
     let repoFiles = readRepoFiles(workDir)
     let projectType: ProjectType = detectProjectType(repoFiles.map((file) => ({ filePath: file.filePath })))
 
-    emitLog(emit, runId, 'Complete', cycle === 0 ? 'Running completeness pass...' : `Re-running completeness pass after auto-fix ${cycle}/${MAX_BUILD_FIX_CYCLES}...`)
+    emitLog(emit, runId, 'Complete', cycle === 0 ? 'Running completeness pass...' : `Re-running completeness pass after auto-fix ${cycle}/${cycleLimit}...`)
     const completenessResult = CompletenessPass.run(repoFiles, projectType)
     if (completenessResult.files.length > 0) {
       updateModifiedFiles(modifiedFiles, completenessResult.files, workDir)
@@ -499,7 +504,7 @@ export async function runBuildPipelineStage2(opts: {
     repoFiles = readRepoFiles(workDir)
     projectType = detectProjectType(repoFiles.map((file) => ({ filePath: file.filePath })))
 
-    emitLog(emit, runId, 'Artifacts', cycle === 0 ? 'Scaffolding tests, Docker, CI, and SBOM...' : `Refreshing launch artifacts after auto-fix ${cycle}/${MAX_BUILD_FIX_CYCLES}...`)
+    emitLog(emit, runId, 'Artifacts', cycle === 0 ? 'Scaffolding tests, Docker, CI, and SBOM...' : `Refreshing launch artifacts after auto-fix ${cycle}/${cycleLimit}...`)
     const testResult = TestGenerator.scaffold(repoFiles, projectType)
     const testFiles = [...testResult.configFiles, ...testResult.files]
     if (testFiles.length > 0) {
@@ -604,7 +609,7 @@ export async function runBuildPipelineStage2(opts: {
         emitLog(emit, runId, 'Launcher', blocker, 'warn')
       }
 
-      if (cycle < MAX_BUILD_FIX_CYCLES) {
+      if (cycle < cycleLimit) {
         const finished = await runLaunchFinisherCycle({
           userId,
           runId,
@@ -614,6 +619,7 @@ export async function runBuildPipelineStage2(opts: {
           launchAssessment,
           emit,
           cycle: cycle + 1,
+          cycleLimit,
           language: conventions.language,
           framework: conventions.framework ?? undefined,
         })
@@ -715,7 +721,7 @@ export async function runBuildPipelineStage2(opts: {
           emitLog(emit, runId, 'Preview', blocker, 'warn')
         }
 
-        if (cycle < MAX_BUILD_FIX_CYCLES) {
+        if (cycle < cycleLimit) {
           const finished = await runLaunchFinisherCycle({
             userId,
             runId,
@@ -725,6 +731,7 @@ export async function runBuildPipelineStage2(opts: {
             launchAssessment: mergePreviewIntoLaunchAssessment(launchAssessment, previewAssessment),
             emit,
             cycle: cycle + 1,
+            cycleLimit,
             language: conventions.language,
             framework: conventions.framework ?? undefined,
           })
@@ -750,8 +757,8 @@ export async function runBuildPipelineStage2(opts: {
       break
     }
 
-    if (cycle === MAX_BUILD_FIX_CYCLES) {
-      emitLog(emit, runId, 'AutoFix', `Auto-fix limit reached after ${MAX_BUILD_FIX_CYCLES} cycle(s); surfacing remaining errors for manual review`, 'warn')
+    if (cycle === cycleLimit) {
+      emitLog(emit, runId, 'AutoFix', `Auto-fix limit reached after ${cycleLimit} cycle(s); surfacing remaining errors for manual review`, 'warn')
       break
     }
 
@@ -763,6 +770,7 @@ export async function runBuildPipelineStage2(opts: {
       errors,
       emit,
       cycle: cycle + 1,
+      cycleLimit,
       language: conventions.language,
       framework: conventions.framework ?? undefined,
     })

@@ -11,14 +11,14 @@ describe('Forge benchmark suite', () => {
   it('produces a stable benchmark summary with all baseline cases passing', () => {
     const summary = runForgeBenchmarkSuite()
 
-    expect(summary.totalCases).toBeGreaterThanOrEqual(10)
+    expect(summary.totalCases).toBeGreaterThanOrEqual(13)
     expect(summary.failedCases).toBe(0)
     expect(summary.passRate).toBe(100)
     expect(summary.avgScore).toBe(100)
-    expect(summary.byCategory.length).toBeGreaterThanOrEqual(5)
+    expect(summary.byCategory.length).toBeGreaterThanOrEqual(6)
   })
 
-  it('includes preview-readiness, planning, and verification-gating categories in the benchmark mix', () => {
+  it('includes preview-readiness, planning, verification-gating, and end-to-end categories in the benchmark mix', () => {
     const summary = runForgeBenchmarkSuite()
     const categories = summary.byCategory.map((entry) => entry.category)
 
@@ -26,6 +26,7 @@ describe('Forge benchmark suite', () => {
     expect(categories).toContain('planning')
     expect(categories).toContain('engine-compatibility')
     expect(categories).toContain('verification-gating')
+    expect(categories).toContain('end-to-end')
   })
 
   it('renders a shareable markdown summary', () => {

@@ -383,6 +383,9 @@ model ForgeRun {
   stage           String?   // 'plan' | 'code' — which approval gate we're at
   repoUrl         String
   branchName      String?
+  continuous      Boolean   @default(false)
+  socraticQuestion String?  @db.Text
+  socraticAnswer   String?  @db.Text
   specContent     String?   @db.Text
   specFilename    String?
   bugDescription  String?   @db.Text

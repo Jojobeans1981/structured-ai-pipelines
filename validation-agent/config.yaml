@@ -1,0 +1,84 @@
+# ──────────────────────────────────────────────────────────────
+# Validation Agent – pipeline configuration
+# ──────────────────────────────────────────────────────────────
+
+thresholds:
+  coverage_percent: 80
+  max_lint_errors: 0
+  max_security_findings: 0
+
+# ──────────────────────────────────────────────────────────────
+# Per-language command lists.
+# Each phase is a list of shell commands executed in order.
+# Commands are run inside the repo directory.
+# A failing "setup" command is non-fatal (|| true style) so
+# that the agent can still attempt subsequent phases.
+# ──────────────────────────────────────────────────────────────
+
+languages:
+
+  python:
+    extensions: [".py"]
+    setup:
+      - "python -m pip install --quiet -r requirements.txt || true"
+      - "python -m pip install --quiet -e . || true"
+    lint:
+      - "python -m flake8 --count --statistics . || true"
+    test:
+      - "python -m pytest --tb=short -q || true"
+    coverage:
+      - "python -m coverage run -m pytest --tb=short -q && python -m coverage report --format=total || true"
+    security:
+      - "python -m bandit -r . -f json -q || true"
+
+  node:
+    extensions: [".js", ".ts", ".jsx", ".tsx"]
+    setup:
+      - "npm install --ignore-scripts 2>&1 || true"
+    lint:
+      - "npx eslint . --ext .js,.ts,.jsx,.tsx --format compact 2>&1 || true"
+    test:
+      - "npx jest --passWithNoTests --ci 2>&1 || npm test 2>&1 || true"
+    coverage:
+      - "npx jest --passWithNoTests --ci --coverage --coverageReporters=text-summary 2>&1 || true"
+    security:
+      - "npm audit --json 2>&1 || true"
+
+  java:
+    extensions: [".java"]
+    setup:
+      - "mvn -q dependency:resolve -DskipTests || true"
+    lint:
+      - "mvn -q checkstyle:check 2>&1 || true"
+    test:
+      - "mvn -q test 2>&1 || true"
+    coverage:
+      - "mvn -q jacoco:report 2>&1 || true"
+    security:
+      - "mvn -q org.owasp:dependency-check-maven:check 2>&1 || true"
+
+  go:
+    extensions: [".go"]
+    setup:
+      - "go mod download || true"
+    lint:
+      - "golint ./... 2>&1 || true"
+    test:
+      - "go test ./... -count=1 2>&1 || true"
+    coverage:
+      - "go test ./... -coverprofile=coverage.out -count=1 && go tool cover -func=coverage.out || true"
+    security:
+      - "govulncheck ./... 2>&1 || true"
+
+  dotnet:
+    extensions: [".cs", ".csproj"]
+    setup:
+      - "dotnet restore || true"
+    lint:
+      - "dotnet format --verify-no-changes --verbosity diagnostic 2>&1 || true"
+    test:
+      - "dotnet test --no-build --verbosity quiet 2>&1 || true"
+    coverage:
+      - "dotnet test --collect:\"XPlat Code Coverage\" --results-directory ./coverage 2>&1 || true"
+    security:
+      - "dotnet list package --vulnerable --include-transitive 2>&1 || true"

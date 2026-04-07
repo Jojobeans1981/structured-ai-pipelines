@@ -1,6 +1,197 @@
 {
   "runs": [
     {
+      "generatedAt": "2026-04-06T23:20:51.226Z",
+      "status": "PASS",
+      "totalSuites": 16,
+      "passedSuites": 16,
+      "totalTests": 67,
+      "passedTests": 67,
+      "failedTests": 0,
+      "latestJson": "latest-report.json",
+      "latestMarkdown": "latest-report.md",
+      "snapshotJson": "snapshots/forge-benchmark-20260406T232051Z.json",
+      "snapshotMarkdown": "snapshots/forge-benchmark-20260406T232051Z.md",
+      "trend": {
+        "statusChanged": "No change",
+        "suitesDelta": "0",
+        "testsDelta": "0",
+        "failedTestsDelta": "0"
+      },
+      "categories": [
+        {
+          "category": "artifact-quality",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "artifact-recovery",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "end-to-end",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "engine-compatibility",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "launch-correctness",
+          "total": 3,
+          "passed": 3,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "planning",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "preview-readiness",
+          "total": 4,
+          "passed": 4,
+          "passRate": 100,
+          "avgScore": 100
+        },
+        {
+          "category": "verification-gating",
+          "total": 1,
+          "passed": 1,
+          "passRate": 100,
+          "avgScore": 100
+        }
+      ],
+      "categoryTrend": [
+        {
+          "category": "artifact-quality",
+          "statusChanged": "No change",
+          "passedDelta": "0",
+          "totalDelta": "0",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "artifact-recovery",
+          "statusChanged": "No change",
+          "passedDelta": "0",
+          "totalDelta": "0",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "end-to-end",
+          "statusChanged": "New",
+          "passedDelta": "n/a",
+          "totalDelta": "n/a",
+          "passRateDelta": "n/a",
+          "avgScoreDelta": "n/a",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "engine-compatibility",
+          "statusChanged": "No change",
+          "passedDelta": "0",
+          "totalDelta": "0",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "launch-correctness",
+          "statusChanged": "No change",
+          "passedDelta": "0",
+          "totalDelta": "0",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 3,
+            "total": 3,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "planning",
+          "statusChanged": "No change",
+          "passedDelta": "0",
+          "totalDelta": "0",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "preview-readiness",
+          "statusChanged": "No change",
+          "passedDelta": "+1",
+          "totalDelta": "+1",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 4,
+            "total": 4,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        },
+        {
+          "category": "verification-gating",
+          "statusChanged": "No change",
+          "passedDelta": "0",
+          "totalDelta": "0",
+          "passRateDelta": "0",
+          "avgScoreDelta": "0",
+          "current": {
+            "passed": 1,
+            "total": 1,
+            "passRate": 100,
+            "avgScore": 100
+          }
+        }
+      ]
+    },
+    {
       "generatedAt": "2026-04-06T22:33:44.886Z",
       "status": "PASS",
       "totalSuites": 16,

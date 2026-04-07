@@ -12,6 +12,7 @@ const BuildJsonSchema = z.object({
   specContent: z.string().min(1),
   specFilename: z.string().optional(),
   branchName: z.string().optional(),
+  continuous: z.boolean().optional(),
 })
 
 const DebugJsonSchema = z.object({
@@ -19,6 +20,7 @@ const DebugJsonSchema = z.object({
   repoUrl: z.string().url(),
   bugDescription: z.string().min(1),
   branchName: z.string().optional(),
+  continuous: z.boolean().optional(),
 })
 
 export async function POST(req: Request): Promise<NextResponse> {
@@ -35,6 +37,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       const repoUrl = formData.get('repoUrl') as string
       const branchName = formData.get('branchName') as string | null
       const specFile = formData.get('specFile') as File | null
+      const continuous = formData.get('continuous') === 'true'
 
       if (!repoUrl || !specFile) {
         return NextResponse.json({ error: 'repoUrl and specFile are required' }, { status: 400 })
@@ -49,6 +52,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         specContent,
         specFilename: specFile.name,
         branchName: branchName ?? undefined,
+        continuous,
       })
       return NextResponse.json({ runId: run.id })
     }
@@ -62,6 +66,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         specContent: buildResult.data.specContent,
         specFilename: buildResult.data.specFilename,
         branchName: buildResult.data.branchName,
+        continuous: buildResult.data.continuous,
       })
       return NextResponse.json({ runId: run.id })
     }
@@ -73,6 +78,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         repoUrl: debugResult.data.repoUrl,
         bugDescription: debugResult.data.bugDescription,
         branchName: debugResult.data.branchName,
+        continuous: debugResult.data.continuous,
       })
       return NextResponse.json({ runId: run.id })
     }

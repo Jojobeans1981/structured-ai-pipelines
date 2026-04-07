@@ -2,12 +2,14 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { RotateCcw } from 'lucide-react'
 
 export default function DebugForm() {
   const router = useRouter()
   const [bugDescription, setBugDescription] = useState('')
   const [repoUrl, setRepoUrl] = useState('')
   const [branchName, setBranchName] = useState('')
+  const [continuous, setContinuous] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -25,6 +27,7 @@ export default function DebugForm() {
           repoUrl,
           bugDescription,
           branchName: branchName || undefined,
+          continuous,
         }),
       })
 
@@ -75,6 +78,32 @@ export default function DebugForm() {
           placeholder="forge/fix-bug"
           className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
+      </div>
+
+      {/* Continuous Mode Toggle */}
+      <div className="flex items-center justify-between p-4 bg-gray-900/30 border border-gray-800 rounded-lg">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <RotateCcw className={`h-4 w-4 ${continuous ? 'text-orange-400' : 'text-gray-500'}`} />
+            <span className="text-sm font-medium text-gray-200">Continuous Mode</span>
+          </div>
+          <p className="text-xs text-gray-500">
+            Keep retrying the debug & fix loop until tests pass (max 10 cycles).
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setContinuous(!continuous)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
+            continuous ? 'bg-orange-600' : 'bg-gray-700'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              continuous ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
       </div>
 
       {error && (

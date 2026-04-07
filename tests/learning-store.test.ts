@@ -122,15 +122,18 @@ describe('LearningStore.getWarningsFor', () => {
 
     await LearningStore.getWarningsFor('phase-builder');
 
-    expect(prisma.learningEntry.findMany).toHaveBeenCalledWith({
+    expect(prisma.learningEntry.findMany).toHaveBeenCalledTimes(1);
+    const [query] = prisma.learningEntry.findMany.mock.calls[0];
+    expect(query).toMatchObject({
       where: {
         targetAgent: 'phase-builder',
         status: 'active',
         rejectionCount: { gte: 1 },
       },
       orderBy: { rejectionCount: 'desc' },
-      take: 5,
+      take: 10,
     });
+    expect(query.where.lastSeen.gte).toBeInstanceOf(Date);
   });
 });
 
@@ -152,9 +155,9 @@ describe('LearningStore.getWarningBlock', () => {
 
     const block = await LearningStore.getWarningBlock('phase-executor');
 
-    expect(block).toContain('FOREMAN WARNINGS');
+    expect(block).toContain('FORGE QUALITY WARNINGS');
     expect(block).toContain('Off-by-one in loop');
-    expect(block).toContain('Address these proactively');
+    expect(block).toContain('automatically rejected');
   });
 });
 

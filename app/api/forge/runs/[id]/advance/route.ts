@@ -48,6 +48,7 @@ export async function GET(
           runId,
           repoUrl: run.repoUrl,
           emit,
+          continuous: run.continuous,
         })
       } else {
         await runDebugPipelineStage2({
@@ -55,6 +56,7 @@ export async function GET(
           runId,
           repoUrl: run.repoUrl,
           emit,
+          continuous: run.continuous,
         })
       }
       await updateForgeRun(runId, { status: 'awaiting_approval', stage: 'code' })

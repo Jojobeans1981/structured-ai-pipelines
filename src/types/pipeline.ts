@@ -16,6 +16,10 @@ export const BUILD_PIPELINE_STAGES: PipelineStageDefinition[] = [
   { skillName: 'prompt-builder', displayName: 'Prompt Generation', description: 'Generate atomic implementation prompts' },
   { skillName: 'prompt-validator', displayName: 'Prompt Validation', description: 'Validate prompts against codebase state' },
   { skillName: 'phase-executor', displayName: 'Code Execution', description: 'Execute prompts into working code' },
+  { skillName: '__verify__', displayName: 'Build Verification', description: 'Verify generated code compiles and runs' },
+  { skillName: 'theme-designer', displayName: 'UI Theme Design', description: 'Design three demo-ready theme variants and let the user choose one' },
+  { skillName: 'phase-executor', displayName: 'Theme Application', description: 'Apply the chosen theme styling to the app code' },
+  { skillName: '__verify__', displayName: 'Theme Verification', description: 'Verify the themed app still builds successfully' },
 ];
 
 export const DIAGNOSTIC_PIPELINE_STAGES: PipelineStageDefinition[] = [

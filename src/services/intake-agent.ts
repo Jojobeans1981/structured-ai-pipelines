@@ -328,14 +328,54 @@ export class IntakeAgent {
       phaseIndex: null,
     });
 
-    // Setup analyzer runs after verify — generates the "how to run this" guide
+    // Theme design and application run after verify to polish branding and demo styling.
+    nodes.push({
+      id: 'theme-design',
+      skillName: 'theme-designer',
+      displayName: 'UI Theme Design',
+      description: 'Design three demo-friendly theme variants and ask the user to choose one',
+      nodeType: 'skill',
+      dependsOn: ['verify'],
+      parallelGroup: null,
+      gateType: null,
+      maxRetries: 1,
+      phaseIndex: null,
+    });
+
+    nodes.push({
+      id: 'theme-apply',
+      skillName: 'phase-executor',
+      displayName: 'Theme Application',
+      description: 'Apply the chosen theme styling to the app code',
+      nodeType: 'skill',
+      dependsOn: ['theme-design'],
+      parallelGroup: null,
+      gateType: null,
+      maxRetries: 2,
+      phaseIndex: null,
+    });
+
+    nodes.push({
+      id: 'verify-theme',
+      skillName: '__verify__',
+      displayName: 'Theme Verification',
+      description: 'Verify the themed app still builds successfully',
+      nodeType: 'verify',
+      dependsOn: ['theme-apply'],
+      parallelGroup: null,
+      gateType: null,
+      maxRetries: 2,
+      phaseIndex: null,
+    });
+
+    // Setup analyzer runs after themed verification so the final guide reflects the styled app.
     nodes.push({
       id: 'setup-guide',
       skillName: 'setup-analyzer',
       displayName: 'Setup Guide',
       description: 'Analyze the built project and generate a complete setup guide with prerequisites, env vars, and run commands',
       nodeType: 'skill',
-      dependsOn: ['verify'],
+      dependsOn: ['verify-theme'],
       parallelGroup: null,
       gateType: null,
       maxRetries: 1,
@@ -395,7 +435,10 @@ export class IntakeAgent {
     const allBuildIds = nodes.filter((n) => n.skillName === 'phase-executor').map((n) => n.id);
     nodes.push(
       { id: 'verify', skillName: '__verify__', displayName: 'Build Verification', description: 'Verify enhanced project compiles', nodeType: 'verify', dependsOn: allBuildIds, parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: null },
-      { id: 'setup-guide', skillName: 'setup-analyzer', displayName: 'Setup Guide', description: 'Generate setup guide', nodeType: 'skill', dependsOn: ['verify'], parallelGroup: null, gateType: null, maxRetries: 1, phaseIndex: null },
+      { id: 'theme-design', skillName: 'theme-designer', displayName: 'UI Theme Design', description: 'Design three demo-friendly theme variants and ask the user to choose one', nodeType: 'skill', dependsOn: ['verify'], parallelGroup: null, gateType: null, maxRetries: 1, phaseIndex: null },
+      { id: 'theme-apply', skillName: 'phase-executor', displayName: 'Theme Application', description: 'Apply the chosen theme styling to the app code', nodeType: 'skill', dependsOn: ['theme-design'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: null },
+      { id: 'verify-theme', skillName: '__verify__', displayName: 'Theme Verification', description: 'Verify the themed app still builds successfully', nodeType: 'verify', dependsOn: ['theme-apply'], parallelGroup: null, gateType: null, maxRetries: 2, phaseIndex: null },
+      { id: 'setup-guide', skillName: 'setup-analyzer', displayName: 'Setup Guide', description: 'Generate setup guide', nodeType: 'skill', dependsOn: ['verify-theme'], parallelGroup: null, gateType: null, maxRetries: 1, phaseIndex: null },
     );
 
     const edges = nodes.flatMap((n) => n.dependsOn.map((dep) => ({ from: dep, to: n.id, condition: null })));

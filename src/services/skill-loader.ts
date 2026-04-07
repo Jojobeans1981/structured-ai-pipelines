@@ -168,7 +168,7 @@ export class SkillLoader {
       'root-cause-analyzer', 'fix-planner', 'fix-prompt-builder', 'fix-executor',
       'lessons-learned', 'diagnostic-orchestrator', 'metrics-tracker', 'code-mentor',
       'guardian-agent', 'sentinel-agent', 'inspector-agent', 'socratic-agent',
-      'setup-analyzer',
+      'setup-analyzer', 'theme-designer',
       'forge-analyzer', 'forge-prd', 'forge-prompt', 'forge-scaffolder', 'forge-validator',
       'forge-launcher', 'forge-finisher', 'forge-preview',
       'forge-archaeologist', 'forge-root-cause', 'forge-fix-planner', 'forge-fix-scaffolder',

@@ -1,3 +1,6 @@
+import { ScaffoldEngine } from '@/src/services/scaffold-engine'
+import { prisma } from '@/src/lib/prisma'
+import { DependencyPinner } from '@/src/services/dependency-pinner'
 import { execSync } from 'child_process'
 import { writeFileSync, mkdirSync, readFileSync, existsSync, readdirSync, statSync } from 'fs'
 import { join, dirname } from 'path'
@@ -315,6 +318,18 @@ export async function runBuildPipelineStage1(opts: {
   const { userId, runId, specContent, repoUrl, emit } = opts
   const workDir = join(tmpdir(), `forge-${runId}`)
 
+  // --- FORGE INJECTION: Scaffold Engine ---
+  try {
+    await ScaffoldEngine.injectReactViteScaffold(workDir);
+    if (typeof emitLog === 'function' && typeof emit !== 'undefined') {
+      emitLog(emit, runId, 'Prepare', 'Injected Golden Scaffold (Vite/React/Tailwind) into workDir');
+    } else {
+      console.log('[ScaffoldEngine] Injected Golden Configs.');
+    }
+  } catch(e) {
+    console.warn('Scaffold injection error:', e);
+  }
+
   // 1. Clone repo
   emitLog(emit, runId, 'Clone', `Cloning ${repoUrl}...`)
   mkdirSync(workDir, { recursive: true })
@@ -376,6 +391,18 @@ export async function runBuildPipelineStage2(opts: {
 }): Promise<void> {
   const { userId, runId, repoUrl, emit, continuous = false } = opts
   const workDir = join(tmpdir(), `forge-${runId}`)
+
+  // --- FORGE INJECTION: Scaffold Engine ---
+  try {
+    await ScaffoldEngine.injectReactViteScaffold(workDir);
+    if (typeof emitLog === 'function' && typeof emit !== 'undefined') {
+      emitLog(emit, runId, 'Prepare', 'Injected Golden Scaffold (Vite/React/Tailwind) into workDir');
+    } else {
+      console.log('[ScaffoldEngine] Injected Golden Configs.');
+    }
+  } catch(e) {
+    console.warn('Scaffold injection error:', e);
+  }
 
   // 1. Load stage data
   const stageDataPath = join(workDir, STAGE_DATA_FILE)
@@ -633,7 +660,36 @@ export async function runBuildPipelineStage2(opts: {
     }
 
     emitLog(emit, runId, 'Verify', `Running final build verification for ${projectType} project...`)
+    
+    // --- FORGE INJECTION: Dependency Pinning ---
+    try {
+      const fsP = require('fs/promises');
+      const path = require('path');
+      const pkgPath = path.join(workDir, 'package.json');
+      const rawPkg = await fsP.readFile(pkgPath, 'utf8');
+      const safePkg = DependencyPinner.pin(rawPkg);
+      await fsP.writeFile(pkgPath, safePkg, 'utf8');
+      emitLog(emit, runId, 'Verify', 'Locked dependencies to Known-Good versions.');
+    } catch(e) {
+      // Ignore if no package.json exists yet
+    }
+    
     const buildResult = await BuildVerifier.verify(workDir)
+
+    // --- FORGE INJECTION: Database Telemetry ---
+    try {
+      await prisma.pipelineRun.create({
+        data: {
+          taskName: projectType || 'unknown-project',
+          targetAgent: 'Pipeline Runner',
+          success: buildResult.success,
+          iterations: typeof cycle !== 'undefined' ? cycle : 1
+        }
+      });
+    } catch(e) {
+      console.warn('Telemetry error:', e);
+    }
+  
     if (buildResult.success) {
       emitLog(emit, runId, 'Verify', 'Build verification passed', 'success')
     } else {

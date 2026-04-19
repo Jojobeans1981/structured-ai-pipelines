@@ -23,17 +23,17 @@ export class LearningStore {
     runId?: string,
     stageId?: string
   ): Promise<void> {
-    const existing = await prisma.learningEntry.findFirst({
-      where: {
-        pattern,
-        targetAgent,
-        status: 'active',
-      },
+        const activePatterns = await prisma.learningEntry.findMany({ where: { targetAgent, status: "active" } });
+    const levenshtein = require("fast-levenshtein");
+    const existing = activePatterns.find(p => {
+      const dist = levenshtein.get(p.pattern, pattern);
+      const maxLen = Math.max(p.pattern.length, pattern.length);
+      return (maxLen - dist) / maxLen > 0.7;
     });
 
     if (existing) {
       await prisma.learningEntry.update({
-        where: { id: existing.id },
+        where: { status: "active", targetAgent,  id: existing.id },
         data: {
           rejectionCount: existing.rejectionCount + 1,
           lastSeen: new Date(),
@@ -66,7 +66,7 @@ export class LearningStore {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const entries = await prisma.learningEntry.findMany({
-      where: {
+      where: { status: "active", targetAgent, 
         targetAgent,
         status: 'active',
         rejectionCount: { gte: 1 },
@@ -164,7 +164,7 @@ export class LearningStore {
    */
   static async resolve(patternId: string, resolution: string): Promise<void> {
     await prisma.learningEntry.update({
-      where: { id: patternId },
+      where: { status: "active", targetAgent,  id: patternId },
       data: { status: 'resolved', resolution },
     });
   }
@@ -207,7 +207,7 @@ export class LearningStore {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const result = await prisma.learningEntry.updateMany({
-      where: {
+      where: { status: "active", targetAgent, 
         status: 'active',
         lastSeen: { lt: sevenDaysAgo },
       },
@@ -251,7 +251,7 @@ export class LearningStore {
    */
   static async getActivePatterns(): Promise<LearningPattern[]> {
     const entries = await prisma.learningEntry.findMany({
-      where: { status: 'active' },
+      where: { status: "active", targetAgent,  status: 'active' },
       orderBy: { rejectionCount: 'desc' },
     });
 
@@ -279,8 +279,8 @@ export class LearningStore {
     const [totalPatterns, activePatterns, resolvedPatterns, rejectionAgg, offenderAgg] =
       await Promise.all([
         prisma.learningEntry.count(),
-        prisma.learningEntry.count({ where: { status: 'active' } }),
-        prisma.learningEntry.count({ where: { status: 'resolved' } }),
+        prisma.learningEntry.count({ where: { status: "active", targetAgent,  status: 'active' } }),
+        prisma.learningEntry.count({ where: { status: "active", targetAgent,  status: 'resolved' } }),
         prisma.learningEntry.aggregate({ _sum: { rejectionCount: true } }),
         prisma.learningEntry.groupBy({
           by: ['targetAgent'],
@@ -300,5 +300,46 @@ export class LearningStore {
         count: row._sum.rejectionCount || 0,
       })),
     };
+  }
+}
+
+  /**
+   * Prune low-weight patterns that agents ignore.
+   * Decrements weight if pattern is seen but agent still fails.
+   */
+  static async pruneStalePatterns(): Promise<void> {
+    await prisma.learningEntry.deleteMany({
+      where: { weight: { lt: 0.3 }, status: 'active' }
+    });
+    console.log('[LearningStore] Pruned ineffective patterns.');
+  
+  /**
+   * Prune low-weight patterns that agents ignore.
+   */
+  static async pruneStalePatterns(): Promise<void> {
+    await prisma.learningEntry.deleteMany({
+      where: { weight: { lt: 0.3 }, status: "active" }
+    });
+    console.log("[LearningStore] Pruned ineffective patterns.");
+  }
+
+  /**
+   * Prune patterns with low weight that agents continue to ignore.
+   */
+  static async pruneStalePatterns(): Promise<void> {
+    await prisma.learningEntry.deleteMany({
+      where: { weight: { lt: 0.3 }, status: "active" }
+    });
+    console.log("[LearningStore] Pruned ineffective patterns.");
+  }
+
+  /**
+   * Prune patterns with low weight that agents continue to ignore.
+   */
+  static async pruneStalePatterns(): Promise<void> {
+    await prisma.learningEntry.deleteMany({
+      where: { weight: { lt: 0.3 }, status: "active" }
+    });
+    console.log("[LearningStore] Pruned ineffective patterns.");
   }
 }

@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // url moved to config
 }
 
 model User {
@@ -212,6 +212,7 @@ model PipelineMetric {
   stageCount        Int
   approvedFirstPass Int
   rejectionCount    Int
+  weight         Float    @default(1.0)
   outcome           String
   stageDurations    Json     @default("{}")
   totalInputTokens  Int      @default(0)
@@ -274,6 +275,7 @@ model LearningEntry {
   sourceAgent     String               // agent that detected the issue
   targetAgent     String               // agent that caused the issue
   rejectionCount  Int      @default(1)
+  weight         Float    @default(1.0)
   firstSeen       DateTime @default(now())
   lastSeen        DateTime @default(now())
   resolution      String?  @db.Text    // how it was resolved

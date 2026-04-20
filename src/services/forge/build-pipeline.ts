@@ -1,3 +1,4 @@
+import { GitTracker } from '@/src/services/git-tracker'
 import { ScaffoldEngine } from '@/src/services/scaffold-engine'
 import { prisma } from '@/src/lib/prisma'
 import { DependencyPinner } from '@/src/services/dependency-pinner'
@@ -674,7 +675,23 @@ export async function runBuildPipelineStage2(opts: {
       // Ignore if no package.json exists yet
     }
     
+    
+    // --- TIME-TRAVEL: Commit AI's attempt before verifying ---
+    try {
+      const currentCycle = typeof cycle !== 'undefined' ? cycle : 1;
+      GitTracker.commit(workDir, `feat(ai): agent generated code (Cycle ${currentCycle})`);
+    } catch(e) {}
+
     const buildResult = await BuildVerifier.verify(workDir)
+    
+    // --- TIME-TRAVEL: Commit the self-heal trigger if it failed ---
+    if (!buildResult.success && buildResult.errors.length > 0) {
+      try {
+        const errorPreview = buildResult.errors[0].slice(0, 60).replace(/\n/g, ' ');
+        GitTracker.commit(workDir, `fix(self-heal): verification failed - ${errorPreview}`);
+      } catch(e) {}
+    }
+
 
     // --- FORGE INJECTION: Database Telemetry ---
     try {

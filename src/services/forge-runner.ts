@@ -1,14 +1,11 @@
 import { ScaffoldEngine } from './scaffold-engine';
 import { DependencyPinner } from './dependency-pinner';
+import { GitTracker } from './git-tracker';
 import { prisma } from '../lib/prisma';
 import fs from 'fs/promises';
 import path from 'path';
 
 export class ForgeRunner {
-  /**
-   * Encapsulates your existing LLM loop with Scaffold injection, 
-   * Dependency Pinning, and Database Telemetry.
-   */
   static async execute(
     taskName: string,
     targetDir: string,
@@ -17,30 +14,33 @@ export class ForgeRunner {
   ) {
     console.log(`\n[ForgeRunner] Ì∫Ä Booting execution for: ${taskName}`);
     
-    // 1. PRE-EXECUTION: Inject the Golden Scaffold
+    // 1. Time-Travel Start: Initialize Git
+    GitTracker.init(targetDir);
+
+    // 2. Inject Scaffold & Commit
     await ScaffoldEngine.injectReactViteScaffold(targetDir);
+    GitTracker.commit(targetDir, "chore(forge): inject golden React/Vite scaffold");
 
     const startTime = Date.now();
     let result = { success: false, iterations: 1 };
 
     try {
-      // 2. EXECUTION: Run your existing AI loop
+      // 3. Run AI Loop
       result = await runAgentLoop();
     } catch (error) {
       console.error(`[ForgeRunner] ‚ùå Agent loop failed:`, error);
     }
 
-    // 3. POST-EXECUTION: Force known-good dependency versions
+    // 4. Pin Dependencies & Commit
     const pkgPath = path.join(targetDir, 'package.json');
     try {
       const rawPkg = await fs.readFile(pkgPath, 'utf8');
       const safePkg = DependencyPinner.pin(rawPkg);
       await fs.writeFile(pkgPath, safePkg, 'utf8');
-    } catch (e) {
-      // Gracefully ignore if the LLM didn't output a package.json
-    }
+      GitTracker.commit(targetDir, "chore(forge): pin dependencies to known-good versions");
+    } catch (e) {}
 
-    // 4. TELEMETRY: Record the convergence rate to Neon
+    // 5. Finalize Telemetry
     await prisma.pipelineRun.create({
       data: {
         taskName,

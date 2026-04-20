@@ -1,3 +1,5 @@
+import path from 'path';
+import fsP from 'fs/promises';
 import { GitTracker } from '@/src/services/git-tracker'
 import { ScaffoldEngine } from '@/src/services/scaffold-engine'
 import { prisma } from '@/src/lib/prisma'
@@ -664,8 +666,8 @@ export async function runBuildPipelineStage2(opts: {
     
     // --- FORGE INJECTION: Dependency Pinning ---
     try {
-      const fsP = require('fs/promises');
-      const path = require('path');
+      
+      
       const pkgPath = path.join(workDir, 'package.json');
       const rawPkg = await fsP.readFile(pkgPath, 'utf8');
       const safePkg = DependencyPinner.pin(rawPkg);

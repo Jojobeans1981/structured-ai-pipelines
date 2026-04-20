@@ -55,6 +55,7 @@
   },
   "devDependencies": {
     "@prisma/client": "^7.7.0",
+    "@types/fast-levenshtein": "^0.0.4",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "@types/react": "^18",

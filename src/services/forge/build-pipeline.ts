@@ -1,3 +1,6 @@
+import { prisma } from '@/src/lib/prisma';
+import { DependencyPinner } from '@/src/services/dependency-pinner';
+import { GitTracker } from '@/src/services/git-tracker';
 import path from 'path';
 import fsP from 'fs/promises';
 import { GitTracker } from '@/src/services/git-tracker'

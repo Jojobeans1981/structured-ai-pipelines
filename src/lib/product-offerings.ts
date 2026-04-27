@@ -101,22 +101,22 @@ export const forgeBuyerPersonas = [
 
 export const forgeBetaPlans = [
   {
-    name: 'Local Demo',
-    price: '$0 platform fee',
-    audience: 'Interview/demo use on this machine',
-    highlight: 'You pay only your configured model/provider costs. Local Ollama runs show as free local API cost; hardware and electricity are not included.',
+    name: 'Launch Sprint',
+    price: '$1,500 / project',
+    audience: 'Founders and teams that need one scoped feature, bug fix, or readiness pass delivered as a reviewed branch.',
+    highlight: 'Best for interview-style demos, MVP slices, and client proofs. Estimated savings: $2,000-$5,000 versus 1-2 days of senior engineering time for discovery, scaffolding, debugging, and handoff prep.',
   },
   {
-    name: 'Anthropic API',
-    price: 'Haiku $1/$5, Sonnet $3/$15, Opus $5/$25 per MTok',
-    audience: 'Production-quality build/debug runs using Claude',
-    highlight: 'Rates are input/output per million tokens from Anthropic list pricing. Cache, batch, data residency, tools, taxes, and provider markup can change the bill.',
+    name: 'Team Workflow',
+    price: '$4,500 / month',
+    audience: 'Engineering teams with recurring backlog work, internal tools, tests, and small product enhancements.',
+    highlight: 'Includes up to 20 guided Forge runs with approval gates, run history, cost reporting, and delivery summaries. Estimated savings: 40-80 engineering hours per month, or about $6,000-$12,000 in preserved capacity at $150/hour.',
   },
   {
-    name: 'Tracked Controls',
-    price: '$5/run and $20/day default guardrails',
-    audience: 'Teams that need cost visibility before approving more work',
-    highlight: 'Budgets are configurable with FORGE_RUN_BUDGET_USD and FORGE_DAILY_BUDGET_USD. Each run reports measured tokens, model, backend, and stage-level API cost.',
+    name: 'Enterprise Delivery',
+    price: 'Custom',
+    audience: 'Organizations that need governed rollout, repository controls, audit-friendly evidence, and private workflow support.',
+    highlight: 'Designed for higher-volume engineering operations with SSO, policy controls, custom budgets, deployment rules, and reporting. Savings model is scoped against your team cost, run volume, and review requirements.',
   },
 ]
 
@@ -125,3 +125,12 @@ export const forgeBetaPromises = [
   'Verify output',
   'Track cost',
 ]
+
+export const forgeSavingsProof = {
+  title: 'Savings example',
+  metric: '$7,500 net capacity preserved',
+  scenario:
+    '20 routine fixes or feature slices per month x 4 engineer hours saved x $150/hour = $12,000 of engineering capacity protected.',
+  note:
+    'Against the $4,500/month Team Workflow plan, that leaves about $7,500 in estimated net capacity before infrastructure, API usage, and final human review. Actual savings vary by repo complexity, review depth, provider usage, and team process.',
+}

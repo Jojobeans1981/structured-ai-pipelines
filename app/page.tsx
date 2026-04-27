@@ -26,6 +26,7 @@ import {
   forgeBetaPromises,
   forgeBuyerPersonas,
   forgeDeliveryPromises,
+  forgeSavingsProof,
   forgeTrustSignals,
 } from '@/src/lib/product-offerings';
 import { type ProjectSummary } from '@/src/types/project';
@@ -212,11 +213,11 @@ export default async function DashboardPage() {
               <div>
                 <div className="text-xs uppercase tracking-[0.24em] text-cyan-300">Pricing</div>
                 <h2 className="text-2xl font-semibold tracking-tight text-zinc-50">
-                  Transparent platform and model-cost assumptions.
+                  Customer-facing pricing tied to engineering time saved.
                 </h2>
               </div>
               <p className="max-w-2xl text-sm leading-6 text-zinc-400">
-                Demo access has no platform fee. API spend depends on the configured provider, model, token usage, and Anthropic pricing modifiers such as caching, batch processing, tools, and data residency.
+                Forge is priced as delivery capacity, not raw token resale. The buyer story is simple: reduce repetitive implementation, debugging, and handoff time while keeping human review, cost reporting, and approval controls in the workflow.
               </p>
             </div>
 
@@ -238,6 +239,23 @@ export default async function DashboardPage() {
                 </Card>
               ))}
             </div>
+
+            <Card className="border-emerald-500/20 bg-emerald-500/5">
+              <CardHeader>
+                <CardTitle className="flex flex-col gap-1 text-lg sm:flex-row sm:items-center sm:justify-between">
+                  <span>{forgeSavingsProof.title}</span>
+                  <span className="text-sm font-medium text-emerald-300">{forgeSavingsProof.metric}</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3 text-sm lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div className="rounded-lg border border-emerald-500/20 bg-black/20 p-3 leading-6 text-zinc-200">
+                  {forgeSavingsProof.scenario}
+                </div>
+                <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 leading-6 text-zinc-400">
+                  {forgeSavingsProof.note}
+                </div>
+              </CardContent>
+            </Card>
           </section>
 
           <section

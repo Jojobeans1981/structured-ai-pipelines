@@ -1,6 +1,6 @@
 import simpleGit from 'simple-git'
 import { readdirSync, statSync, readFileSync, existsSync } from 'fs'
-import { join, extname } from 'path'
+import { extname, isAbsolute, join, relative, resolve } from 'path'
 
 const IGNORED_DIRS = ['node_modules', '.git', 'dist', '.next', '__pycache__', '.venv', 'venv']
 
@@ -9,10 +9,74 @@ const SOURCE_EXTENSIONS = new Set([
   '.cs', '.cpp', '.c', '.h', '.swift', '.kt', '.scala', '.php',
 ])
 
+export function validateGitLabRepoUrl(repoUrl: string): string {
+  let url: URL
+  try {
+    url = new URL(repoUrl)
+  } catch {
+    throw new Error('GitLab repo URL must be a valid HTTPS URL')
+  }
+
+  const hostname = url.hostname.toLowerCase()
+  const configuredHosts = (process.env.GITLAB_ALLOWED_HOSTS ?? process.env.GITLAB_HOST ?? '')
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean)
+  const allowedHosts = configuredHosts.length > 0
+    ? configuredHosts
+    : ['gitlab.com', 'labs.gauntletai.com']
+  const isPrivateIpv4 =
+    /^10\./.test(hostname) ||
+    /^127\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
+
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    !allowedHosts.includes(hostname) ||
+    hostname === 'localhost' ||
+    hostname === '::1' ||
+    isPrivateIpv4
+  ) {
+    throw new Error(`GitLab repo URL must use HTTPS and one of: ${allowedHosts.join(', ')}`)
+  }
+
+  const pathParts = url.pathname.replace(/\/$/, '').split('/').filter(Boolean)
+  if (pathParts.length < 2) {
+    throw new Error('GitLab repo URL must include a group and project path')
+  }
+
+  url.hash = ''
+  url.search = ''
+  return url.toString().replace(/\/$/, '')
+}
+
 export async function cloneRepo(repoUrl: string, targetDir: string): Promise<void> {
   console.log(`[Repo] Cloning ${repoUrl} to ${targetDir}`)
   await simpleGit().clone(repoUrl, targetDir, ['--depth', '1'])
   console.log(`[Repo] Clone complete`)
+}
+
+export function safeRepoPath(workDir: string, repoRelativePath: string): string {
+  if (!repoRelativePath || isAbsolute(repoRelativePath) || repoRelativePath.startsWith('/')) {
+    throw new Error(`Unsafe repo path: ${repoRelativePath}`)
+  }
+
+  const root = resolve(workDir)
+  const fullPath = resolve(root, repoRelativePath)
+  const relativePath = relative(root, fullPath)
+
+  if (
+    relativePath === '' ||
+    relativePath.startsWith('..') ||
+    isAbsolute(relativePath)
+  ) {
+    throw new Error(`Unsafe repo path: ${repoRelativePath}`)
+  }
+
+  return fullPath
 }
 
 export function buildTree(dir: string, depth: number, current = 0, prefix = ''): string {

@@ -45,10 +45,11 @@ export async function GET(_request: Request, { params }: Props) {
   return NextResponse.json({
     currentCost: {
       totalUsd: currentCost.totalCostUsd,
-      formatted: CostTracker.formatCost(currentCost.totalCostUsd),
+      formatted: currentCost.costFormatted,
       inputTokens: currentCost.totalInputTokens,
       outputTokens: currentCost.totalOutputTokens,
       breakdown: currentCost.stageTokens,
+      pricingSource: currentCost.pricingSource,
     },
     estimate: {
       remainingNodes,
@@ -63,6 +64,10 @@ export async function GET(_request: Request, { params }: Props) {
       dailySpent: budgetCheck.dailyCost,
       withinBudget: budgetCheck.allowed,
       reason: budgetCheck.reason,
+    },
+    accuracy: {
+      estimate: 'Remaining cost is an estimate based on pending/running node count and default token assumptions.',
+      measured: 'Current cost is measured from stored stage token usage and model pricing.',
     },
     stages: {
       total: run.stages.length,

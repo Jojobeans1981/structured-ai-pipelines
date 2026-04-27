@@ -66,15 +66,15 @@ export const forgeTemplates: ForgeTemplate[] = [
 ]
 
 export const forgeDeliveryPromises = [
-  'Guided pipeline setup with starter prompts and templates',
-  'Verified output with build, test, and security checks where available',
-  'Exportable artifacts like ZIP, setup guide, and run summary',
+  'Repo-aware build and debug flows that clone a GitLab project, inspect conventions, and generate a merge-request-ready diff',
+  'Verification gates for generated files, dependency repair, build checks, delivery guard, and preview readiness',
+  'Run history with logs, cost breakdowns, approvals, rejection handling, and shareable delivery summaries',
 ]
 
 export const forgeTrustSignals = [
-  'Launch-ready setup guidance',
-  'Traceable pipeline history',
-  'Verification and readiness reporting',
+  'Human approval before plan execution and before merge-request publish',
+  'Measured token/cost reporting with model, backend, and pricing-source details',
+  'Atomic run claiming, ownership checks, persisted handoff data, and path containment for generated files',
 ]
 
 export const forgeSamplePrompts = [
@@ -86,42 +86,42 @@ export const forgeSamplePrompts = [
 
 export const forgeBuyerPersonas = [
   {
-    title: 'Founder Fast Track',
-    description: 'Turn product ideas into demos, internal tools, and MVP scaffolds without waiting on a full sprint.',
+    title: 'Founder MVP Delivery',
+    description: 'Turn a scoped product idea into a runnable repo with generated files, verification results, and a clear handoff path.',
   },
   {
-    title: 'Agency Delivery',
-    description: 'Generate polished starter projects, reports, and handoff assets that help client work move faster.',
+    title: 'Agency Build Bench',
+    description: 'Create client-ready feature branches, run summaries, and launch artifacts while keeping humans in the approval loop.',
   },
   {
     title: 'Engineering Backlog Relief',
-    description: 'Use diagnostic and enhancement pipelines to shrink bug-fix, testing, and deployment setup work.',
+    description: 'Use diagnostic and enhancement pipelines to trace bugs, plan targeted fixes, and verify the final code path.',
   },
 ]
 
 export const forgeBetaPlans = [
   {
-    name: 'Starter',
-    price: 'Launch Access',
-    audience: 'Solo builders and evaluation runs',
-    highlight: 'Prompt library, guided runs, and baseline exports',
+    name: 'Local Demo',
+    price: '$0 platform fee',
+    audience: 'Interview/demo use on this machine',
+    highlight: 'You pay only your configured model/provider costs. Local Ollama runs show as free local API cost; hardware and electricity are not included.',
   },
   {
-    name: 'Studio',
-    price: 'Studio Range',
-    audience: 'Founders, agencies, and operators shipping multiple projects',
-    highlight: 'Guided builds, exports, and launch-readiness workflows',
+    name: 'Anthropic API',
+    price: 'Haiku $1/$5, Sonnet $3/$15, Opus $5/$25 per MTok',
+    audience: 'Production-quality build/debug runs using Claude',
+    highlight: 'Rates are input/output per million tokens from Anthropic list pricing. Cache, batch, data residency, tools, taxes, and provider markup can change the bill.',
   },
   {
-    name: 'Team Workspace',
-    price: 'Workspace Range',
-    audience: 'Product and engineering teams that need collaboration and controls',
-    highlight: 'Shared projects, approvals, usage controls, and deploy flows',
+    name: 'Tracked Controls',
+    price: '$5/run and $20/day default guardrails',
+    audience: 'Teams that need cost visibility before approving more work',
+    highlight: 'Budgets are configurable with FORGE_RUN_BUDGET_USD and FORGE_DAILY_BUDGET_USD. Each run reports measured tokens, model, backend, and stage-level API cost.',
   },
 ]
 
 export const forgeBetaPromises = [
-  'Access',
-  'Templates',
-  'Delivery',
+  'Clone repo',
+  'Verify output',
+  'Track cost',
 ]

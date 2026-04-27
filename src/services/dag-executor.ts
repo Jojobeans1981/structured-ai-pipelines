@@ -968,7 +968,6 @@ export class DAGExecutor {
             await LearningStore.resolveForAgent(
               'prompt-builder',
               `Sentinel passed for stage ${stage.displayName} in run ${stage.runId}`,
-              'sentinel'
             ).catch(() => {});
           }
         }
@@ -1114,7 +1113,6 @@ export class DAGExecutor {
             await LearningStore.resolveForAgent(
               'phase-executor',
               `Inspector passed for phase ${stage.phaseIndex} in run ${stage.runId}`,
-              'inspector'
             ).catch(() => {});
           }
         }

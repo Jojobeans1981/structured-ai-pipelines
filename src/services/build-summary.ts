@@ -71,7 +71,7 @@ export interface BuildSummaryData {
   verifiedAt: string;
   allChecksPass: boolean;
 
-  // ROI estimate
+  // Directional output-size estimate retained for compatibility with older summaries.
   estimatedEngineerHours: number;
   estimatedEngineerCost: number;
   roiMultiple: number;
@@ -145,8 +145,8 @@ export class BuildSummary {
     // --- Trace data ---
     const agentDecisionStageIds = new Set(run.agentVotes.map((v) => v.stageId));
 
-    // --- ROI estimate ---
-    // Rough: 1000 output tokens ≈ 25 lines of code ≈ 15 min engineer time
+    // --- Directional output-size estimate ---
+    // Rough display-only estimate; not presented as savings or ROI in the UI.
     const estimatedEngineerHours = Math.max(0.5, (totalOutputTokens / 1000) * 0.25);
     const estimatedEngineerCost = estimatedEngineerHours * 150; // $150/hr senior eng
     const roiMultiple = totalCostUsd > 0 ? Math.round(estimatedEngineerCost / totalCostUsd) : 0;

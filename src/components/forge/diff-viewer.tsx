@@ -63,7 +63,7 @@ export default function DiffViewer({ runId }: DiffViewerProps) {
   }
 
   const busy = approving || rejecting
-  const hasVerificationErrors = diff.errors.length > 0
+  const hasVerificationErrors = !diff.lintPassed || !diff.testsPassed || diff.errors.length > 0
   const autoFixSummary = useMemo(() => {
     const autoFixLogs = logs.filter((log) => log.step === 'AutoFix')
     if (autoFixLogs.length === 0) return null
@@ -227,6 +227,7 @@ export default function DiffViewer({ runId }: DiffViewerProps) {
                 <div key={cycle.cycle} className={`rounded border overflow-hidden ${cycleTone(cycle.outcome).border}`}>
                   <button
                     onClick={() => toggleCycle(cycle.cycle)}
+                    aria-expanded={expandedCycles.has(cycle.cycle)}
                     className={`w-full flex items-center justify-between px-3 py-2 text-left transition-colors ${cycleTone(cycle.outcome).header}`}
                   >
                     <div className="flex items-center gap-2">
@@ -278,6 +279,7 @@ export default function DiffViewer({ runId }: DiffViewerProps) {
           <div key={file.path} className="border border-gray-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleFile(file.path)}
+              aria-expanded={expandedFiles.has(file.path)}
               className="w-full flex items-center justify-between px-4 py-2 bg-gray-900 hover:bg-gray-800 text-left transition-colors"
             >
               <span className="text-gray-300 text-sm font-mono">{file.path}</span>

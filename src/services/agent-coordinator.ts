@@ -4,6 +4,7 @@ import { createWithFallback } from '@/src/lib/anthropic';
 import { TraceLogger } from '@/src/services/trace-logger';
 import { DecisionOption, DecisionResult } from '@/src/services/decision-agent';
 import { SkillLoader } from '@/src/services/skill-loader';
+import { CostTracker } from '@/src/services/cost-tracker';
 
 interface AgentSpec {
   role: string;
@@ -233,8 +234,12 @@ export class AgentCoordinator {
 
       const inputTokens = response.usage?.input_tokens ?? 0;
       const outputTokens = response.usage?.output_tokens ?? 0;
-      // Haiku pricing: $0.80/1M input, $4.00/1M output
-      const costUsd = (inputTokens * 0.8 + outputTokens * 4.0) / 1_000_000;
+      const costUsd = CostTracker.calculateCost({
+        inputTokens,
+        outputTokens,
+        model: 'claude-haiku-4-5-20251001',
+        backend: 'anthropic',
+      });
       const durationMs = Date.now() - startTime;
 
       // Parse the JSON vote

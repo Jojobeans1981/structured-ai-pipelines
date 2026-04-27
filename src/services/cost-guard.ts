@@ -1,10 +1,7 @@
-import { prisma } from '@/src/lib/prisma';
+﻿import { prisma } from '@/src/lib/prisma';
 import { CostTracker } from '@/src/services/cost-tracker';
 
-/** Default budget per run in USD. Override with FORGE_RUN_BUDGET_USD env var. */
 const DEFAULT_RUN_BUDGET = parseFloat(process.env.FORGE_RUN_BUDGET_USD || '5.00');
-
-/** Default budget per user per day in USD. Override with FORGE_DAILY_BUDGET_USD. */
 const DEFAULT_DAILY_BUDGET = parseFloat(process.env.FORGE_DAILY_BUDGET_USD || '20.00');
 
 export interface BudgetCheck {
@@ -18,34 +15,24 @@ export interface BudgetCheck {
 }
 
 export class CostGuard {
-  /**
-   * Check whether a pipeline run is within budget before executing the next node.
-   * Returns { allowed: false, reason } if budget exceeded.
-   */
-  static async checkBudget(
-    runId: string,
-    userId: string
-  ): Promise<BudgetCheck> {
+  static async checkBudget(runId: string, userId: string): Promise<BudgetCheck> {
     const runBudget = DEFAULT_RUN_BUDGET;
     const dailyBudget = DEFAULT_DAILY_BUDGET;
 
-    // 1. Get current run cost
     const runCost = await CostTracker.aggregateRunCost(runId);
     const currentRunCost = runCost.totalCostUsd;
 
-    // 2. Estimate next stage cost (based on average of completed stages)
     const completedStages = await prisma.pipelineStage.findMany({
       where: { runId, status: 'approved' },
       select: { costUsd: true },
     });
     const avgStageCost = completedStages.length > 0
       ? completedStages.reduce((sum, s) => sum + s.costUsd, 0) / completedStages.length
-      : 0.05; // default estimate: $0.05 per stage
+      : 0.05;
 
     const estimatedNextCost = avgStageCost;
     const projectedTotal = currentRunCost + estimatedNextCost;
 
-    // 3. Check run budget
     if (projectedTotal > runBudget) {
       return {
         allowed: false,
@@ -58,7 +45,6 @@ export class CostGuard {
       };
     }
 
-    // 4. Check daily user budget
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
@@ -95,40 +81,31 @@ export class CostGuard {
     };
   }
 
-  /**
-   * Estimate the total cost of a run before starting, based on node count and types.
-   * Useful for "dry run" cost preview.
-   */
   static estimateRunCost(nodeCount: number, model: string = 'claude-sonnet-4-20250514'): {
     estimatedCostUsd: number;
     breakdown: string;
     withinBudget: boolean;
   } {
-    // Average tokens per stage type (empirical estimates)
-    const AVG_INPUT_TOKENS = 4000;
-    const AVG_OUTPUT_TOKENS = 6000;
+    const avgInputTokens = 4000;
+    const avgOutputTokens = 6000;
 
     const perStageCost = CostTracker.calculateCost({
-      inputTokens: AVG_INPUT_TOKENS,
-      outputTokens: AVG_OUTPUT_TOKENS,
+      inputTokens: avgInputTokens,
+      outputTokens: avgOutputTokens,
       model,
       backend: 'anthropic',
     });
 
-    // LLM nodes are roughly 70% of total nodes (rest are gates, verify)
     const llmNodes = Math.ceil(nodeCount * 0.7);
     const estimatedCostUsd = llmNodes * perStageCost;
 
     return {
       estimatedCostUsd: Math.round(estimatedCostUsd * 10000) / 10000,
-      breakdown: `~${llmNodes} LLM calls × ~${AVG_INPUT_TOKENS + AVG_OUTPUT_TOKENS} tokens × $${perStageCost.toFixed(4)}/call`,
+      breakdown: `~${llmNodes} LLM calls x ~${avgInputTokens + avgOutputTokens} tokens x ${CostTracker.formatCost(perStageCost)}/call`,
       withinBudget: estimatedCostUsd <= DEFAULT_RUN_BUDGET,
     };
   }
 
-  /**
-   * Get budget configuration for display.
-   */
   static getBudgets(): { runBudget: number; dailyBudget: number } {
     return { runBudget: DEFAULT_RUN_BUDGET, dailyBudget: DEFAULT_DAILY_BUDGET };
   }

@@ -35,26 +35,8 @@ export default async function DashboardPage() {
   const session = await getSessionOrDemo();
   if (!session?.user?.id) notFound();
 
-  const projects = await prisma.project.findMany({
-    where: { userId: session.user.id },
-    orderBy: { updatedAt: 'desc' },
-    include: {
-      _count: { select: { runs: true } },
-      runs: {
-        orderBy: { startedAt: 'desc' },
-        take: 1,
-        select: { status: true, type: true },
-      },
-    },
-  });
-
-  const totalRuns = await prisma.pipelineRun.count({
-    where: { project: { userId: session.user.id } },
-  });
-
-  const completedRuns = await prisma.pipelineRun.count({
-    where: { project: { userId: session.user.id }, status: 'completed' },
-  });
+  const dashboardData = await loadDashboardData(session.user.id);
+  const { projects, totalRuns, completedRuns, databaseAvailable } = dashboardData;
 
   const projectSummaries: ProjectSummary[] = projects.map((p) => ({
     id: p.id,
@@ -106,10 +88,10 @@ export default async function DashboardPage() {
                   Product Overview
                 </div>
                 <CardTitle className="text-3xl tracking-tight text-zinc-50">
-                  Generate, verify, and package software work that feels ready to hand off.
+                  Generate repo-aware code, verify it, and publish a reviewed GitLab merge request.
                 </CardTitle>
                 <p className="max-w-3xl text-sm leading-6 text-zinc-300">
-                  The One Forge is now framed so the top of the experience can sell the product clearly, while the actual build workspace stays focused on projects, runs, and delivery.
+                  The One Forge turns a feature spec or bug report into a traceable run: clone the repo, analyze conventions, draft a plan, generate code, run readiness checks, and keep a human approval gate before anything ships.
                 </p>
                 <div className="flex flex-wrap gap-3 pt-2">
                   <Button asChild size="sm">
@@ -150,15 +132,15 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">What this page does now</div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Live flow</div>
                   <p className="mt-2 leading-6 text-zinc-300">
-                    Marketing lives at the top with anchors for product story and pricing. Build-related work stays below in a dedicated workspace area so the homepage feels more organized.
+                    Build mode accepts a feature spec and GitLab repo URL. Debug mode accepts a bug report and repo URL. Both pause for plan approval, then code approval, before publishing.
                   </p>
                 </div>
                 <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Why it helps</div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Demo proof points</div>
                   <p className="mt-2 leading-6 text-zinc-300">
-                    Someone new can understand the offer fast, while an active user can jump straight to projects and pipelines without wading through the pricing story every time.
+                    Show run history, streaming logs, generated diffs, verification badges, measured token cost, and the final merge-request handoff path.
                   </p>
                 </div>
                 <Button asChild variant="outline" size="sm" className="w-full">
@@ -173,11 +155,11 @@ export default async function DashboardPage() {
               <div>
                 <div className="text-xs uppercase tracking-[0.24em] text-cyan-300">Learn More</div>
                 <h2 className="text-2xl font-semibold tracking-tight text-zinc-50">
-                  Separate the product story from the build bench.
+                  Built for launch-ready software work, not toy generation.
                 </h2>
               </div>
               <p className="max-w-2xl text-sm leading-6 text-zinc-400">
-                This section frames who Forge is for and what buyers get, while the workspace below stays dedicated to actual project execution.
+                Forge is strongest when you can point it at a real repository and ask for a scoped feature, targeted fix, test pass, or deployment upgrade.
               </p>
             </div>
 
@@ -230,11 +212,11 @@ export default async function DashboardPage() {
               <div>
                 <div className="text-xs uppercase tracking-[0.24em] text-cyan-300">Pricing</div>
                 <h2 className="text-2xl font-semibold tracking-tight text-zinc-50">
-                  Keep the pricing story visible without crowding the workspace.
+                  Transparent platform and model-cost assumptions.
                 </h2>
               </div>
               <p className="max-w-2xl text-sm leading-6 text-zinc-400">
-                The pricing section now stands on its own so the workspace can stay about pipelines, previews, and real project momentum.
+                Demo access has no platform fee. API spend depends on the configured provider, model, token usage, and Anthropic pricing modifiers such as caching, batch processing, tools, and data residency.
               </p>
             </div>
 
@@ -244,7 +226,7 @@ export default async function DashboardPage() {
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between gap-3 text-lg">
                       <span>{plan.name}</span>
-                      <span className="text-xs font-medium text-cyan-300">{plan.price}</span>
+                      <span className="text-right text-xs font-medium text-cyan-300">{plan.price}</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
@@ -289,6 +271,11 @@ export default async function DashboardPage() {
                   <span className="font-medium text-zinc-200">
                     {Math.round((completedRuns / totalRuns) * 100)}%
                   </span> success rate
+                </span>
+              )}
+              {!databaseAvailable && (
+                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
+                  Demo data mode: local database is offline
                 </span>
               )}
             </div>
@@ -354,7 +341,7 @@ export default async function DashboardPage() {
                   <CardContent className="space-y-4">
                     <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4">
                       <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Core Use Cases</div>
-                      <p className="mt-2 text-sm leading-6 text-zinc-300">Founder demos, agency delivery, and backlog relief.</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">Feature builds, targeted bug fixes, readiness verification, and merge-request handoff.</p>
                     </div>
                     <div className="space-y-3">
                       {forgeTrustSignals.map((signal) => (
@@ -364,7 +351,9 @@ export default async function DashboardPage() {
                         </div>
                       ))}
                     </div>
-                    <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-4 text-sm text-zinc-300">Growth Priorities</div>
+                    <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-4 text-sm text-zinc-300">
+                      Interview path: create or open a Forge run, show logs, approve the plan, review the diff, and point to measured cost details.
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -374,4 +363,53 @@ export default async function DashboardPage() {
       </PageContainer>
     </>
   );
+}
+
+async function loadDashboardData(userId: string): Promise<{
+  projects: Array<{
+    id: string;
+    name: string;
+    description: string;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+    _count: { runs: number };
+    runs: Array<{ status: string; type: string }>;
+  }>;
+  totalRuns: number;
+  completedRuns: number;
+  databaseAvailable: boolean;
+}> {
+  try {
+    const [projects, totalRuns, completedRuns] = await Promise.all([
+      prisma.project.findMany({
+        where: { userId },
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          _count: { select: { runs: true } },
+          runs: {
+            orderBy: { startedAt: 'desc' },
+            take: 1,
+            select: { status: true, type: true },
+          },
+        },
+      }),
+      prisma.pipelineRun.count({
+        where: { project: { userId } },
+      }),
+      prisma.pipelineRun.count({
+        where: { project: { userId }, status: 'completed' },
+      }),
+    ]);
+
+    return { projects, totalRuns, completedRuns, databaseAvailable: true };
+  } catch (err) {
+    console.warn('[Dashboard] Database unavailable; rendering offline demo state.', err);
+    return {
+      projects: [],
+      totalRuns: 0,
+      completedRuns: 0,
+      databaseAvailable: false,
+    };
+  }
 }

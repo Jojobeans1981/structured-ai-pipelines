@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
 import { getForgeSessionOrDemo } from '@/src/lib/auth-helpers'
-import { getForgeRun, updateForgeRun } from '@/src/services/forge/db'
+import { claimForgeRun, getForgeRun, updateForgeRun } from '@/src/services/forge/db'
 import type { SSEEvent } from '@/src/services/forge/types/sse'
 import { runBuildPipelineStage2 } from '@/src/services/forge/build-pipeline'
 import { runDebugPipelineStage2 } from '@/src/services/forge/debug-pipeline'
@@ -23,11 +23,25 @@ export async function GET(
     return new Response('Run not found', { status: 404 })
   }
 
+  if (run.userId !== session.user.id) {
+    return new Response('Forbidden', { status: 403 })
+  }
+
   if (run.status !== 'awaiting_approval' || run.stage !== 'plan') {
     return new Response(
       `Cannot advance run with status="${run.status}" stage="${run.stage}"`,
       { status: 409 },
     )
+  }
+
+  const claimed = await claimForgeRun(
+    runId,
+    session.user.id,
+    { status: 'awaiting_approval', stage: 'plan' },
+    { status: 'running', stage: null },
+  )
+  if (!claimed) {
+    return new Response('Run already advanced or no longer awaiting plan approval', { status: 409 })
   }
 
   const encoder = new TextEncoder()
@@ -40,7 +54,6 @@ export async function GET(
   }
 
   const runStage2 = async (): Promise<void> => {
-    await updateForgeRun(runId, { status: 'running', stage: null })
     try {
       if (run.mode === 'build') {
         await runBuildPipelineStage2({

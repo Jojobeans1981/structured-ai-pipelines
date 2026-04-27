@@ -393,6 +393,7 @@ model ForgeRun {
   bugDescription  String?   @db.Text
   prdTitle        String?
   prdSummary      String?
+  stageData       Json?
   error           String?   @db.Text
   createdAt       DateTime  @default(now())
   completedAt     DateTime?

@@ -5,10 +5,23 @@ import { getForgeSessionOrDemo } from '@/src/lib/auth-helpers'
 import { z } from 'zod'
 import { createForgeRun, listForgeRuns } from '@/src/services/forge/db'
 import { extractTextFromFile } from '@/src/services/forge/utils/markdown'
+import { validateGitLabRepoUrl } from '@/src/services/forge/utils/repo'
+
+const GitLabRepoUrlSchema = z.string().transform((value, ctx) => {
+  try {
+    return validateGitLabRepoUrl(value)
+  } catch (err) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: err instanceof Error ? err.message : 'Invalid GitLab repo URL',
+    })
+    return z.NEVER
+  }
+})
 
 const BuildJsonSchema = z.object({
   mode: z.literal('build'),
-  repoUrl: z.string().url(),
+  repoUrl: GitLabRepoUrlSchema,
   specContent: z.string().min(1),
   specFilename: z.string().optional(),
   branchName: z.string().optional(),
@@ -17,7 +30,7 @@ const BuildJsonSchema = z.object({
 
 const DebugJsonSchema = z.object({
   mode: z.literal('debug'),
-  repoUrl: z.string().url(),
+  repoUrl: GitLabRepoUrlSchema,
   bugDescription: z.string().min(1),
   branchName: z.string().optional(),
   continuous: z.boolean().optional(),
@@ -39,8 +52,13 @@ export async function POST(req: Request): Promise<NextResponse> {
       const specFile = formData.get('specFile') as File | null
       const continuous = formData.get('continuous') === 'true'
 
+      const repoResult = GitLabRepoUrlSchema.safeParse(repoUrl)
       if (!repoUrl || !specFile) {
         return NextResponse.json({ error: 'repoUrl and specFile are required' }, { status: 400 })
+      }
+
+      if (!repoResult.success) {
+        return NextResponse.json({ error: repoResult.error.issues[0]?.message ?? 'Invalid GitLab repo URL' }, { status: 400 })
       }
 
       const buffer = Buffer.from(await specFile.arrayBuffer())
@@ -48,7 +66,7 @@ export async function POST(req: Request): Promise<NextResponse> {
 
       const run = await createForgeRun(session.user.id, {
         mode: 'build',
-        repoUrl,
+        repoUrl: repoResult.data,
         specContent,
         specFilename: specFile.name,
         branchName: branchName ?? undefined,

@@ -72,6 +72,7 @@ export default function PlanApproval({ runId, mode }: PlanApprovalProps) {
               <div>
                 <button
                   onClick={() => setShowFullPrd(!showFullPrd)}
+                  aria-expanded={showFullPrd}
                   className="text-indigo-400 hover:text-indigo-300 text-xs font-medium transition-colors"
                 >
                   {showFullPrd ? 'Hide full PRD ▲' : 'Show full PRD ▼'}

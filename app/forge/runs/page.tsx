@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getForgeSessionOrDemo } from '@/src/lib/auth-helpers'
 import { listForgeRuns } from '@/src/services/forge/db'
+import type { ForgeRun } from '@/src/services/forge/db'
 import ModeBadge from '@/src/components/forge/mode-badge'
 import RunStatusBadge from '@/src/components/forge/run-status-badge'
 
@@ -11,14 +12,23 @@ export default async function ForgeRunsPage() {
     notFound()
   }
 
-  const runs = await listForgeRuns(session.user.id)
+  let runs: ForgeRun[] = []
+  let databaseAvailable = true
+  try {
+    runs = await listForgeRuns(session.user.id)
+  } catch (err) {
+    databaseAvailable = false
+    console.warn('[ForgeRuns] Database unavailable; rendering offline history state.', err)
+  }
 
   return (
     <div className="max-w-4xl mx-auto py-10 px-4">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Run History</h1>
-          <p className="text-gray-400 text-sm mt-1">{runs.length} run{runs.length !== 1 ? 's' : ''}</p>
+          <p className="text-gray-400 text-sm mt-1">
+            {databaseAvailable ? `${runs.length} run${runs.length !== 1 ? 's' : ''}` : 'Database offline'}
+          </p>
         </div>
         <Link
           href="/forge"
@@ -30,7 +40,7 @@ export default async function ForgeRunsPage() {
 
       {runs.length === 0 ? (
         <div className="text-center py-16 text-gray-500">
-          <p>No runs yet.</p>
+          <p>{databaseAvailable ? 'No runs yet.' : 'Run history is unavailable until the local database is running.'}</p>
           <Link href="/forge" className="text-indigo-400 hover:text-indigo-300 text-sm mt-2 inline-block">
             Start your first run →
           </Link>

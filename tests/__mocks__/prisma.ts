@@ -13,7 +13,9 @@ function mockModel() {
     findUnique: vi.fn().mockResolvedValue(null),
     create: vi.fn().mockResolvedValue({}),
     update: vi.fn().mockResolvedValue({}),
+    updateMany: vi.fn().mockResolvedValue({ count: 0 }),
     delete: vi.fn().mockResolvedValue({}),
+    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     count: vi.fn().mockResolvedValue(0),
     aggregate: vi.fn().mockResolvedValue({ _sum: {} }),
     groupBy: vi.fn().mockResolvedValue([]),
@@ -28,6 +30,7 @@ export const prisma = {
   confidenceScore: mockModel(),
   traceEvent: mockModel(),
   project: mockModel(),
+  forgeRun: mockModel(),
 };
 
 // This mock gets wired in via vi.mock in each test file

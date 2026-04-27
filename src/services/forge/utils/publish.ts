@@ -2,7 +2,8 @@ import { Gitlab } from '@gitbeaker/rest'
 import simpleGit from 'simple-git'
 import { prisma } from '@/src/lib/prisma'
 import { writeFileSync, mkdirSync } from 'fs'
-import { join, dirname } from 'path'
+import { dirname } from 'path'
+import { safeRepoPath, validateGitLabRepoUrl } from './repo'
 
 export interface PublishOptions {
   workDir: string
@@ -38,7 +39,7 @@ export async function publishToGitLab(opts: PublishOptions): Promise<PublishResu
   const { workDir, repoUrl, files, title, description, token } = opts
 
   // Parse repo URL to extract host and project path
-  const cleanUrl = repoUrl.replace(/\.git$/, '')
+  const cleanUrl = validateGitLabRepoUrl(repoUrl).replace(/\.git$/, '')
   const url = new URL(cleanUrl)
   const host = url.origin
   const projectPath = url.pathname.slice(1) // remove leading /
@@ -61,7 +62,7 @@ export async function publishToGitLab(opts: PublishOptions): Promise<PublishResu
 
   // Write all files
   for (const file of files) {
-    const fullPath = join(workDir, file.path)
+    const fullPath = safeRepoPath(workDir, file.path)
     mkdirSync(dirname(fullPath), { recursive: true })
     writeFileSync(fullPath, file.content, 'utf-8')
   }

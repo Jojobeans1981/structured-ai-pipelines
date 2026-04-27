@@ -6,6 +6,7 @@ import type {
   ForgeRunDiagnosis,
   ForgeRunResult,
   ForgeLessonLearned,
+  Prisma,
 } from '@prisma/client'
 
 export type {
@@ -84,6 +85,7 @@ export async function updateForgeRun(id: string, data: Partial<{
   stage: string | null
   prdTitle: string
   prdSummary: string
+  stageData: Prisma.InputJsonValue
   error: string
   completedAt: string
   branchName: string
@@ -92,6 +94,38 @@ export async function updateForgeRun(id: string, data: Partial<{
     where: { id },
     data,
   })
+}
+
+export async function claimForgeRun(
+  id: string,
+  userId: string,
+  expected: { status: string; stage?: string | null },
+  next: { status: string; stage?: string | null },
+): Promise<boolean> {
+  const result = await prisma.forgeRun.updateMany({
+    where: {
+      id,
+      userId,
+      status: expected.status,
+      ...(expected.stage !== undefined ? { stage: expected.stage } : {}),
+    },
+    data: next,
+  })
+
+  return result.count === 1
+}
+
+export async function saveForgeRunStageData(runId: string, stageData: unknown): Promise<ForgeRun> {
+  return updateForgeRun(runId, { stageData: stageData as Prisma.InputJsonValue })
+}
+
+export async function getForgeRunStageData<T>(runId: string): Promise<T | null> {
+  const run = await prisma.forgeRun.findUnique({
+    where: { id: runId },
+    select: { stageData: true },
+  })
+
+  return (run?.stageData as T | null) ?? null
 }
 
 export async function addForgeRunLog(runId: string, data: {

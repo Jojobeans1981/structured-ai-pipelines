@@ -20,5 +20,13 @@ export async function GET(
   }
 
   const data = await CostTracker.aggregateRunCost(params.runId);
-  return NextResponse.json({ data });
+  return NextResponse.json({
+    data,
+    accuracy: {
+      measured: 'Token counts and stored stage costs are measured from completed pipeline stages.',
+      pricing: 'Anthropic costs use configured list prices per million tokens. Cache, batch, long-context, regional endpoint, tax, and reseller markup are not included.',
+      local: 'Local Ollama inference is shown as free local API cost; hardware and electricity are not included.',
+      untracked: 'Providers without configured pricing, such as Groq, are labeled Not tracked rather than free.',
+    },
+  });
 }

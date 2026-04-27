@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
@@ -155,7 +155,7 @@ export function BuildSummaryPanel({ runId }: { runId: string }) {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-orange-400" />
-              Build Summary — {data.projectName}
+              Build Summary â€” {data.projectName}
             </CardTitle>
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" />
@@ -163,7 +163,7 @@ export function BuildSummaryPanel({ runId }: { runId: string }) {
             </Button>
           </div>
           <p className="text-xs text-zinc-500 font-mono">
-            Run: {data.runId} · Verified: {new Date(data.verifiedAt).toLocaleString()}
+            Run: {data.runId} Â· Verified: {new Date(data.verifiedAt).toLocaleString()}
           </p>
         </CardHeader>
         <CardContent>
@@ -173,7 +173,7 @@ export function BuildSummaryPanel({ runId }: { runId: string }) {
               icon={<Clock className="h-3.5 w-3.5" />}
               label="Wall Clock"
               value={data.totalDurationFormatted}
-              sub={`Compute: ${(data as unknown as Record<string, unknown>).computeTimeFormatted || '—'} · ${data.totalStages} stages`}
+              sub={`Compute: ${(data as unknown as Record<string, unknown>).computeTimeFormatted || 'â€”'} Â· ${data.totalStages} stages`}
             />
             <StatCard
               icon={<Cpu className="h-3.5 w-3.5" />}
@@ -185,7 +185,7 @@ export function BuildSummaryPanel({ runId }: { runId: string }) {
               icon={<Coins className="h-3.5 w-3.5" />}
               label="API Cost"
               value={data.costFormatted}
-              sub={data.roiMultiple > 0 ? `${data.roiMultiple}x ROI vs engineer` : 'Free model'}
+              sub="Measured stage token usage"
             />
             <StatCard
               icon={<FileText className="h-3.5 w-3.5" />}
@@ -194,17 +194,11 @@ export function BuildSummaryPanel({ runId }: { runId: string }) {
               sub={`${data.fileList.reduce((s, f) => s + f.sizeBytes, 0)} bytes total`}
             />
           </div>
-
-          {/* ROI callout */}
-          {data.roiMultiple > 0 && (
-            <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-              <p className="text-sm text-emerald-300">
-                Estimated equivalent: <strong>{data.estimatedEngineerHours}hrs</strong> of engineer time
-                (${data.estimatedEngineerCost} at $150/hr) vs <strong>{data.costFormatted}</strong> in API costs
-                — <strong>{data.roiMultiple}x cost savings</strong>
-              </p>
-            </div>
-          )}
+          <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+            <p className="text-sm text-emerald-300">
+              Cost is calculated from recorded input/output tokens and configured model pricing. Output-size estimates are directional and are not presented as savings or ROI.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
@@ -262,18 +256,18 @@ export function BuildSummaryPanel({ runId }: { runId: string }) {
                 }`} />
                 <span className="flex-1 text-zinc-200 truncate">{stage.displayName}</span>
                 {stage.wasRejected && (
-                  <span className="text-xs text-yellow-500">rejected {stage.retryCount > 0 ? `×${stage.retryCount}` : ''}</span>
+                  <span className="text-xs text-yellow-500">rejected {stage.retryCount > 0 ? `Ã—${stage.retryCount}` : ''}</span>
                 )}
                 <span className="text-xs text-zinc-500 w-16 text-right">
-                  {stage.durationMs ? `${(stage.durationMs / 1000).toFixed(1)}s` : '—'}
+                  {stage.durationMs ? `${(stage.durationMs / 1000).toFixed(1)}s` : 'â€”'}
                 </span>
                 <span className="text-xs text-zinc-500 w-14 text-right">
                   {stage.inputTokens + stage.outputTokens > 0
                     ? `${((stage.inputTokens + stage.outputTokens) / 1000).toFixed(1)}k`
-                    : '—'}
+                    : 'â€”'}
                 </span>
                 <span className="text-xs text-zinc-600 w-20 text-right truncate">
-                  {stage.model || stage.backend || '—'}
+                  {stage.model || stage.backend || 'â€”'}
                 </span>
               </div>
             ))}
@@ -307,7 +301,7 @@ export function BuildSummaryPanel({ runId }: { runId: string }) {
                 <div className="flex-1 min-w-0">
                   <div className="text-zinc-200">{check.name}</div>
                   <div className="text-xs text-zinc-500">
-                    Expected: {check.expected} · Actual: {check.actual}
+                    Expected: {check.expected} Â· Actual: {check.actual}
                   </div>
                   {check.detail && (
                     <div className="text-xs text-zinc-600 mt-0.5">{check.detail}</div>
@@ -354,3 +348,4 @@ export function BuildSummaryPanel({ runId }: { runId: string }) {
     </div>
   );
 }
+

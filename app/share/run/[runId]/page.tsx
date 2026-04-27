@@ -76,7 +76,7 @@ export default async function SharedRunPage({
                 Cost
               </div>
               <div className="mt-2 text-3xl font-semibold">{summary.costFormatted}</div>
-              <p className="mt-1 text-xs text-zinc-500">{summary.roiMultiple}x ROI estimate</p>
+              <p className="mt-1 text-xs text-zinc-500">Measured from recorded stage tokens</p>
             </CardContent>
           </Card>
           <Card className="border-zinc-800 bg-zinc-900/50">

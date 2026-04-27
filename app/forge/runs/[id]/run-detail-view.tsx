@@ -31,49 +31,55 @@ export default function RunDetailView({
   const diff = useForgeStore((s) => s.diff)
   const diagnosis = useForgeStore((s) => s.diagnosis)
   const result = useForgeStore((s) => s.result)
-  const setStatus = useForgeStore((s) => s.setStatus)
-  const setStage = useForgeStore((s) => s.setStage)
-  const setDiff = useForgeStore((s) => s.setDiff)
-  const setDiagnosis = useForgeStore((s) => s.setDiagnosis)
-  const setResult = useForgeStore((s) => s.setResult)
-  const addLog = useForgeStore((s) => s.addLog)
+  const hydrateRun = useForgeStore((s) => s.hydrateRun)
 
   // Initialize store from server data
   useEffect(() => {
-    setStatus(run.status)
-    setStage(run.stage ?? null)
-
-    for (const log of initialLogs) {
-      addLog({ step: log.step, level: log.level as 'info' | 'warn' | 'error' | 'success', message: log.message })
-    }
-
-    if (initialDiff) {
-      setDiff({
-        files: initialDiff.files as Array<{ path: string; content: string }>,
-        lintPassed: initialDiff.lintPassed,
-        testsPassed: initialDiff.testsPassed,
-        errors: initialDiff.errors as string[],
-      })
-    }
-
-    if (initialDiagnosis) {
-      setDiagnosis({
-        rootCause: initialDiagnosis.rootCause,
-        affectedFiles: initialDiagnosis.affectedFiles as string[],
-        fixPlan: initialDiagnosis.fixPlan as Array<{ file: string; action: 'create' | 'modify' | 'delete'; description: string }>,
-      })
-    }
-
-    if (initialResult) {
-      setResult({
-        mrUrl: initialResult.mrUrl,
-        mrIid: initialResult.mrIid,
-        branch: initialResult.branch,
-        title: initialResult.title,
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    hydrateRun({
+      status: run.status,
+      stage: run.stage ?? null,
+      logs: initialLogs.map((log) => ({
+        step: log.step,
+        level: log.level as 'info' | 'warn' | 'error' | 'success',
+        message: log.message,
+      })),
+      diff: initialDiff
+        ? {
+            files: initialDiff.files as Array<{ path: string; content: string }>,
+            lintPassed: initialDiff.lintPassed,
+            testsPassed: initialDiff.testsPassed,
+            errors: initialDiff.errors as string[],
+          }
+        : null,
+      diagnosis: initialDiagnosis
+        ? {
+            rootCause: initialDiagnosis.rootCause,
+            affectedFiles: initialDiagnosis.affectedFiles as string[],
+            fixPlan: initialDiagnosis.fixPlan as Array<{ file: string; action: 'create' | 'modify' | 'delete'; description: string }>,
+          }
+        : null,
+      result: initialResult
+        ? {
+            mrUrl: initialResult.mrUrl,
+            mrIid: initialResult.mrIid,
+            branch: initialResult.branch,
+            title: initialResult.title,
+          }
+        : null,
+      planData: run.mode === 'build'
+        ? {
+            prdTitle: run.prdTitle ?? undefined,
+            prdSummary: run.prdSummary ?? undefined,
+          }
+        : initialDiagnosis
+          ? {
+              rootCause: initialDiagnosis.rootCause,
+              affectedFiles: initialDiagnosis.affectedFiles as string[],
+              fixPlan: initialDiagnosis.fixPlan as Array<{ file: string; action: 'create' | 'modify' | 'delete'; description: string }>,
+            }
+          : null,
+    })
+  }, [hydrateRun, initialDiagnosis, initialDiff, initialLogs, initialResult, run.mode, run.prdSummary, run.prdTitle, run.stage, run.status])
 
   const showPlanApproval = status === 'awaiting_approval' && stage === 'plan'
   const showCodeApproval = status === 'awaiting_approval' && stage === 'code' && diff

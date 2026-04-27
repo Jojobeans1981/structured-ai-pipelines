@@ -1,4 +1,5 @@
 import { prisma } from '@/src/lib/prisma';
+import type { Prisma } from '@prisma/client';
 import { type MetricsSummary, type MetricsSummaryItem, type MetricHistoryEntry } from '@/src/types/metrics';
 import { CostTracker } from '@/src/services/cost-tracker';
 
@@ -66,7 +67,7 @@ export class MetricsService {
         totalInputTokens: tokenData.totalInputTokens,
         totalOutputTokens: tokenData.totalOutputTokens,
         totalCostUsd: tokenData.totalCostUsd,
-        stageTokens: tokenData.stageTokens,
+        stageTokens: tokenData.stageTokens as unknown as Prisma.InputJsonValue,
       },
     });
 

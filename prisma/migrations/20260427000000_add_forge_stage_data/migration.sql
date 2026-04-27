@@ -1,0 +1,1 @@
+ALTER TABLE "ForgeRun" ADD COLUMN "stageData" JSONB;

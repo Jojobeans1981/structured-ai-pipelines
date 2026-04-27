@@ -28,15 +28,26 @@ function shouldEnableForgeGuestAccess(): boolean {
 const AUTH_BYPASS = shouldBypassAuth();
 const FORGE_GUEST_ACCESS = shouldEnableForgeGuestAccess();
 const DEMO_USER_EMAIL = 'demo@gauntletforge.dev';
+const OFFLINE_DEMO_USER = {
+  id: 'demo-offline-user',
+  name: 'Demo User',
+  email: DEMO_USER_EMAIL,
+  image: null as string | null,
+};
 
 async function getOrCreateDemoUser() {
-  let user = await prisma.user.findUnique({ where: { email: DEMO_USER_EMAIL } });
-  if (!user) {
-    user = await prisma.user.create({
-      data: { email: DEMO_USER_EMAIL, name: 'Demo User' },
-    });
+  try {
+    let user = await prisma.user.findUnique({ where: { email: DEMO_USER_EMAIL } });
+    if (!user) {
+      user = await prisma.user.create({
+        data: { email: DEMO_USER_EMAIL, name: 'Demo User' },
+      });
+    }
+    return { id: user.id, name: user.name, email: user.email, image: user.image };
+  } catch (err) {
+    console.warn('[Auth] Demo database user unavailable; using offline demo session.', err);
+    return OFFLINE_DEMO_USER;
   }
-  return { id: user.id, name: user.name, email: user.email, image: user.image };
 }
 
 export async function getAuthenticatedUser() {

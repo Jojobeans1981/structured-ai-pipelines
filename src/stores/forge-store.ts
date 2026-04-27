@@ -55,6 +55,15 @@ interface ForgeState {
   setDiagnosis: (diagnosis: ForgeDiagnosis) => void
   setResult: (result: ForgeResult) => void
   setPlanData: (data: ForgePlanData) => void
+  hydrateRun: (data: {
+    status: string
+    stage: string | null
+    logs: ForgeRunLog[]
+    diff: ForgeDiff | null
+    diagnosis: ForgeDiagnosis | null
+    result: ForgeResult | null
+    planData?: ForgePlanData | null
+  }) => void
   triggerAdvance: (runId: string) => void
   reset: () => void
 }
@@ -76,6 +85,16 @@ export const useForgeStore = create<ForgeState>((set) => ({
   setDiagnosis: (diagnosis) => set({ diagnosis }),
   setResult: (result) => set({ result }),
   setPlanData: (data) => set({ planData: data }),
+  hydrateRun: (data) => set({
+    status: data.status,
+    stage: data.stage,
+    logs: data.logs,
+    diff: data.diff,
+    diagnosis: data.diagnosis,
+    result: data.result,
+    planData: data.planData ?? null,
+    advanceStreamUrl: null,
+  }),
   triggerAdvance: (runId) => set({
     status: 'running',
     stage: null,

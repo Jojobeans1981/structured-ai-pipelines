@@ -1,4 +1,4 @@
-import { prisma } from '@/src/lib/prisma';
+﻿import { prisma } from '@/src/lib/prisma';
 import levenshtein from 'fast-levenshtein';
 
 export interface LearningPattern {
@@ -12,32 +12,45 @@ export interface LearningPattern {
   status: string;
 }
 
+export interface LearningStats {
+  totalPatterns: number;
+  activePatterns: number;
+  resolvedPatterns: number;
+  totalRejections: number;
+  topOffenders: Array<{ agent: string; count: number }>;
+}
+
 export class LearningStore {
   /**
    * Record a rejection pattern. Uses Levenshtein distance for fuzzy matching.
-   * If an agent repeats a known error, we DROP the weight (penalty).
+   * If an agent repeats a known error, we drop the weight as a penalty.
    */
   static async recordRejection(
     sourceAgent: string,
     targetAgent: string,
     pattern: string,
     runId?: string,
-    stageId?: string
+    stageId?: string,
   ): Promise<void> {
-    const activePatterns = await prisma.learningEntry.findMany({ 
-      where: { targetAgent, status: "active" } 
+    const exact = await prisma.learningEntry.findFirst({
+      where: { pattern, targetAgent, status: 'active' },
     });
-    
-    const existing = activePatterns.find(p => {
+
+    const activePatterns = exact
+      ? [exact]
+      : await prisma.learningEntry.findMany({
+          where: { targetAgent, status: 'active' },
+        });
+
+    const existing = activePatterns.find((p) => {
       const dist = levenshtein.get(p.pattern, pattern);
       const maxLen = Math.max(p.pattern.length, pattern.length);
       return (maxLen - dist) / maxLen > 0.7;
     });
 
     if (existing) {
-      // PENALTY: The agent ignored the warning. Drop the weight by 15%.
       const newWeight = Math.max(0, (existing.weight || 1.0) - 0.15);
-      
+
       await prisma.learningEntry.update({
         where: { id: existing.id },
         data: {
@@ -48,7 +61,7 @@ export class LearningStore {
           stageId,
         },
       });
-      console.log(`[LearningStore] Ignored Warning: "${pattern.substring(0, 60)}" (weight dropped to ${newWeight.toFixed(2)})`);
+      console.log(`[LearningStore] Ignored warning: "${pattern.substring(0, 60)}" (weight dropped to ${newWeight.toFixed(2)})`);
     } else {
       await prisma.learningEntry.create({
         data: {
@@ -59,7 +72,7 @@ export class LearningStore {
           weight: 1.0,
           runId,
           stageId,
-          status: "active"
+          status: 'active',
         },
       });
       console.log(`[LearningStore] New pattern learned: "${pattern.substring(0, 60)}"`);
@@ -67,17 +80,74 @@ export class LearningStore {
   }
 
   /**
-   * Prune low-weight patterns (weight < 0.3) that agents consistently ignore.
+   * Prune low-weight patterns that agents consistently ignore.
    */
   static async pruneStalePatterns(): Promise<number> {
     const result = await prisma.learningEntry.deleteMany({
-      where: { weight: { lt: 0.3 }, status: 'active' }
+      where: { weight: { lt: 0.3 }, status: 'active' },
     });
-    
+
     if (result.count > 0) {
-      console.log(`[LearningStore] ��� Pruned ${result.count} ineffective patterns.`);
+      console.log(`[LearningStore] Pruned ${result.count} ineffective patterns.`);
     }
     return result.count;
+  }
+
+  static async expireStalePatterns(): Promise<number> {
+    return LearningStore.pruneStalePatterns();
+  }
+
+  static async resolve(id: string, resolution: string): Promise<void> {
+    await prisma.learningEntry.update({
+      where: { id },
+      data: { status: 'resolved', resolution },
+    });
+  }
+
+  static async getAllPatterns(): Promise<LearningPattern[]> {
+    const entries = await prisma.learningEntry.findMany({
+      orderBy: [
+        { status: 'asc' },
+        { rejectionCount: 'desc' },
+      ],
+    });
+
+    return entries.map(toLearningPattern);
+  }
+
+  static async getActivePatterns(): Promise<LearningPattern[]> {
+    const entries = await prisma.learningEntry.findMany({
+      where: { status: 'active' },
+      orderBy: { rejectionCount: 'desc' },
+    });
+
+    return entries.map(toLearningPattern);
+  }
+
+  static async getStats(): Promise<LearningStats> {
+    const [totalPatterns, activePatterns, resolvedPatterns, rejectionAggregate, offenders] = await Promise.all([
+      prisma.learningEntry.count(),
+      prisma.learningEntry.count({ where: { status: 'active' } }),
+      prisma.learningEntry.count({ where: { status: 'resolved' } }),
+      prisma.learningEntry.aggregate({ _sum: { rejectionCount: true } }),
+      prisma.learningEntry.groupBy({
+        by: ['targetAgent'],
+        _sum: { rejectionCount: true },
+        orderBy: { _sum: { rejectionCount: 'desc' } },
+        take: 5,
+      }),
+    ]);
+
+    return {
+      totalPatterns,
+      activePatterns,
+      resolvedPatterns,
+      totalRejections: rejectionAggregate._sum.rejectionCount ?? 0,
+      topOffenders: offenders.map((entry) => ({
+        agent: entry.targetAgent,
+        count: entry._sum.rejectionCount ?? 0,
+      })),
+    };
   }
 
   static async getWarningsFor(targetAgent: string): Promise<string[]> {
@@ -85,7 +155,7 @@ export class LearningStore {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const entries = await prisma.learningEntry.findMany({
-      where: { 
+      where: {
         targetAgent,
         status: 'active',
         rejectionCount: { gte: 1 },
@@ -96,14 +166,14 @@ export class LearningStore {
     });
 
     return entries.map((e) =>
-      `⚠️ KNOWN ISSUE (seen ${e.rejectionCount}x): ${e.pattern}${e.resolution ? ` — Resolution: ${e.resolution}` : ''}`
+      `Known issue automatically rejected before (seen ${e.rejectionCount}x): ${e.pattern}${e.resolution ? ` - Resolution: ${e.resolution}` : ''}`,
     );
   }
 
   static async getWarningBlock(targetAgent: string): Promise<string> {
     const warnings = await LearningStore.getWarningsFor(targetAgent);
     if (warnings.length === 0) return '';
-    return '\n\n## ⚠️ FORGE QUALITY WARNINGS\n' + warnings.map(w => `- ${w}`).join('\n') + '\n';
+    return '\n\n## FORGE QUALITY WARNINGS\n' + warnings.map((w) => `- ${w}`).join('\n') + '\n';
   }
 
   static async resolveForAgent(targetAgent: string, resolution: string): Promise<number> {
@@ -113,4 +183,26 @@ export class LearningStore {
     });
     return result.count;
   }
+}
+
+function toLearningPattern(entry: {
+  id: string;
+  pattern: string;
+  sourceAgent: string;
+  targetAgent: string;
+  rejectionCount: number;
+  weight: number;
+  resolution: string | null;
+  status: string;
+}): LearningPattern {
+  return {
+    id: entry.id,
+    pattern: entry.pattern,
+    sourceAgent: entry.sourceAgent,
+    targetAgent: entry.targetAgent,
+    rejectionCount: entry.rejectionCount,
+    weight: entry.weight,
+    resolution: entry.resolution,
+    status: entry.status,
+  };
 }

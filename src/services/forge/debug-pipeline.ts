@@ -1,13 +1,13 @@
 import { execSync } from 'child_process'
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'fs'
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'fs'
 import { join, dirname } from 'path'
 import { tmpdir } from 'os'
 import type { SSEEvent } from './types/sse'
 import type { BugReport, CodeMap } from './types/bug'
 import type { RootCause, FixPlan, FixFile } from './types/fix'
 import type { ConventionsProfile } from './types/conventions'
-import { updateForgeRun, addForgeRunLog, saveForgeRunDiagnosis, saveForgeRunDiff, addForgeLessonLearned } from './db'
-import { cloneRepo, buildTree, extractCodeSamples } from './utils/repo'
+import { updateForgeRun, addForgeRunLog, saveForgeRunDiagnosis, saveForgeRunDiff, addForgeLessonLearned, saveForgeRunStageData, getForgeRunStageData } from './db'
+import { cloneRepo, buildTree, extractCodeSamples, safeRepoPath } from './utils/repo'
 import { mapCodePaths } from './agents/archaeologist-agent'
 import { analyzeRootCause } from './agents/root-cause-agent'
 import { planFix } from './agents/fix-planner-agent'
@@ -48,6 +48,21 @@ function detectCommands(workDir: string): { lint?: string; test?: string } {
     }
   }
   return {}
+}
+
+async function ensureRepoCheckout(workDir: string, repoUrl: string, emit: (event: SSEEvent) => void, runId: string): Promise<void> {
+  if (existsSync(join(workDir, '.git'))) {
+    return
+  }
+
+  if (existsSync(workDir)) {
+    rmSync(workDir, { recursive: true, force: true })
+  }
+
+  mkdirSync(workDir, { recursive: true })
+  emitLog(emit, runId, 'Clone', `Restoring checkout from ${repoUrl}...`)
+  await cloneRepo(repoUrl, workDir)
+  emitLog(emit, runId, 'Clone', 'Repository checkout restored', 'success')
 }
 
 export async function runDebugPipelineStage1(opts: {
@@ -96,6 +111,7 @@ export async function runDebugPipelineStage1(opts: {
   // 7. Save stage data
   const stageData: DebugStageData = { bugReport, codeMap, rootCause, fixPlan }
   writeFileSync(join(workDir, STAGE_DATA_FILE), JSON.stringify(stageData, null, 2))
+  await saveForgeRunStageData(runId, stageData)
 
   // 8. Save diagnosis
   await saveForgeRunDiagnosis(runId, {
@@ -130,15 +146,15 @@ export async function runDebugPipelineStage2(opts: {
   emit: (event: SSEEvent) => void
   continuous?: boolean
 }): Promise<void> {
-  const { userId, runId, emit, continuous = false } = opts
+  const { userId, runId, repoUrl, emit, continuous = false } = opts
   const workDir = join(tmpdir(), `forge-${runId}`)
 
-  // 1. Load stage data
-  const stageDataPath = join(workDir, STAGE_DATA_FILE)
-  if (!existsSync(stageDataPath)) {
-    throw new Error('Debug stage data not found — Stage 1 may not have completed')
+  // 1. Load persisted stage data and restore the checkout if temp storage was cleaned.
+  const stageData = await getForgeRunStageData<DebugStageData>(runId)
+  if (!stageData) {
+    throw new Error('Debug stage data not found. Stage 1 may not have completed.')
   }
-  const stageData: DebugStageData = JSON.parse(readFileSync(stageDataPath, 'utf-8'))
+  await ensureRepoCheckout(workDir, repoUrl, emit, runId)
   const { bugReport, codeMap, rootCause, fixPlan: initialFixPlan } = stageData
 
   let currentFixPlan = initialFixPlan
@@ -160,7 +176,7 @@ export async function runDebugPipelineStage2(opts: {
       // Read existing content if modifying
       let existingContent: string | null = null
       if (step.action !== 'create') {
-        const filePath = join(workDir, step.file)
+        const filePath = safeRepoPath(workDir, step.file)
         if (existsSync(filePath)) {
           existingContent = readFileSync(filePath, 'utf-8')
         }
@@ -173,7 +189,7 @@ export async function runDebugPipelineStage2(opts: {
 
     // 3. Write files
     for (const file of fixFiles) {
-      const fullPath = join(workDir, file.path)
+      const fullPath = safeRepoPath(workDir, file.path)
       mkdirSync(dirname(fullPath), { recursive: true })
       writeFileSync(fullPath, file.content, 'utf-8')
 

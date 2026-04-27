@@ -1,4 +1,4 @@
-import fs from 'fs/promises';
+Ôªøimport fs from 'fs/promises';
 import path from 'path';
 
 export class ScaffoldEngine {
@@ -10,7 +10,7 @@ export class ScaffoldEngine {
       'tailwind.config.js': `module.exports = { content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"], theme: { extend: {} }, plugins: [] }`,
       'postcss.config.js': `module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } }`,
     });
-    console.log(`[ScaffoldEngine] ÌøóÔ∏è Injected Golden React/Vite Configs into ${targetDir}`);
+    console.log(`[ScaffoldEngine] Injected Golden React/Vite configs into ${targetDir}`);
   }
 
   static async injectExpressScaffold(targetDir: string) {
@@ -18,18 +18,18 @@ export class ScaffoldEngine {
     await this.writeFiles(targetDir, {
       'tsconfig.json': `{"compilerOptions":{"target":"ES2022","module":"CommonJS","rootDir":"./src","outDir":"./dist","strict":true,"esModuleInterop":true,"skipLibCheck":true,"forceConsistentCasingInFileNames":true}}`,
       'nodemon.json': `{"watch":["src"],"ext":".ts,.js","ignore":[],"exec":"ts-node ./src/index.ts"}`,
-      '.env.example': `PORT=3000\nNODE_ENV=development`
+      '.env.example': `PORT=3000\nNODE_ENV=development`,
     });
-    console.log(`[ScaffoldEngine] ÌøóÔ∏è Injected Golden Express.js Configs into ${targetDir}`);
+    console.log(`[ScaffoldEngine] Injected Golden Express.js configs into ${targetDir}`);
   }
 
   static async injectNextJsScaffold(targetDir: string) {
     await fs.mkdir(targetDir, { recursive: true });
     await this.writeFiles(targetDir, {
       'next.config.js': `/** @type {import('next').NextConfig} */\nconst nextConfig = { reactStrictMode: true };\nmodule.exports = nextConfig;`,
-      'tsconfig.json': `{"compilerOptions":{"target":"es5","lib":["dom","dom.iterable","esnext"],"allowJs":true,"skipLibCheck":true,"strict":true,"forceConsistentCasingInFileNames":true,"noEmit":true,"esModuleInterop":true,"module":"esnext","moduleResolution":"node","resolveJsonModule":true,"isolatedModules":true,"jsx":"preserve","incremental":true,"paths":{"@/*":["./src/*"]}},"include":["next-env.d.ts","**/*.ts","**/*.tsx"],"exclude":["node_modules"]}`
+      'tsconfig.json': `{"compilerOptions":{"target":"es5","lib":["dom","dom.iterable","esnext"],"allowJs":true,"skipLibCheck":true,"strict":true,"forceConsistentCasingInFileNames":true,"noEmit":true,"esModuleInterop":true,"module":"esnext","moduleResolution":"node","resolveJsonModule":true,"isolatedModules":true,"jsx":"preserve","incremental":true,"paths":{"@/*":["./src/*"]}},"include":["next-env.d.ts","**/*.ts","**/*.tsx"],"exclude":["node_modules"]}`,
     });
-    console.log(`[ScaffoldEngine] ÌøóÔ∏è Injected Golden Next.js Configs into ${targetDir}`);
+    console.log(`[ScaffoldEngine] Injected Golden Next.js configs into ${targetDir}`);
   }
 
   private static async writeFiles(dir: string, files: Record<string, string>) {

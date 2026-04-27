@@ -176,6 +176,8 @@ export default function BuildForm() {
         </div>
         <button
           type="button"
+          role="switch"
+          aria-checked={continuous}
           onClick={() => setContinuous(!continuous)}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900 ${
             continuous ? 'bg-amber-600' : 'bg-zinc-700'

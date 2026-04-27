@@ -1,22 +1,17 @@
-import { prisma } from '@/src/lib/prisma';
-import { DependencyPinner } from '@/src/services/dependency-pinner';
-import { GitTracker } from '@/src/services/git-tracker';
-import path from 'path';
-import fsP from 'fs/promises';
 import { GitTracker } from '@/src/services/git-tracker'
 import { ScaffoldEngine } from '@/src/services/scaffold-engine'
-import { prisma } from '@/src/lib/prisma'
 import { DependencyPinner } from '@/src/services/dependency-pinner'
 import { execSync } from 'child_process'
-import { writeFileSync, mkdirSync, readFileSync, existsSync, readdirSync, statSync } from 'fs'
+import { writeFileSync, mkdirSync, readFileSync, existsSync, readdirSync, statSync, rmSync } from 'fs'
+import fsP from 'fs/promises'
 import { join, dirname } from 'path'
 import { tmpdir } from 'os'
 import type { SSEEvent } from './types/sse'
 import type { ConventionsProfile } from './types/conventions'
 import type { PRDOutput } from './types/prd'
 import type { ScaffoldedFile } from './types/scaffold'
-import { updateForgeRun, addForgeRunLog, saveForgeRunDiff, addForgeLessonLearned } from './db'
-import { cloneRepo, buildTree, isGreenfield, extractCodeSamples } from './utils/repo'
+import { updateForgeRun, addForgeRunLog, saveForgeRunDiff, addForgeLessonLearned, saveForgeRunStageData, getForgeRunStageData } from './db'
+import { cloneRepo, buildTree, isGreenfield, extractCodeSamples, safeRepoPath } from './utils/repo'
 import { analyzeRepo } from './agents/analyzer-agent'
 import { generatePRD } from './agents/prd-agent'
 import { generateManifest } from './agents/prompt-agent'
@@ -84,9 +79,24 @@ function emitLog(
 }
 
 function writeRepoFile(workDir: string, filePath: string, content: string): void {
-  const fullPath = join(workDir, filePath)
+  const fullPath = safeRepoPath(workDir, filePath)
   mkdirSync(dirname(fullPath), { recursive: true })
   writeFileSync(fullPath, content, 'utf-8')
+}
+
+async function ensureRepoCheckout(workDir: string, repoUrl: string, emit: (event: SSEEvent) => void, runId: string): Promise<void> {
+  if (existsSync(join(workDir, '.git'))) {
+    return
+  }
+
+  if (existsSync(workDir)) {
+    rmSync(workDir, { recursive: true, force: true })
+  }
+
+  mkdirSync(workDir, { recursive: true })
+  emitLog(emit, runId, 'Clone', `Restoring checkout from ${repoUrl}...`)
+  await cloneRepo(repoUrl, workDir)
+  emitLog(emit, runId, 'Clone', 'Repository checkout restored', 'success')
 }
 
 function readRepoFiles(workDir: string, dir = workDir): RepoFile[] {
@@ -372,6 +382,7 @@ export async function runBuildPipelineStage1(opts: {
   // 7. Save stage data to disk
   const stageData: BuildStageData = { conventions, prd, greenfield }
   writeFileSync(join(workDir, STAGE_DATA_FILE), JSON.stringify(stageData, null, 2))
+  await saveForgeRunStageData(runId, stageData)
 
   // 8. Update ForgeRun
   await updateForgeRun(runId, { prdTitle: prd.title, prdSummary: prd.summary })
@@ -410,12 +421,12 @@ export async function runBuildPipelineStage2(opts: {
     console.warn('Scaffold injection error:', e);
   }
 
-  // 1. Load stage data
-  const stageDataPath = join(workDir, STAGE_DATA_FILE)
-  if (!existsSync(stageDataPath)) {
-    throw new Error('Stage data not found — Stage 1 may not have completed')
+  // 1. Load persisted stage data and restore the checkout if temp storage was cleaned.
+  const stageData = await getForgeRunStageData<BuildStageData>(runId)
+  if (!stageData) {
+    throw new Error('Stage data not found. Stage 1 may not have completed.')
   }
-  const stageData: BuildStageData = JSON.parse(readFileSync(stageDataPath, 'utf-8'))
+  await ensureRepoCheckout(workDir, repoUrl, emit, runId)
   const { conventions, prd } = stageData
 
   // 2. Build lessons context
@@ -671,7 +682,7 @@ export async function runBuildPipelineStage2(opts: {
     try {
       
       
-      const pkgPath = path.join(workDir, 'package.json');
+      const pkgPath = join(workDir, 'package.json');
       const rawPkg = await fsP.readFile(pkgPath, 'utf8');
       const safePkg = DependencyPinner.pin(rawPkg);
       await fsP.writeFile(pkgPath, safePkg, 'utf8');
@@ -697,21 +708,6 @@ export async function runBuildPipelineStage2(opts: {
       } catch(e) {}
     }
 
-
-    // --- FORGE INJECTION: Database Telemetry ---
-    try {
-      await prisma.pipelineRun.create({
-        data: {
-          taskName: projectType || 'unknown-project',
-          targetAgent: 'Pipeline Runner',
-          success: buildResult.success,
-          iterations: typeof cycle !== 'undefined' ? cycle : 1
-        }
-      });
-    } catch(e) {
-      console.warn('Telemetry error:', e);
-    }
-  
     if (buildResult.success) {
       emitLog(emit, runId, 'Verify', 'Build verification passed', 'success')
     } else {

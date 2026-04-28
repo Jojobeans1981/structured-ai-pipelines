@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
-import { LayoutDashboard, BarChart3, Settings, LogOut, Flame, Hammer, User } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Settings, LogOut, Flame, Hammer, User, LogIn } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Button } from '@/src/components/ui/button';
 import { DwarfForgeScene } from '@/src/components/forge/dwarf-forge-scene';
@@ -130,7 +130,7 @@ export function Sidebar({ mobile, open, onClose }: SidebarProps = {}) {
               </div>
             )}
             {status === 'unauthenticated' && (
-              <div className="rounded-lg bg-orange-500/5 border border-orange-500/10 px-3 py-3">
+              <div className="space-y-3 rounded-lg bg-orange-500/5 border border-orange-500/10 px-3 py-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold ring-2 ring-orange-500/30">
                     <User className="h-4 w-4" />
@@ -140,6 +140,12 @@ export function Sidebar({ mobile, open, onClose }: SidebarProps = {}) {
                     <div className="text-xs text-zinc-500">Sign-in is optional for quick trials.</div>
                   </div>
                 </div>
+                <Button asChild size="sm" className="w-full" onClick={onClose}>
+                  <Link href="/login">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Sign in
+                  </Link>
+                </Button>
               </div>
             )}
           </div>
@@ -235,7 +241,7 @@ export function Sidebar({ mobile, open, onClose }: SidebarProps = {}) {
           </div>
         )}
         {status === 'unauthenticated' && (
-          <div className="rounded-lg bg-orange-500/5 border border-orange-500/10 px-3 py-3">
+          <div className="space-y-3 rounded-lg bg-orange-500/5 border border-orange-500/10 px-3 py-3">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold ring-2 ring-orange-500/30">
                 <User className="h-4 w-4" />
@@ -245,6 +251,12 @@ export function Sidebar({ mobile, open, onClose }: SidebarProps = {}) {
                 <div className="text-xs text-zinc-500">Sign-in is optional for quick trials.</div>
               </div>
             </div>
+            <Button asChild size="sm" className="w-full">
+              <Link href="/login">
+                <LogIn className="mr-2 h-4 w-4" />
+                Sign in
+              </Link>
+            </Button>
           </div>
         )}
       </div>

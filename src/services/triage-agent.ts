@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { type TriageDecision } from '@/src/types/dag';
 import { prisma } from '@/src/lib/prisma';
 import { createWithFallback } from '@/src/lib/anthropic';
+import { LearningStore } from '@/src/services/learning-store';
 
 const TRIAGE_SYSTEM_PROMPT = `You are the Gauntlet Forge Triage Agent. A build verification or stage execution has failed. Your job is to analyze the error and decide the best recovery action.
 
@@ -59,6 +60,11 @@ export class TriageAgent {
     // If max retries exhausted, auto-escalate
     if (stage.retryCount >= stage.maxRetries) {
       console.log(`[TriageAgent] Max retries (${stage.maxRetries}) exhausted for "${stage.displayName}" — escalating`);
+      LearningStore.recordRejection(
+        'triage-escalate', stage.skillName,
+        normalizeTriageError(errorOutput),
+        stage.runId, stage.id,
+      ).catch(() => {});
       return {
         action: 'escalate',
         reason: `Node "${stage.displayName}" failed ${stage.retryCount} times. Last error:\n\n${errorOutput.substring(0, 500)}`,
@@ -112,6 +118,11 @@ Analyze the error and decide: retry, reroute, or escalate?`;
       return decision;
     } catch {
       console.error('[TriageAgent] Failed to parse decision, escalating:', text.substring(0, 200));
+      LearningStore.recordRejection(
+        'triage-parse-fail', stage.skillName,
+        normalizeTriageError(errorOutput),
+        stage.runId, stage.id,
+      ).catch(() => {});
       return {
         action: 'escalate',
         reason: `Triage agent returned unparseable response. Original error:\n\n${errorOutput.substring(0, 500)}`,
@@ -246,4 +257,13 @@ Analyze the error and decide: retry, reroute, or escalate?`;
       }
     }
   }
+}
+
+function normalizeTriageError(raw: string): string {
+  return raw
+    .replace(/\/[^\s:'"]+\.(ts|tsx|js|jsx|mjs|cjs|py|go)/g, '<FILE>')
+    .replace(/:\d+:\d+/g, ':N:N')
+    .replace(/\bat line \d+/gi, 'at line N')
+    .trim()
+    .slice(0, 500)
 }

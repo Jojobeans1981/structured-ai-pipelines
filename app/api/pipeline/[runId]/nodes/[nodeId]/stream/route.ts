@@ -370,8 +370,13 @@ async function handleVerifyNode(
 
           send({ type: 'token', data: { text: output } });
 
-          // AUTO-FIX: If filesystem build failed, try to auto-fix
+          // AUTO-FIX: If filesystem build failed, record in learning store then try to auto-fix
           if (!result.success) {
+            for (const err of result.errors) {
+              LearningStore.recordRejection(
+                'build-verifier', 'phase-executor', normalizeBuildError(err), runId, stageId,
+              ).catch(() => {});
+            }
             const errorForFix = result.errors.join('\n');
             const autoFixed = await tryAutoFix(runId, stageId, errorForFix, send);
             if (autoFixed) {
@@ -1088,4 +1093,14 @@ function extractErrorType(errorOutput: string): string {
     (l) => l.match(/error|Error|ERROR|failed|Failed/) && l.trim().length > 10
   );
   return errorLine ? errorLine.trim().substring(0, 100) : 'Unknown build error';
+}
+
+function normalizeBuildError(raw: string): string {
+  return raw
+    .replace(/\/[^\s:'"]+\.(ts|tsx|js|jsx|mjs|cjs|py|go)/g, '<FILE>')
+    .replace(/:\d+:\d+/g, ':N:N')
+    .replace(/\bat line \d+/gi, 'at line N')
+    .replace(/\((\d+),\s*(\d+)\)/g, '(N,N)')
+    .trim()
+    .slice(0, 500)
 }

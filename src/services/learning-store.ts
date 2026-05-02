@@ -154,12 +154,16 @@ export class LearningStore {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+    // High-count patterns (seen 3+ times) are structural issues — never expire by age.
+    // Low-count patterns expire after 7 days to avoid stale one-off noise.
     const entries = await prisma.learningEntry.findMany({
       where: {
         targetAgent,
         status: 'active',
-        rejectionCount: { gte: 1 },
-        lastSeen: { gte: sevenDaysAgo },
+        OR: [
+          { rejectionCount: { gte: 3 } },
+          { rejectionCount: { gte: 1 }, lastSeen: { gte: sevenDaysAgo } },
+        ],
       },
       orderBy: { rejectionCount: 'desc' },
       take: 10,

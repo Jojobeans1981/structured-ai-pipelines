@@ -22,6 +22,7 @@ import { finishLaunchReadiness } from './agents/finisher-agent'
 import { evaluatePreviewReadiness, type PreviewAssessment } from './agents/preview-agent'
 import { runDeliveryGuard } from './agents/delivery-guard-agent'
 import { buildForgeLessonsSection } from './lessons-context'
+import { LearningStore } from '@/src/services/learning-store'
 import { CompletenessPass, detectProjectType } from '@/src/services/completeness-pass'
 import { BuildVerifier } from '@/src/services/build-verifier'
 import { TestGenerator } from '@/src/services/test-generator'
@@ -41,6 +42,19 @@ const MAX_VALIDATION_CYCLES = 3
 const MAX_BUILD_FIX_CYCLES = parseInt(process.env.FORGE_MAX_AUTO_FIX || '3', 10)
 const STAGE_DATA_FILE = '.forge-stage-data.json'
 const IGNORED_REPO_DIRS = new Set(['.git', 'node_modules', '.next', 'dist', 'build', '__pycache__', '.venv', 'venv'])
+
+// Strip volatile parts of build errors (file paths, line numbers) so the learning store
+// can fuzzy-match the same class of error across different runs and projects.
+function normalizeBuildError(raw: string): string {
+  return raw
+    .replace(/\/[^\s:'"]+\.(ts|tsx|js|jsx|mjs|cjs|py|go)/g, '<FILE>') // absolute paths
+    .replace(/\bat line \d+/gi, 'at line N')
+    .replace(/:\d+:\d+/g, ':N:N') // :line:col
+    .replace(/\((\d+),\s*(\d+)\)/g, '(N,N)') // (line,col)
+    .replace(/0x[0-9a-fA-F]+/g, '0xADDR') // memory addresses
+    .trim()
+    .slice(0, 500)
+}
 
 interface BuildStageData {
   conventions: ConventionsProfile
@@ -368,14 +382,18 @@ export async function runBuildPipelineStage1(opts: {
   const conventions = await analyzeRepo(userId, tree, codeSamples)
   emitLog(emit, runId, 'Analyze', `Detected: ${conventions.language} / ${conventions.framework ?? 'no framework'}`, 'success')
 
-  // 6. Generate PRD
+  // 6. Generate PRD — inject lessons from past runs so the PRD avoids known pitfalls
   emitLog(emit, runId, 'PRD', 'Generating product requirements...')
+  const prdLessonsContext = await buildForgeLessonsSection(
+    conventions.language,
+    conventions.framework ?? undefined,
+  )
   const prd = await generatePRD({
     userId,
     specContent,
     conventions,
     greenfield,
-    lessonsContext: '',
+    lessonsContext: prdLessonsContext,
   })
   emitLog(emit, runId, 'PRD', `PRD generated: ${prd.title}`, 'success')
 
@@ -713,6 +731,12 @@ export async function runBuildPipelineStage2(opts: {
     } else {
       errors.push(...buildResult.errors.map((error) => `Build: ${error.slice(0, 500)}`))
       emitLog(emit, runId, 'Verify', 'Build verification failed', 'error')
+      // Record every build error in the learning store so future runs avoid it
+      for (const error of buildResult.errors) {
+        LearningStore.recordRejection(
+          'build-verifier', 'phase-executor', normalizeBuildError(error), runId,
+        ).catch(() => {})
+      }
     }
 
     if (buildResult.warnings.length > 0) {

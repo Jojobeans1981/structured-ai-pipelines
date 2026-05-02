@@ -23,6 +23,15 @@ export class ScaffoldEngine {
     console.log(`[ScaffoldEngine] Injected Golden Express.js configs into ${targetDir}`);
   }
 
+  static async injectGameScaffold(targetDir: string) {
+    await fs.mkdir(targetDir, { recursive: true });
+    await this.writeFiles(targetDir, {
+      'webpack.config.js': 'module.exports = { /* Three.js optimized config */ };',
+      'src/core/GameLoop.ts': 'export class GameLoop { /* Standard RequestAnimationFrame wrapper */ }',
+    });
+    console.log('[ScaffoldEngine] Injected Golden Game Scaffold.');
+  }
+
   static async injectNextJsScaffold(targetDir: string) {
     await fs.mkdir(targetDir, { recursive: true });
     await this.writeFiles(targetDir, {

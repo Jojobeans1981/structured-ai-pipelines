@@ -43,51 +43,51 @@ export default function DebugForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">Bug Description</label>
-        <p className="text-gray-500 text-xs mb-2">Describe the bug and paste any error logs or stack traces below.</p>
+        <label className="block text-sm font-medium text-zinc-300 mb-2">Bug Description</label>
+        <p className="text-zinc-500 text-xs mb-2">Describe the bug and paste any error logs or stack traces below.</p>
         <textarea
           value={bugDescription}
           onChange={e => setBugDescription(e.target.value)}
           required
           rows={12}
           placeholder={`What's broken?\n\nError logs:\n[paste error output here]`}
-          className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-y font-mono text-sm"
+          className="w-full bg-zinc-900/50 border border-zinc-700 rounded-lg p-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/30 resize-y font-mono text-sm"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">GitLab Repo URL</label>
+        <label className="block text-sm font-medium text-zinc-300 mb-2">GitLab Repo URL</label>
         <input
           type="url"
           value={repoUrl}
           onChange={e => setRepoUrl(e.target.value)}
           required
           placeholder="https://labs.gauntletai.com/your-group/your-repo"
-          className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+          className="w-full bg-zinc-900/50 border border-zinc-700 rounded-lg p-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/30 text-sm"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Branch Name <span className="text-gray-500 font-normal">(optional)</span>
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
+          Branch Name <span className="text-zinc-500 font-normal">(optional)</span>
         </label>
         <input
           type="text"
           value={branchName}
           onChange={e => setBranchName(e.target.value)}
           placeholder="forge/fix-bug"
-          className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+          className="w-full bg-zinc-900/50 border border-zinc-700 rounded-lg p-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/30 text-sm"
         />
       </div>
 
       {/* Continuous Mode Toggle */}
-      <div className="flex items-center justify-between p-4 bg-gray-900/30 border border-gray-800 rounded-lg">
+      <div className="flex items-center justify-between p-4 bg-zinc-900/30 border border-zinc-800 rounded-lg">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
-            <RotateCcw className={`h-4 w-4 ${continuous ? 'text-orange-400' : 'text-gray-500'}`} />
-            <span className="text-sm font-medium text-gray-200">Continuous Mode</span>
+            <RotateCcw className={`h-4 w-4 ${continuous ? 'text-orange-400' : 'text-zinc-500'}`} />
+            <span className="text-sm font-medium text-zinc-200">Continuous Mode</span>
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-zinc-500">
             Keep retrying the debug & fix loop until tests pass (max 10 cycles).
           </p>
         </div>
@@ -96,8 +96,8 @@ export default function DebugForm() {
           role="switch"
           aria-checked={continuous}
           onClick={() => setContinuous(!continuous)}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
-            continuous ? 'bg-orange-600' : 'bg-gray-700'
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-zinc-900 ${
+            continuous ? 'bg-orange-600' : 'bg-zinc-700'
           }`}
         >
           <span

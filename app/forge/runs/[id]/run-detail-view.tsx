@@ -1,15 +1,18 @@
 'use client'
 
 import { useEffect } from 'react'
+import Link from 'next/link'
+import { ExternalLink } from 'lucide-react'
 import { useForgeStore } from '@/src/stores/forge-store'
 import type { ForgeRun, ForgeRunLog, ForgeRunDiff, ForgeRunDiagnosis, ForgeRunResult } from '@/src/services/forge/db'
+import { Button } from '@/src/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card'
 import ModeBadge from '@/src/components/forge/mode-badge'
 import RunStatusBadge from '@/src/components/forge/run-status-badge'
 import LogViewer from '@/src/components/forge/log-viewer'
 import PlanApproval from '@/src/components/forge/plan-approval'
 import DiffViewer from '@/src/components/forge/diff-viewer'
 import DiagnosisPanel from '@/src/components/forge/diagnosis-panel'
-import Link from 'next/link'
 
 interface RunDetailViewProps {
   run: ForgeRun
@@ -33,7 +36,6 @@ export default function RunDetailView({
   const result = useForgeStore((s) => s.result)
   const hydrateRun = useForgeStore((s) => s.hydrateRun)
 
-  // Initialize store from server data
   useEffect(() => {
     hydrateRun({
       status: run.status,
@@ -86,33 +88,26 @@ export default function RunDetailView({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <ModeBadge mode={run.mode as 'build' | 'debug'} />
-            <RunStatusBadge status={status} />
-            {stage && status === 'awaiting_approval' && (
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-900 text-amber-300">
-                {stage === 'plan' ? 'Review Plan' : 'Review Code'}
-              </span>
-            )}
-          </div>
-          <h1 className="text-xl font-semibold text-white">
-            {run.prdTitle || `Run ${run.id.slice(0, 8)}`}
-          </h1>
-          <p className="text-gray-400 text-sm mt-1 font-mono">{run.repoUrl}</p>
-        </div>
-        <Link href="/forge/runs" className="text-gray-500 hover:text-gray-300 text-sm transition-colors">
-          ← History
-        </Link>
+      {/* Run meta */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <ModeBadge mode={run.mode as 'build' | 'debug'} />
+        <RunStatusBadge status={status} />
+        {stage && status === 'awaiting_approval' && (
+          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+            {stage === 'plan' ? 'Review Plan' : 'Review Code'}
+          </span>
+        )}
+        <span className="font-mono text-xs text-zinc-500 ml-auto">{run.repoUrl}</span>
       </div>
 
+      {/* Error */}
       {run.error && status === 'failed' && (
-        <div className="bg-red-950 border border-red-800 rounded-lg p-4 text-red-300 text-sm font-mono">
+        <div className="rounded-xl border border-red-800/50 bg-red-950/40 p-4 font-mono text-sm text-red-300">
           {run.error}
         </div>
       )}
 
+      {/* Debug diagnosis */}
       {run.mode === 'debug' && diagnosis && !showPlanApproval && (
         <DiagnosisPanel
           rootCause={diagnosis.rootCause}
@@ -121,45 +116,54 @@ export default function RunDetailView({
         />
       )}
 
-      <div>
-        <h2 className="text-gray-400 text-xs font-medium uppercase tracking-wide mb-2">Pipeline Logs</h2>
+      {/* Pipeline logs */}
+      <div className="space-y-2">
+        <div className="text-xs font-medium uppercase tracking-widest text-zinc-500">Pipeline Logs</div>
         <LogViewer runId={run.id} initialStatus={run.status} />
       </div>
 
+      {/* Plan approval gate */}
       {showPlanApproval && (
         <PlanApproval runId={run.id} mode={run.mode as 'build' | 'debug'} />
       )}
 
+      {/* Code approval gate */}
       {showCodeApproval && (
-        <div>
-          <h2 className="text-gray-400 text-xs font-medium uppercase tracking-wide mb-2">
-            {run.mode === 'build' ? 'Generated Files' : 'Proposed Fix'} — Review & Approve
-          </h2>
+        <div className="space-y-2">
+          <div className="text-xs font-medium uppercase tracking-widest text-zinc-500">
+            {run.mode === 'build' ? 'Generated Files' : 'Proposed Fix'} — Review &amp; Approve
+          </div>
           <DiffViewer runId={run.id} />
         </div>
       )}
 
+      {/* Success: MR created */}
       {status === 'complete' && result && (
-        <div className="border border-green-800 rounded-lg p-5">
-          <h2 className="text-green-300 font-semibold text-sm mb-3">Merge Request Created</h2>
-          <p className="text-white font-medium mb-1">{result.title}</p>
-          <p className="text-gray-400 text-sm font-mono mb-3">Branch: {result.branch}</p>
-          <a
-            href={result.mrUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            View Merge Request →
-          </a>
-        </div>
+        <Card className="border-emerald-500/30 bg-emerald-500/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base text-emerald-300">Merge Request Created</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="font-medium text-zinc-100">{result.title}</p>
+            <p className="font-mono text-xs text-zinc-400">Branch: {result.branch}</p>
+            <Button asChild size="sm" className="bg-emerald-700 hover:bg-emerald-600 text-white border-0">
+              <a href={result.mrUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="mr-2 h-4 w-4" />
+                View Merge Request
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
+      {/* Rejected */}
       {status === 'rejected' && (
-        <div className="border border-gray-700 rounded-lg p-5 text-center">
-          <p className="text-gray-400">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-6 text-center">
+          <p className="text-sm text-zinc-400">
             Run rejected.{' '}
-            <Link href="/forge" className="text-indigo-400 hover:text-indigo-300">Start a new run →</Link>
+            <Link href="/forge" className="font-medium text-orange-400 hover:text-orange-300">
+              Start a new run →
+            </Link>
           </p>
         </div>
       )}

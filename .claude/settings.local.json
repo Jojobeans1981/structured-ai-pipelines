@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m ' *)",
+      "Bash(gh pr *)",
+      "Bash(gh run *)",
+      "Bash(gh api *)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(git commit -m 'fix: replace '\\\\''GitLab repo URL'\\\\'' with multi-host wording on landing page *)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

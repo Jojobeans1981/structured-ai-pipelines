@@ -136,7 +136,7 @@ export default async function DashboardPage() {
                 <div className="mb-1 text-xs font-bold uppercase tracking-widest text-emerald-400">Step 3</div>
                 <h3 className="mb-2 font-semibold text-zinc-100">You review &amp; approve</h3>
                 <p className="text-sm leading-6 text-zinc-400">
-                  You see the plan before any code is written, and the diff before anything is pushed. Approve both gates and Forge opens a GitLab merge request on a clean branch.
+                  You see the plan before any code is written, and the diff before anything is pushed. Approve both gates and Forge opens a merge request on a clean branch.
                 </p>
               </div>
             </div>

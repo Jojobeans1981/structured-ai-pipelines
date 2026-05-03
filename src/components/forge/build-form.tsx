@@ -206,7 +206,7 @@ export default function BuildForm() {
         )}
       </div>
 
-      {/* GitLab Repo URL */}
+      {/* Repo URL */}
       <div>
         <label className="flex items-center gap-1.5 text-sm font-medium text-zinc-300 mb-2">
           <Link className="h-3.5 w-3.5" />

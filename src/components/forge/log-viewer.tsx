@@ -10,10 +10,10 @@ interface LogViewerProps {
 }
 
 const LEVEL_STYLES: Record<string, string> = {
-  info: 'text-gray-300',
+  info: 'text-zinc-300',
   warn: 'text-yellow-400',
   error: 'text-red-400',
-  success: 'text-green-400',
+  success: 'text-emerald-400',
 }
 
 export default function LogViewer({ runId, initialStatus }: LogViewerProps) {
@@ -35,14 +35,14 @@ export default function LogViewer({ runId, initialStatus }: LogViewerProps) {
   }, [logs.length])
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 h-80 overflow-y-auto font-mono text-sm">
+    <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-4 h-80 overflow-y-auto font-mono text-sm">
       {logs.length === 0 && (
-        <p className="text-gray-600 italic">Waiting for pipeline to start...</p>
+        <p className="text-zinc-600 italic">Waiting for pipeline to start...</p>
       )}
       {logs.map((log, i) => (
         <div key={i} className="mb-0.5">
-          <span className="text-gray-600 text-xs mr-2">[{log.step}]</span>
-          <span className={LEVEL_STYLES[log.level] || 'text-gray-300'}>{log.message}</span>
+          <span className="text-zinc-600 text-xs mr-2">[{log.step}]</span>
+          <span className={LEVEL_STYLES[log.level] || 'text-zinc-300'}>{log.message}</span>
         </div>
       ))}
       <div ref={logEndRef} />

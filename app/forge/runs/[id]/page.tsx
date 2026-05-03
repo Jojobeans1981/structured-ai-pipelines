@@ -1,6 +1,11 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { ChevronLeft } from 'lucide-react'
 import { getForgeSessionOrDemo } from '@/src/lib/auth-helpers'
 import { getForgeRunWithDetails } from '@/src/services/forge/db'
+import { Header } from '@/src/components/layout/header'
+import { PageContainer } from '@/src/components/layout/page-container'
+import { Button } from '@/src/components/ui/button'
 import RunDetailView from './run-detail-view'
 
 export default async function ForgeRunDetailPage({
@@ -18,15 +23,28 @@ export default async function ForgeRunDetailPage({
     notFound()
   }
 
+  const title = details.run.prdTitle || `Run ${params.id.slice(0, 8)}`
+
   return (
-    <div className="max-w-4xl mx-auto py-10 px-4">
-      <RunDetailView
-        run={details.run}
-        initialLogs={details.logs}
-        initialDiff={details.diff}
-        initialDiagnosis={details.diagnosis}
-        initialResult={details.result}
-      />
-    </div>
+    <>
+      <Header title={title}>
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/forge/runs">
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            History
+          </Link>
+        </Button>
+      </Header>
+
+      <PageContainer>
+        <RunDetailView
+          run={details.run}
+          initialLogs={details.logs}
+          initialDiff={details.diff}
+          initialDiagnosis={details.diagnosis}
+          initialResult={details.result}
+        />
+      </PageContainer>
+    </>
   )
 }

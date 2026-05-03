@@ -10,21 +10,28 @@ const SOURCE_EXTENSIONS = new Set([
 ])
 
 export function validateGitLabRepoUrl(repoUrl: string): string {
+  return validateRepoUrl(repoUrl)
+}
+
+export function validateRepoUrl(repoUrl: string): string {
   let url: URL
   try {
     url = new URL(repoUrl)
   } catch {
-    throw new Error('GitLab repo URL must be a valid HTTPS URL')
+    throw new Error('Repo URL must be a valid HTTPS URL')
   }
 
   const hostname = url.hostname.toLowerCase()
-  const configuredHosts = (process.env.GITLAB_ALLOWED_HOSTS ?? process.env.GITLAB_HOST ?? '')
+
+  const configuredHosts = (process.env.GITLAB_ALLOWED_HOSTS ?? process.env.REPO_ALLOWED_HOSTS ?? '')
     .split(',')
     .map((host) => host.trim().toLowerCase())
     .filter(Boolean)
+
   const allowedHosts = configuredHosts.length > 0
     ? configuredHosts
-    : ['gitlab.com', 'labs.gauntletai.com']
+    : ['github.com', 'gitlab.com', 'labs.gauntletai.com', 'bitbucket.org']
+
   const isPrivateIpv4 =
     /^10\./.test(hostname) ||
     /^127\./.test(hostname) ||
@@ -40,12 +47,12 @@ export function validateGitLabRepoUrl(repoUrl: string): string {
     hostname === '::1' ||
     isPrivateIpv4
   ) {
-    throw new Error(`GitLab repo URL must use HTTPS and one of: ${allowedHosts.join(', ')}`)
+    throw new Error(`Repo URL must use HTTPS and point to a supported host (GitHub, GitLab, Bitbucket)`)
   }
 
   const pathParts = url.pathname.replace(/\/$/, '').split('/').filter(Boolean)
   if (pathParts.length < 2) {
-    throw new Error('GitLab repo URL must include a group and project path')
+    throw new Error('Repo URL must include an owner and repository name (e.g. github.com/owner/repo)')
   }
 
   url.hash = ''

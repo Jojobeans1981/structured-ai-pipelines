@@ -15,6 +15,10 @@ jobs:
   lint-test:
     name: Lint & Test (Next.js)
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      NEXTAUTH_SECRET: ci-secret-placeholder
+      NEXTAUTH_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,16 +39,13 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install gateway dependencies
-        run: |
-          cd gateway
-          pip install -r requirements.txt
-          pip install pytest httpx
+        run: pip install -r gateway/requirements.txt pytest httpx
       - name: Lint gateway
         run: |
           pip install ruff
           ruff check gateway/
       - name: Test gateway imports
-        run: python -c "from gateway.main import app; print('Gateway OK')"
+        run: python -c "import sys; sys.path.insert(0, '.'); from gateway.main import app; print('Gateway OK')"
       - name: Build gateway Docker image
         run: docker build -t forge-gateway ./gateway
 
@@ -58,18 +59,15 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install engine dependencies
-        run: |
-          cd engine
-          pip install -r requirements.txt
-          pip install pytest httpx
+        run: pip install -r gateway/engine/requirements.txt pytest httpx
       - name: Lint engine
         run: |
           pip install ruff
-          ruff check engine/
+          ruff check gateway/engine/
       - name: Test engine imports
-        run: python -c "from engine.main import app; print('Engine OK')"
+        run: python -c "import sys; sys.path.insert(0, 'gateway'); from engine.main import app; print('Engine OK')"
       - name: Build engine Docker image
-        run: docker build -t forge-engine ./engine
+        run: docker build -t forge-engine ./gateway/engine
 
   # ── Integration: full stack ──
   integration:
@@ -117,5 +115,5 @@ jobs:
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/gateway:latest
       - name: Build & push engine
         run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/engine:latest ./engine
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/engine:latest ./gateway/engine
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/engine:latest

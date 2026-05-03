@@ -114,7 +114,7 @@ export default async function DashboardPage() {
                 <div className="mb-1 text-xs font-bold uppercase tracking-widest text-orange-400">Step 1</div>
                 <h3 className="mb-2 font-semibold text-zinc-100">You describe the work</h3>
                 <p className="text-sm leading-6 text-zinc-400">
-                  Paste a feature spec, bug report, or upload a markdown file. Add your GitLab repo URL. That's it — Forge handles the rest.
+                  Paste a feature spec, bug report, or upload a markdown file. Add your repo URL (GitHub, GitLab, or Bitbucket). That's it — Forge handles the rest.
                 </p>
               </div>
 

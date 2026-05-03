@@ -2,12 +2,15 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Flame, Upload, FileText, Loader2, GitBranch, Link, RotateCcw } from 'lucide-react'
+import { Flame, Upload, FileText, Loader2, GitBranch, Link, RotateCcw, Sparkles, PenLine } from 'lucide-react'
+import SpecBuilder from './spec-builder'
 
 type InputMode = 'paste' | 'upload'
+type EntryMode = 'direct' | 'guided'
 
 export default function BuildForm() {
   const router = useRouter()
+  const [entryMode, setEntryMode] = useState<EntryMode>('direct')
   const [inputMode, setInputMode] = useState<InputMode>('paste')
   const [specText, setSpecText] = useState('')
   const [repoUrl, setRepoUrl] = useState('')
@@ -16,11 +19,19 @@ export default function BuildForm() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
+  const [specBuilt, setSpecBuilt] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = () => {
     const file = fileRef.current?.files?.[0]
     setSelectedFileName(file?.name || null)
+  }
+
+  const handleSpecBuilt = (spec: string) => {
+    setSpecText(spec)
+    setEntryMode('direct')
+    setInputMode('paste')
+    setSpecBuilt(true)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,38 +75,103 @@ export default function BuildForm() {
     }
   }
 
+  // Show guided spec builder
+  if (entryMode === 'guided') {
+    return (
+      <SpecBuilder
+        onComplete={handleSpecBuilt}
+        onCancel={() => setEntryMode('direct')}
+      />
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Spec input mode toggle */}
-      <div>
-        <label className="block text-sm font-medium text-zinc-300 mb-2">Feature Spec</label>
-        <div className="flex gap-2 mb-3">
-          <button type="button" onClick={() => setInputMode('paste')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              inputMode === 'paste'
-                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                : 'bg-zinc-800/50 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-800 hover:text-zinc-300'
-            }`}>
-            <FileText className="h-3.5 w-3.5" />
-            Paste Text
-          </button>
-          <button type="button" onClick={() => setInputMode('upload')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              inputMode === 'upload'
-                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                : 'bg-zinc-800/50 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-800 hover:text-zinc-300'
-            }`}>
-            <Upload className="h-3.5 w-3.5" />
-            Upload File
+
+      {/* Entry mode toggle */}
+      <div className="grid grid-cols-2 gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 p-1.5">
+        <button
+          type="button"
+          onClick={() => { setEntryMode('direct'); setSpecBuilt(false) }}
+          className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+            entryMode === 'direct'
+              ? 'bg-zinc-800 text-zinc-100 shadow-sm'
+              : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          <PenLine className="h-3.5 w-3.5" />
+          I know what I want
+        </button>
+        <button
+          type="button"
+          onClick={() => setEntryMode('guided')}
+          className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+            entryMode === 'guided'
+              ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+              : 'text-zinc-500 hover:text-orange-400'
+          }`}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Help me describe it
+        </button>
+      </div>
+
+      {/* Spec built success banner */}
+      {specBuilt && (
+        <div className="flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm">
+          <Sparkles className="h-4 w-4 shrink-0 text-emerald-400" />
+          <span className="text-emerald-200">Spec built — review it below and add your repo URL to launch.</span>
+          <button
+            type="button"
+            onClick={() => setEntryMode('guided')}
+            className="ml-auto shrink-0 text-xs text-emerald-400 hover:text-emerald-300 underline underline-offset-2"
+          >
+            Edit
           </button>
         </div>
+      )}
+
+      {/* Spec input */}
+      <div>
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
+          {specBuilt ? 'Your spec' : 'Feature Spec'}
+        </label>
+
+        {!specBuilt && (
+          <div className="flex gap-2 mb-3">
+            <button
+              type="button"
+              onClick={() => setInputMode('paste')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                inputMode === 'paste'
+                  ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                  : 'bg-zinc-800/50 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-800 hover:text-zinc-300'
+              }`}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Paste Text
+            </button>
+            <button
+              type="button"
+              onClick={() => setInputMode('upload')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                inputMode === 'upload'
+                  ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                  : 'bg-zinc-800/50 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-800 hover:text-zinc-300'
+              }`}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Upload File
+            </button>
+          </div>
+        )}
 
         {inputMode === 'paste' ? (
           <textarea
             value={specText}
             onChange={e => setSpecText(e.target.value)}
             required
-            rows={10}
+            rows={specBuilt ? 10 : 8}
             placeholder="Describe the feature you want to build..."
             className="w-full bg-zinc-900/50 border border-zinc-700 rounded-lg p-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/30 resize-y font-mono text-sm"
           />
@@ -109,9 +185,7 @@ export default function BuildForm() {
               <span className="text-sm text-zinc-400">
                 {selectedFileName || 'Click to select a spec file'}
               </span>
-              <span className="text-xs text-zinc-600">
-                Supports .md, .txt, .pdf
-              </span>
+              <span className="text-xs text-zinc-600">Supports .md, .txt, .pdf</span>
             </label>
             <input
               id="forge-spec-file"
@@ -163,7 +237,7 @@ export default function BuildForm() {
         />
       </div>
 
-      {/* Continuous Mode Toggle */}
+      {/* Continuous Mode */}
       <div className="flex items-center justify-between p-4 bg-zinc-900/30 border border-zinc-800 rounded-lg">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
@@ -191,12 +265,10 @@ export default function BuildForm() {
         </button>
       </div>
 
-      {/* Error */}
       {error && (
         <p className="text-sm text-red-400 bg-red-950/50 border border-red-800/50 rounded-lg p-3">{error}</p>
       )}
 
-      {/* Submit */}
       <button
         type="submit"
         disabled={submitting}

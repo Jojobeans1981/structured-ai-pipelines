@@ -20,6 +20,8 @@ import {
   Search,
   Code2,
   CheckCircle2,
+  Sparkles,
+  PenLine,
 } from 'lucide-react';
 import { forgeBuyerPersonas } from '@/src/lib/product-offerings';
 import { type ProjectSummary } from '@/src/types/project';
@@ -65,27 +67,34 @@ export default async function DashboardPage() {
                 AI Software Factory
               </div>
               <h1 className="mb-4 text-4xl font-bold tracking-tight text-zinc-50">
-                Describe what you want built.<br />
-                Get a reviewed merge request.
+                Build any software product.<br />
+                <span className="text-orange-400">No experience required.</span>
               </h1>
               <p className="mb-8 text-base leading-7 text-zinc-400">
-                Point Forge at a GitLab repo and paste a feature spec or bug report.
-                It clones your repo, learns your code patterns, generates the implementation,
-                verifies the build, and hands you a diff to approve — before anything ships.
+                Describe what you want in plain English — Forge generates the code, verifies it builds,
+                and hands you a reviewed diff before anything ships. Tech experts and total beginners both welcome.
               </p>
-              <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                <Button asChild size="lg" className="w-full sm:w-auto">
-                  <Link href="/forge">
-                    <Hammer className="mr-2 h-5 w-5" />
-                    Build a Feature
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-                  <Link href="/forge">
-                    <Bug className="mr-2 h-5 w-5" />
-                    Fix a Bug
-                  </Link>
-                </Button>
+
+              {/* Two-path CTAs */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Link href="/forge" className="group">
+                  <div className="flex items-start gap-3 rounded-xl border border-orange-500/30 bg-orange-500/10 px-5 py-4 text-left transition-all hover:border-orange-500/50 hover:bg-orange-500/15">
+                    <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-orange-400" />
+                    <div>
+                      <div className="font-semibold text-zinc-100">New here? Start guided</div>
+                      <div className="text-xs text-zinc-400 mt-0.5">Answer a few questions — Forge writes the spec for you</div>
+                    </div>
+                  </div>
+                </Link>
+                <Link href="/forge" className="group">
+                  <div className="flex items-start gap-3 rounded-xl border border-zinc-700 bg-zinc-900/50 px-5 py-4 text-left transition-all hover:border-zinc-600 hover:bg-zinc-900">
+                    <PenLine className="mt-0.5 h-5 w-5 shrink-0 text-zinc-400" />
+                    <div>
+                      <div className="font-semibold text-zinc-100">Have a spec? Go direct</div>
+                      <div className="text-xs text-zinc-400 mt-0.5">Paste or upload your spec and run immediately</div>
+                    </div>
+                  </div>
+                </Link>
               </div>
             </div>
           </section>

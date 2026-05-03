@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { History, Hammer, Bug } from 'lucide-react'
+import { History, Sparkles, PenLine } from 'lucide-react'
 import { Header } from '@/src/components/layout/header'
 import { PageContainer } from '@/src/components/layout/page-container'
 import { Button } from '@/src/components/ui/button'
@@ -20,26 +20,26 @@ export default function ForgePage() {
 
       <PageContainer>
         <div className="mx-auto max-w-2xl space-y-6">
-          <div className="space-y-1">
-            <p className="text-sm leading-6 text-zinc-400">
-              Build features or fix bugs — Forge clones your repo, generates code, and opens a merge request.
-            </p>
-          </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex items-start gap-3 rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
-              <Hammer className="mt-0.5 h-4 w-4 shrink-0 text-orange-400" />
-              <div>
-                <div className="text-sm font-medium text-zinc-200">Build Mode</div>
-                <p className="mt-0.5 text-xs leading-5 text-zinc-500">Paste or upload a feature spec and Forge generates, verifies, and ships the code.</p>
+          {/* Two-path explainer */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <PenLine className="h-4 w-4 text-zinc-400" />
+                <span className="text-sm font-semibold text-zinc-200">Know what you want?</span>
               </div>
+              <p className="text-xs leading-5 text-zinc-500">
+                Paste your spec directly or upload a doc. Forge clones your repo, generates the code, and opens a merge request.
+              </p>
             </div>
-            <div className="flex items-start gap-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
-              <Bug className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
-              <div>
-                <div className="text-sm font-medium text-zinc-200">Debug Mode</div>
-                <p className="mt-0.5 text-xs leading-5 text-zinc-500">Describe a bug with logs and Forge diagnoses, fixes, and creates a merge request.</p>
+            <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="h-4 w-4 text-orange-400" />
+                <span className="text-sm font-semibold text-orange-200">Not sure how to describe it?</span>
               </div>
+              <p className="text-xs leading-5 text-zinc-500">
+                Click <strong className="text-orange-400 font-medium">"Help me describe it"</strong> — answer a few plain-English questions and Forge writes the spec for you.
+              </p>
             </div>
           </div>
 
@@ -51,6 +51,7 @@ export default function ForgePage() {
               <ModeSelector />
             </CardContent>
           </Card>
+
         </div>
       </PageContainer>
     </>

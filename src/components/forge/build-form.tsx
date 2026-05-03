@@ -210,14 +210,14 @@ export default function BuildForm() {
       <div>
         <label className="flex items-center gap-1.5 text-sm font-medium text-zinc-300 mb-2">
           <Link className="h-3.5 w-3.5" />
-          GitLab Repo URL
+          Repo URL
         </label>
         <input
           type="url"
           value={repoUrl}
           onChange={e => setRepoUrl(e.target.value)}
           required
-          placeholder="https://labs.gauntletai.com/your-group/your-repo"
+          placeholder="https://github.com/your-org/your-repo"
           className="w-full bg-zinc-900/50 border border-zinc-700 rounded-lg p-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/30 text-sm"
         />
       </div>

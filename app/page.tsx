@@ -10,27 +10,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/ca
 import {
   Plus,
   Flame,
+  GitMerge,
+  Hammer,
+  Bug,
+  FolderOpen,
   GitBranch,
   Zap,
-  FolderOpen,
-  Rocket,
-  ShieldCheck,
-  BadgeDollarSign,
   ArrowRight,
-  BookOpen,
-  Hammer,
-  LayoutDashboard,
+  Search,
+  Code2,
+  CheckCircle2,
 } from 'lucide-react';
-import {
-  forgeBetaPlans,
-  forgeBetaPromises,
-  forgeBuyerPersonas,
-  forgeDeliveryPromises,
-  forgeSavingsProof,
-  forgeTrustSignals,
-} from '@/src/lib/product-offerings';
+import { forgeBuyerPersonas } from '@/src/lib/product-offerings';
 import { type ProjectSummary } from '@/src/types/project';
-import { DwarfForgeScene } from '@/src/components/forge/dwarf-forge-scene';
 
 export default async function DashboardPage() {
   const session = await getSessionOrDemo();
@@ -54,20 +46,6 @@ export default async function DashboardPage() {
   return (
     <>
       <Header title="The One Forge">
-        <nav className="hidden items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950/70 p-1 md:flex">
-          <Button asChild variant="ghost" size="sm">
-            <a href="#overview">Overview</a>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
-            <a href="#learn-more">Learn More</a>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
-            <a href="#pricing">Pricing</a>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
-            <a href="#workspace">Workspace</a>
-          </Button>
-        </nav>
         <Link href="/projects/new">
           <Button size="sm">
             <Plus className="mr-2 h-4 w-4" />
@@ -77,98 +55,167 @@ export default async function DashboardPage() {
       </Header>
 
       <PageContainer>
-        <div className="space-y-6">
-          <section
-            id="overview"
-            className="grid scroll-mt-24 gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.9fr)]"
-          >
-            <Card className="border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-zinc-950 to-cyan-950/60">
-              <CardHeader className="space-y-3">
-                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-cyan-200">
-                  <Rocket className="h-3.5 w-3.5" />
-                  Product Overview
-                </div>
-                <CardTitle className="text-3xl tracking-tight text-zinc-50">
-                  Generate repo-aware code, verify it, and publish a reviewed GitLab merge request.
-                </CardTitle>
-                <p className="max-w-3xl text-sm leading-6 text-zinc-300">
-                  The One Forge turns a feature spec or bug report into a traceable run: clone the repo, analyze conventions, draft a plan, generate code, run readiness checks, and keep a human approval gate before anything ships.
-                </p>
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <Button asChild size="sm">
-                    <a href="#workspace">
-                      <Hammer className="mr-2 h-4 w-4" />
-                      Go to Workspace
-                    </a>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <a href="#learn-more">
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      Learn More
-                    </a>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <a href="#pricing">
-                      <BadgeDollarSign className="mr-2 h-4 w-4" />
-                      Pricing
-                    </a>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-3">
-                {forgeBetaPromises.map((promise) => (
-                  <div key={promise} className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-200">
-                    {promise}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+        <div className="space-y-10">
 
-            <Card className="border-cyan-500/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <LayoutDashboard className="h-5 w-5 text-cyan-300" />
-                  Product Snapshot
+          {/* ── Hero ── */}
+          <section className="rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-zinc-950 to-zinc-900 px-8 py-10">
+            <div className="mx-auto max-w-3xl text-center">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-xs font-medium uppercase tracking-widest text-orange-300">
+                <Flame className="h-3.5 w-3.5" />
+                AI Software Factory
+              </div>
+              <h1 className="mb-4 text-4xl font-bold tracking-tight text-zinc-50">
+                Describe what you want built.<br />
+                Get a reviewed merge request.
+              </h1>
+              <p className="mb-8 text-base leading-7 text-zinc-400">
+                Point Forge at a GitLab repo and paste a feature spec or bug report.
+                It clones your repo, learns your code patterns, generates the implementation,
+                verifies the build, and hands you a diff to approve — before anything ships.
+              </p>
+              <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                <Button asChild size="lg" className="w-full sm:w-auto">
+                  <Link href="/forge">
+                    <Hammer className="mr-2 h-5 w-5" />
+                    Build a Feature
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+                  <Link href="/forge">
+                    <Bug className="mr-2 h-5 w-5" />
+                    Fix a Bug
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </section>
+
+          {/* ── How it works ── */}
+          <section className="space-y-4">
+            <div className="text-center">
+              <div className="text-xs font-medium uppercase tracking-widest text-cyan-400">How it works</div>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Three steps, human in the loop</h2>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="relative rounded-xl border border-zinc-800 bg-zinc-950/60 p-6">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/15 text-orange-400 ring-1 ring-orange-500/30">
+                  <Search className="h-5 w-5" />
+                </div>
+                <div className="mb-1 text-xs font-bold uppercase tracking-widest text-orange-400">Step 1</div>
+                <h3 className="mb-2 font-semibold text-zinc-100">You describe the work</h3>
+                <p className="text-sm leading-6 text-zinc-400">
+                  Paste a feature spec, bug report, or upload a markdown file. Add your GitLab repo URL. That's it — Forge handles the rest.
+                </p>
+              </div>
+
+              <div className="relative rounded-xl border border-zinc-800 bg-zinc-950/60 p-6">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500/15 text-cyan-400 ring-1 ring-cyan-500/30">
+                  <Code2 className="h-5 w-5" />
+                </div>
+                <div className="mb-1 text-xs font-bold uppercase tracking-widest text-cyan-400">Step 2</div>
+                <h3 className="mb-2 font-semibold text-zinc-100">Forge writes the code</h3>
+                <p className="text-sm leading-6 text-zinc-400">
+                  Forge clones your repo, reads your existing patterns and conventions, then generates the implementation. It runs the build to verify it compiles — and auto-fixes errors if it doesn't.
+                </p>
+              </div>
+
+              <div className="relative rounded-xl border border-zinc-800 bg-zinc-950/60 p-6">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div className="mb-1 text-xs font-bold uppercase tracking-widest text-emerald-400">Step 3</div>
+                <h3 className="mb-2 font-semibold text-zinc-100">You review &amp; approve</h3>
+                <p className="text-sm leading-6 text-zinc-400">
+                  You see the plan before any code is written, and the diff before anything is pushed. Approve both gates and Forge opens a GitLab merge request on a clean branch.
+                </p>
+              </div>
+            </div>
+
+            {/* Flow bar */}
+            <div className="flex flex-wrap items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950/40 px-6 py-4 text-xs text-zinc-500">
+              {[
+                'Clone repo',
+                'Read conventions',
+                'Generate code',
+                'Verify build',
+                '→ Auto-fix if needed',
+                'Approve plan',
+                'Approve diff',
+                'Open merge request',
+              ].map((step, i) => (
+                <span key={i} className={`flex items-center gap-2 ${step.startsWith('→') ? 'text-amber-500/70' : ''}`}>
+                  {i > 0 && !step.startsWith('→') && <span className="text-zinc-700">·</span>}
+                  {step}
+                </span>
+              ))}
+            </div>
+          </section>
+
+          {/* ── Two modes ── */}
+          <section className="grid gap-4 sm:grid-cols-2">
+            <Card className="border-orange-500/20 bg-orange-500/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base text-orange-300">
+                  <Hammer className="h-4 w-4" />
+                  Build Mode
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Live flow</div>
-                  <p className="mt-2 leading-6 text-zinc-300">
-                    Build mode accepts a feature spec and GitLab repo URL. Debug mode accepts a bug report and repo URL. Both pause for plan approval, then code approval, before publishing.
-                  </p>
-                </div>
-                <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Demo proof points</div>
-                  <p className="mt-2 leading-6 text-zinc-300">
-                    Show run history, streaming logs, generated diffs, verification badges, measured token cost, and the final merge-request handoff path.
-                  </p>
-                </div>
-                <Button asChild variant="outline" size="sm" className="w-full">
-                  <a href="#workspace">Jump to current projects</a>
+                <p className="leading-6 text-zinc-300">
+                  Give Forge a feature spec — a markdown doc, pasted text, or uploaded file — plus your repo URL. It generates a full implementation: code, tests, Dockerfile, and CI config.
+                </p>
+                <ul className="space-y-1.5 text-zinc-400">
+                  {['Analyzes your existing code conventions', 'Generates repo-aware implementation', 'Runs build verification + auto-fix loop', 'Creates branch + merge request'].map(item => (
+                    <li key={item} className="flex items-center gap-2">
+                      <span className="h-1 w-1 rounded-full bg-orange-500/60" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <Button asChild size="sm" className="w-full mt-2">
+                  <Link href="/forge">Start building →</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-cyan-500/20 bg-cyan-500/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base text-cyan-300">
+                  <Bug className="h-4 w-4" />
+                  Debug Mode
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <p className="leading-6 text-zinc-300">
+                  Describe a bug and paste any error logs or stack traces. Forge maps your codebase, identifies the root cause, plans the fix, and generates a targeted patch — no guessing.
+                </p>
+                <ul className="space-y-1.5 text-zinc-400">
+                  {['Maps affected files and call paths', 'Root cause analysis with evidence', 'Targeted fix — smallest safe change', 'Creates branch + merge request'].map(item => (
+                    <li key={item} className="flex items-center gap-2">
+                      <span className="h-1 w-1 rounded-full bg-cyan-500/60" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <Button asChild variant="outline" size="sm" className="w-full mt-2">
+                  <Link href="/forge">Start debugging →</Link>
                 </Button>
               </CardContent>
             </Card>
           </section>
 
-          <section id="learn-more" className="scroll-mt-24 space-y-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-[0.24em] text-cyan-300">Learn More</div>
-                <h2 className="text-2xl font-semibold tracking-tight text-zinc-50">
-                  Built for launch-ready software work, not toy generation.
-                </h2>
-              </div>
-              <p className="max-w-2xl text-sm leading-6 text-zinc-400">
-                Forge is strongest when you can point it at a real repository and ask for a scoped feature, targeted fix, test pass, or deployment upgrade.
-              </p>
+          {/* ── Who it's for ── */}
+          <section className="space-y-4">
+            <div className="text-center">
+              <div className="text-xs font-medium uppercase tracking-widest text-cyan-400">Use cases</div>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50">Built for real engineering work</h2>
             </div>
-
             <div className="grid gap-4 lg:grid-cols-3">
               {forgeBuyerPersonas.map((persona) => (
                 <Card key={persona.title}>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">{persona.title}</CardTitle>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold text-zinc-100">{persona.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm leading-6 text-zinc-400">{persona.description}</p>
@@ -176,207 +223,68 @@ export default async function DashboardPage() {
                 </Card>
               ))}
             </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">What Buyers Get</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {forgeDeliveryPromises.map((promise) => (
-                    <div key={promise} className="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
-                      <Rocket className="mt-0.5 h-4 w-4 shrink-0 text-orange-300" />
-                      <span className="text-sm text-zinc-300">{promise}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Trust Signals</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {forgeTrustSignals.map((signal) => (
-                    <div key={signal} className="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
-                      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
-                      <span className="text-sm text-zinc-300">{signal}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
           </section>
 
-          <section id="pricing" className="scroll-mt-24 space-y-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          {/* ── Workspace / Projects ── */}
+          <section className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-950/30 p-6">
+            <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs uppercase tracking-[0.24em] text-cyan-300">Pricing</div>
-                <h2 className="text-2xl font-semibold tracking-tight text-zinc-50">
-                  Customer-facing pricing tied to engineering time saved.
-                </h2>
+                <div className="text-xs font-medium uppercase tracking-widest text-orange-400">Workspace</div>
+                <h2 className="mt-0.5 text-xl font-semibold tracking-tight text-zinc-50">Your projects</h2>
               </div>
-              <p className="max-w-2xl text-sm leading-6 text-zinc-400">
-                Forge is priced as delivery capacity, not raw token resale. The buyer story is simple: reduce repetitive implementation, debugging, and handoff time while keeping human review, cost reporting, and approval controls in the workflow.
-              </p>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-3">
-              {forgeBetaPlans.map((plan) => (
-                <Card key={plan.name} className="border-cyan-500/20">
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between gap-3 text-lg">
-                      <span>{plan.name}</span>
-                      <span className="text-right text-xs font-medium text-cyan-300">{plan.price}</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 text-sm">
-                    <p className="text-zinc-300">{plan.audience}</p>
-                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3 text-zinc-400">
-                      {plan.highlight}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <Card className="border-emerald-500/20 bg-emerald-500/5">
-              <CardHeader>
-                <CardTitle className="flex flex-col gap-1 text-lg sm:flex-row sm:items-center sm:justify-between">
-                  <span>{forgeSavingsProof.title}</span>
-                  <span className="text-sm font-medium text-emerald-300">{forgeSavingsProof.metric}</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3 text-sm lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <div className="rounded-lg border border-emerald-500/20 bg-black/20 p-3 leading-6 text-zinc-200">
-                  {forgeSavingsProof.scenario}
-                </div>
-                <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 leading-6 text-zinc-400">
-                  {forgeSavingsProof.note}
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-
-          <section
-            id="workspace"
-            className="scroll-mt-24 space-y-6 rounded-2xl border border-orange-500/10 bg-black/10 p-5 sm:p-6"
-          >
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-[0.24em] text-orange-300">Workspace</div>
-                <h2 className="text-2xl font-semibold tracking-tight text-zinc-50">
-                  Build-related activity lives here.
-                </h2>
-              </div>
-              <p className="max-w-2xl text-sm leading-6 text-zinc-400">
-                This is the operational side of Forge: projects, pipeline volume, success rate, and the actual workbench for new runs.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-6 text-sm text-zinc-400">
-              <span className="flex items-center gap-1.5">
-                <FolderOpen className="h-4 w-4 text-orange-400" />
-                <span className="font-medium text-zinc-200">{projects.length}</span> projects
-              </span>
-              <span className="flex items-center gap-1.5">
-                <GitBranch className="h-4 w-4 text-orange-400" />
-                <span className="font-medium text-zinc-200">{totalRuns}</span> pipeline runs
-              </span>
-              {totalRuns > 0 && (
+              <div className="flex items-center gap-4 text-sm text-zinc-500">
                 <span className="flex items-center gap-1.5">
-                  <Zap className="h-4 w-4 text-emerald-400" />
-                  <span className="font-medium text-zinc-200">
-                    {Math.round((completedRuns / totalRuns) * 100)}%
-                  </span> success rate
+                  <FolderOpen className="h-4 w-4 text-orange-400" />
+                  <span className="font-medium text-zinc-200">{projects.length}</span> projects
                 </span>
-              )}
-              {!databaseAvailable && (
-                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
-                  Demo data mode: local database is offline
-                </span>
-              )}
+                {totalRuns > 0 && (
+                  <>
+                    <span className="flex items-center gap-1.5">
+                      <GitBranch className="h-4 w-4 text-orange-400" />
+                      <span className="font-medium text-zinc-200">{totalRuns}</span> runs
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Zap className="h-4 w-4 text-emerald-400" />
+                      <span className="font-medium text-zinc-200">
+                        {Math.round((completedRuns / totalRuns) * 100)}%
+                      </span> success
+                    </span>
+                  </>
+                )}
+                {!databaseAvailable && (
+                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-300">
+                    Demo mode
+                  </span>
+                )}
+              </div>
             </div>
 
             {projectSummaries.length === 0 ? (
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)]">
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-orange-500/10 bg-black/10 py-12 text-center">
-                  <div className="mb-6 w-full max-w-lg">
-                    <DwarfForgeScene variant="idle" className="opacity-60" />
-                  </div>
-                  <h2 className="doom-forge-title mb-1 text-3xl uppercase tracking-widest">The One Forge</h2>
-                  <div className="mt-4 max-w-sm">
-                    <p className="doom-forge-poem text-sm leading-relaxed tracking-wide">
-                      One Forge to build them all,<br />
-                      One Pipe to find them,<br />
-                      One DAG to bring them all,<br />
-                      And in the pipeline bind them.
-                    </p>
-                    <p className="doom-forge-poem mt-2 text-xs tracking-wide opacity-50">
-                      In the Land of Vercel where the Dwarves deploy.
-                    </p>
-                  </div>
-                  <Link href="/projects/new" className="mt-8">
-                    <Button>
-                      <Flame className="mr-2 h-4 w-4" />
-                      Ignite the Forge
-                    </Button>
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 py-14 text-center">
+                <GitMerge className="mb-4 h-10 w-10 text-zinc-700" />
+                <p className="text-sm font-medium text-zinc-400">No projects yet</p>
+                <p className="mt-1 text-xs text-zinc-600">Create a project to start tracking your Forge runs</p>
+                <Button asChild size="sm" className="mt-5">
+                  <Link href="/projects/new">
+                    <Flame className="mr-2 h-4 w-4" />
+                    Create your first project
                   </Link>
-                </div>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Start Here</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4 text-sm leading-6 text-zinc-300">
-                      Start a project to move from the product story into actual build execution. This workspace will fill with runs, previews, and delivery artifacts once the first project lands.
-                    </div>
-                    <Link href="/projects/new" className="inline-flex items-center text-sm font-medium text-cyan-300 hover:text-cyan-200">
-                      Start with a guided template
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </CardContent>
-                </Card>
+                </Button>
               </div>
             ) : (
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.85fr)]">
-                <div className="space-y-6">
-                  <div className="py-3 text-center">
-                    <h2 className="doom-forge-title mb-2 text-2xl uppercase tracking-widest">The One Forge</h2>
-                    <p className="doom-forge-poem text-xs tracking-wide">
-                      One Forge to build them all, One Pipe to find them, One DAG to bring them all, And in the pipeline bind them.
-                    </p>
-                  </div>
-
-                  <DashboardProjectGrid projects={projectSummaries} />
-                </div>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Workspace Snapshot</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4">
-                      <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Core Use Cases</div>
-                      <p className="mt-2 text-sm leading-6 text-zinc-300">Feature builds, targeted bug fixes, readiness verification, and merge-request handoff.</p>
-                    </div>
-                    <div className="space-y-3">
-                      {forgeTrustSignals.map((signal) => (
-                        <div key={signal} className="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
-                          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
-                          <span className="text-sm text-zinc-300">{signal}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-4 text-sm text-zinc-300">
-                      Interview path: create or open a Forge run, show logs, approve the plan, review the diff, and point to measured cost details.
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <DashboardProjectGrid projects={projectSummaries} />
             )}
+
+            <div className="flex justify-end">
+              <Button asChild variant="ghost" size="sm" className="text-zinc-500 hover:text-zinc-300">
+                <Link href="/forge/runs">
+                  View all runs
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
           </section>
+
         </div>
       </PageContainer>
     </>
